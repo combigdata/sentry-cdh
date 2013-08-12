@@ -18,14 +18,14 @@ limitations under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>13</version>
+    <groupId>com.cloudera.cdh</groupId>
+    <artifactId>cdh-root</artifactId>
+    <version>5.0.0-SNAPSHOT</version>
   </parent>
 
   <groupId>org.apache.sentry</groupId>
   <artifactId>sentry</artifactId>
-  <version>1.3.0-incubating-SNAPSHOT</version>
+  <version>1.2.0-cdh5.0.0-SNAPSHOT</version>
   <description>Sentry component</description>
   <name>Sentry</name>
   <packaging>pom</packaging>
@@ -52,8 +52,8 @@ limitations under the License.
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compile.source>1.6</maven.compile.source>
     <maven.compile.target>1.6</maven.compile.target>
-    <hive.version>0.10.0-cdh4.4.0-SNAPSHOT</hive.version>
-    <hadoop.version>2.0.0-cdh4.4.0-SNAPSHOT</hadoop.version>
+    <hive.version>0.11.0-cdh5.0.0-SNAPSHOT</hive.version>
+    <hadoop.version>2.1.0-cdh5.0.0-SNAPSHOT</hadoop.version>
     <junit.version>4.9</junit.version>
     <fest.reflect.version>1.4.1</fest.reflect.version>
     <log4j.version>1.2.16</log4j.version>
@@ -61,9 +61,7 @@ limitations under the License.
     <shiro.version>1.2.1</shiro.version>
     <slf4j.version>1.6.1</slf4j.version>
     <derby.version>10.4.2.0</derby.version>
-    <libthrift.version>0.9.0-cdh4-1</libthrift.version>
-    <hadoop.version>2.0.0-cdh4.4.0-SNAPSHOT</hadoop.version>
-    <zookeeper.version>3.4.5-cdh4.4.0-SNAPSHOT</zookeeper.version>
+    <libthrift.version>0.9.0.cloudera.2</libthrift.version>
   </properties>
 
   <dependencyManagement>
@@ -204,12 +202,6 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.apache.hive</groupId>
-        <artifactId>hive-pdk</artifactId>
-        <version>${hive.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hive</groupId>
         <artifactId>hive-hbase-handler</artifactId>
         <version>${hive.version}</version>
         <scope>provided</scope>
@@ -223,12 +215,6 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hive</groupId>
         <artifactId>hive-cli</artifactId>
-        <version>${hive.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hive</groupId>
-        <artifactId>hive-builtins</artifactId>
         <version>${hive.version}</version>
         <scope>provided</scope>
       </dependency>
