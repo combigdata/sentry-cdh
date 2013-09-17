@@ -16,13 +16,13 @@
  */
 package org.apache.sentry.tests.e2e.hive.fs;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 import junit.framework.Assert;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-
-import java.io.File;
-import java.io.IOException;
 
 public class MiniDFS extends AbstractDFS {
   private static MiniDFSCluster dfsCluster;
@@ -32,6 +32,7 @@ public class MiniDFS extends AbstractDFS {
     File dfsDir = assertCreateDir(new File(baseDir, "dfs"));
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dfsDir.getPath());
     dfsCluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    waitForStartup(2L);
     fileSystem = dfsCluster.getFileSystem();
     dfsBaseDir = assertCreateDfsDir(new Path(new Path(fileSystem.getUri()), "/base"));
   }
@@ -50,5 +51,20 @@ public class MiniDFS extends AbstractDFS {
       Assert.assertTrue("Failed creating " + dir, dir.mkdirs());
     }
     return dir;
+  }
+
+  // make sure that the cluster is up
+  private static void waitForStartup(long timeoutSeconds) throws Exception {
+    dfsCluster.restartDataNodes();
+    dfsCluster.restartNameNode();
+    int waitTime = 0;
+    long startupTimeout = 1000L * timeoutSeconds;
+    do {
+      Thread.sleep(500L);
+      waitTime += 500L;
+      if (waitTime > startupTimeout) {
+        throw new TimeoutException("Couldn't start miniDFS cluster");
+      }
+    } while (!dfsCluster.isClusterUp());
   }
 }
