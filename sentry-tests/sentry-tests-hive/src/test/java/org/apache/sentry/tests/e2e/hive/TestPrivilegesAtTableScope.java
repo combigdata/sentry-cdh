@@ -17,8 +17,8 @@
 
 package org.apache.sentry.tests.e2e.hive;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -200,7 +200,7 @@ public class TestPrivilegesAtTableScope extends AbstractTestWithStaticConfigurat
     statement = context.createStatement(connection);
     statement.execute("USE DB_1");
     // test user can execute insert on table
-    statement.executeQuery("INSERT INTO TABLE TAB_1 SELECT A FROM TAB_2");
+    statement.execute("INSERT INTO TABLE TAB_1 SELECT A FROM TAB_2");
 
     // negative test: user can't query table
     try {
@@ -302,7 +302,7 @@ public class TestPrivilegesAtTableScope extends AbstractTestWithStaticConfigurat
 
     // negative test: test insert into table
     try {
-      statement.executeQuery("INSERT INTO TABLE TAB_1 SELECT A FROM TAB_2");
+      statement.execute("INSERT INTO TABLE TAB_1 SELECT A FROM TAB_2");
       Assert.fail("Expected SQL exception");
     } catch (SQLException e) {
       context.verifyAuthzException(e);
