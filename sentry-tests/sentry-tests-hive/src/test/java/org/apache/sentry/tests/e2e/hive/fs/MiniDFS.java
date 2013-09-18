@@ -23,11 +23,44 @@ import junit.framework.Assert;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+<<<<<<< HEAD:sentry-tests/sentry-tests-hive/src/test/java/org/apache/sentry/tests/e2e/hive/fs/MiniDFS.java
+=======
+import org.apache.hive.service.auth.PlainSaslServer.SaslPlainProvider;
+import org.apache.sentry.tests.e2e.hiveserver.HiveServerFactory;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+
+public abstract class AbstractTestWithStaticDFS extends AbstractTestWithStaticConfiguration {
+>>>>>>> d9133ac... CLOUDERA-BUILD: CDH-14325: Fix Sentry test failures with CDH5 miniCluster:sentry-tests/src/test/java/org/apache/sentry/tests/e2e/AbstractTestWithStaticDFS.java
 
 public class MiniDFS extends AbstractDFS {
   private static MiniDFSCluster dfsCluster;
 
+<<<<<<< HEAD:sentry-tests/sentry-tests-hive/src/test/java/org/apache/sentry/tests/e2e/hive/fs/MiniDFS.java
   MiniDFS(File baseDir) throws Exception {
+=======
+  @Before
+  public void setupTestWithDFS() throws IOException {
+    Assert.assertTrue(dfsBaseDir.toString(), fileSystem.delete(dfsBaseDir, true));
+    Assert.assertTrue(dfsBaseDir.toString(), fileSystem.mkdirs(dfsBaseDir));
+  }
+
+  protected static Path assertCreateDfsDir(Path dir) throws IOException {
+    if(!fileSystem.isDirectory(dir)) {
+      Assert.assertTrue("Failed creating " + dir, fileSystem.mkdirs(dir));
+    }
+    return dir;
+  }
+  @BeforeClass
+  public static void setupTestWithStaticDFS()
+      throws Exception {
+    /**
+     * Hadoop 2.1 includes its own implementation of Plain SASL server that conflicts with the one included with HS2
+     * when we load the MiniDFS. This is a workaround to force Hive's implementation for the test
+     */
+    java.security.Security.addProvider(new SaslPlainProvider());
+
     Configuration conf = new Configuration();
     File dfsDir = assertCreateDir(new File(baseDir, "dfs"));
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dfsDir.getPath());
