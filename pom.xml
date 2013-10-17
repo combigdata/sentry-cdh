@@ -52,6 +52,7 @@ limitations under the License.
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compile.source>1.6</maven.compile.source>
     <maven.compile.target>1.6</maven.compile.target>
+<<<<<<< HEAD
     <!-- versions are in alphabetical order -->
     <ant.contrib.version>1.0b3</ant.contrib.version>
     <maven.antrun.plugin.version>1.7</maven.antrun.plugin.version>
@@ -64,8 +65,8 @@ limitations under the License.
     <datanucleus-core.version>3.2.2</datanucleus-core.version>
     <datanucleus-rdbms.version>3.2.1</datanucleus-rdbms.version>
     <derby.version>10.4.2.0</derby.version>
-    <hive.version>0.12.0-cdh5.1.0-SNAPSHOT</hive.version>
-    <hadoop.version>2.2.0-cdh5.1.0-SNAPSHOT</hadoop.version>
+    <hive.version>${cdh.hive.version}</hive.version>
+    <hadoop.version>${cdh.hadoop.version}</hadoop.version>
     <junit.version>4.9</junit.version>
     <fest.reflect.version>1.4.1</fest.reflect.version>
     <guava.version>11.0.2</guava.version>
