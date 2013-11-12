@@ -68,6 +68,7 @@ public abstract class AbstractHiveServer implements HiveServer {
         throw new TimeoutException("Couldn't access new HiveServer: " + hiveServer.getURL());
       }
       try {
+    	DriverManager.setLoginTimeout(30*1000);
         Connection connection =  DriverManager.getConnection(hiveServer.getURL(), "hive", "bar");
         connection.close();
         break;

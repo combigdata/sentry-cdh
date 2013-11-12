@@ -75,6 +75,7 @@ public class Context {
 
   public Connection createConnection(String username, String password) throws Exception {
     String url = hiveServer.getURL();
+    DriverManager.setLoginTimeout(30*1000);
     Connection connection =  DriverManager.getConnection(url, username, password);
     connections.add(connection);
     assertNotNull("Connection is null", connection);

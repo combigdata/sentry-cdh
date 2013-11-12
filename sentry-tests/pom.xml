@@ -263,8 +263,8 @@ limitations under the License.
                     }
                     rm -rf $DOWNLOAD_DIR
                     mkdir -p $DOWNLOAD_DIR
-                    download "http://archive.cloudera.com/cdh4/cdh/4/hadoop-latest.tar.gz" hadoop.tar.gz hadoop
-                    download "http://archive.cloudera.com/cdh4/cdh/4/hive-latest.tar.gz" hive.tar.gz hive
+                    download "http://repos.jenkins.cloudera.com/cdh4-nightly/cdh/4/hadoop-latest.tar.gz" hadoop.tar.gz hadoop
+                    download "http://repos.jenkins.cloudera.com/cdh4-nightly/cdh/4/hive-latest.tar.gz" hive.tar.gz hive
                   </echo>
                   <exec executable="sh" dir="${basedir}" failonerror="true">
                     <arg line="target/download.sh"/>
