@@ -24,7 +24,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hive.service.auth.PlainSaslServer.SaslPlainProvider;
-import org.apache.sentry.tests.e2e.hiveserver.HiveServerFactory;
 
 public class MiniDFS extends AbstractDFS {
   private static MiniDFSCluster dfsCluster;
