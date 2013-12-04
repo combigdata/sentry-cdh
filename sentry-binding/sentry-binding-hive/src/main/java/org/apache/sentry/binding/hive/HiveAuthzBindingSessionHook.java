@@ -70,9 +70,9 @@ public class HiveAuthzBindingSessionHook
     appendConfVar(sessionConf, ConfVars.PREEXECHOOKS, PRE_EXEC_HOOK);
     appendConfVar(sessionConf, ConfVars.HIVE_EXEC_FILTER_HOOK, FILTER_HOOK);
 
+    sessionConf.setVar(ConfVars.HIVE_SECURITY_COMMAND_WHITELIST, "set");
     // setup config
     sessionConf.setBoolVar(ConfVars.HIVE_EXTENDED_ENITITY_CAPTURE, true);
-    sessionConf.setVar(ConfVars.HIVE_SECURITY_COMMAND_WHITELIST, "set");
     sessionConf.setVar(ConfVars.SCRATCHDIRPERMISSION, SCRATCH_DIR_PERMISSIONS);
 
     // set user name
