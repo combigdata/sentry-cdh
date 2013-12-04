@@ -38,7 +38,7 @@ public class EmbeddedHiveServer implements HiveServer {
 
   public Connection createConnection(String user, String password) throws Exception{
     String url = getURL();
-    DriverManager.setLoginTimeout(30);
+    DriverManager.setLoginTimeout(30 * 1000);
     Connection connection =  DriverManager.getConnection(url, user, password);
     return connection;
   }
