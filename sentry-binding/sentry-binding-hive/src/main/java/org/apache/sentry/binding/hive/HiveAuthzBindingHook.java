@@ -369,6 +369,14 @@ implements HiveDriverFilterHook {
       }
 
       for(ReadEntity readEntity:inputs) {
+      	 // If this is a UDF, then check whether its allowed to be executed
+         // TODO: when we support execute privileges on UDF, this can be removed.
+        if (isUDF(readEntity)) {
+          if (isBuiltinUDF(readEntity)) {
+            checkUDFWhiteList(readEntity.getUDF().getDisplayName());
+          }
+          continue;
+        }
         List<Authorizable> entityHierarchy = new ArrayList<Authorizable>();
         entityHierarchy.add(hiveAuthzBinding.getAuthServer());
         entityHierarchy.addAll(getAuthzHierarchyFromEntity(readEntity));
