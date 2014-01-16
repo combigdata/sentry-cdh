@@ -50,7 +50,7 @@ public class TestWildcardPermission {
           "hdfs://namenode:8020/path/to/uri1"));
   private static final Permission ROLE_SERVER_SERVER1_URI_URI2 =
       create(new KeyValue("server", "server1"), new KeyValue("uri",
-          "hdfs://namenode:8020/path/to/uri2"));
+          "hdfs://namenode:8020/path/to/uri2/"));
   private static final Permission ROLE_SERVER_SERVER1_URI_ALL =
       create(new KeyValue("server", "server1"), new KeyValue("uri", ALL));
 
@@ -271,6 +271,9 @@ public class TestWildcardPermission {
     // mangled path
     assertFalse(WildcardPermission.impliesURI("hdfs://namenode:8020/path",
         "hdfs://namenode:8020/pathFooBar"));
+    // ends in /
+    assertTrue(DBWildcardPermission.impliesURI("hdfs://namenode:8020/path/",
+        "hdfs://namenode:8020/path/FooBar"));
   }
   static WildcardPermission create(KeyValue... keyValues) {
     return create(AUTHORIZABLE_JOINER.join(keyValues));
