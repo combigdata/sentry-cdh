@@ -55,10 +55,11 @@ limitations under the License.
     <hive.version>${cdh.hive.version}</hive.version>
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
     <solr.version>${cdh.solr.version}</solr.version>
-    <junit.version>4.9</junit.version>
+    <commons.lang.version>2.6</commons.lang.version>
     <fest.reflect.version>1.4.1</fest.reflect.version>
-    <log4j.version>1.2.16</log4j.version>
     <guava.version>11.0.2</guava.version>
+    <junit.version>4.9</junit.version>
+    <log4j.version>1.2.16</log4j.version>
     <shiro.version>1.2.1</shiro.version>
     <slf4j.version>1.6.1</slf4j.version>
     <derby.version>10.4.2.0</derby.version>
@@ -67,6 +68,11 @@ limitations under the License.
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>commons-lang</groupId>
+        <artifactId>commons-lang</artifactId>
+        <version>${commons.lang.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.derby</groupId>
         <artifactId>derby</artifactId>
@@ -334,11 +340,11 @@ limitations under the License.
                   <exclude>cloudera/*</exclude>
                   <exclude>**/*.patch</exclude>
                   <exclude>README*</exclude>
-                  <exclude>.project</exclude>
+                  <exclude>**/.project</exclude>
                   <exclude>**/target/</exclude>
-                  <exclude>.settings</exclude>
-                  <exclude>.metadata/</exclude>
-                  <exclude>.classpath</exclude>
+                  <exclude>**/.settings/**</exclude>
+                  <exclude>**/.metadata/</exclude>
+                  <exclude>**/.classpath</exclude>
                   <exclude>**/service.properties</exclude>
                   <exclude>**/kv1.dat</exclude>
                   <exclude>**/*.lck</exclude>
