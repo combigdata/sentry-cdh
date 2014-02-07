@@ -272,7 +272,7 @@ public class TestWildcardPermission {
     assertFalse(WildcardPermission.impliesURI("hdfs://namenode:8020/path",
         "hdfs://namenode:8020/pathFooBar"));
     // ends in /
-    assertTrue(DBWildcardPermission.impliesURI("hdfs://namenode:8020/path/",
+    assertTrue(WildcardPermission.impliesURI("hdfs://namenode:8020/path/",
         "hdfs://namenode:8020/path/FooBar"));
   }
   static WildcardPermission create(KeyValue... keyValues) {
