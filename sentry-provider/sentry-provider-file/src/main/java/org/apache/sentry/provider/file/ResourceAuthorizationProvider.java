@@ -48,13 +48,19 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
   private final GroupMappingService groupService;
   private final PolicyEngine policy;
   private final PermissionFactory permissionFactory;
-  private final List<String> lastFailedPermissions = new ArrayList<String>();
+  private final ThreadLocal<List<String>> lastFailedPrivileges;
 
   public ResourceAuthorizationProvider(PolicyEngine policy,
       GroupMappingService groupService) {
     this.policy = policy;
     this.groupService = groupService;
     this.permissionFactory = policy.getPermissionFactory();
+    this.lastFailedPrivileges = new ThreadLocal<List<String>>() {
+      @Override
+      protected List<String> initialValue() {
+        return new ArrayList<String>();
+      }
+    };
   }
 
   /***
@@ -90,7 +96,7 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
     }
     Iterable<Permission> permissions = getPermissions(authorizables, groups);
     List<String> requestPermissions = buildPermissions(authorizables, actions);
-    lastFailedPermissions.clear();
+    lastFailedPrivileges.get().clear();
 
     for (String requestPermission : requestPermissions) {
       for (Permission permission : permissions) {
@@ -107,7 +113,7 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
         }
       }
     }
-    lastFailedPermissions.addAll(requestPermissions);
+    lastFailedPrivileges.get().addAll(requestPermissions);
     return false;
   }
 
@@ -147,7 +153,7 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
 
   @Override
   public List<String> getLastFailedPermissions() {
-    return lastFailedPermissions;
+    return lastFailedPrivileges.get();
   }
 
   private List<String> buildPermissions(List<? extends Authorizable> authorizables,
