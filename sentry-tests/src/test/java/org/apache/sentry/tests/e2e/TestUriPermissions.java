@@ -146,8 +146,11 @@ public class TestUriPermissions extends AbstractTestWithStaticLocalFS {
     userConn = context.createConnection("user1", "foo");
     userStmt = context.createStatement(userConn);
     userStmt.execute("use " + dbName);
-    userStmt.execute("ALTER TABLE " + tabName + " ADD PARTITION (dt = '21-Dec-2012') " +
+    userStmt.execute("ALTER TABLE " + tabName + " ADD IF NOT EXISTS PARTITION (dt = '21-Dec-2012') " +
             " LOCATION '" + tabDir + "'");
+    userStmt.execute("ALTER TABLE " + tabName + " DROP PARTITION (dt = '21-Dec-2012')");
+    userStmt.execute("ALTER TABLE " + tabName + " ADD PARTITION (dt = '21-Dec-2012') " +
+        " LOCATION '" + tabDir + "'");
     // negative test user1 cannot alter partition location
     context.assertAuthzException(userStmt,
         "ALTER TABLE " + tabName + " PARTITION (dt = '21-Dec-2012') " + " SET LOCATION '" + tabDir + "'");
@@ -162,6 +165,8 @@ public class TestUriPermissions extends AbstractTestWithStaticLocalFS {
           " LOCATION '" + tabDir + "/foo'");
     // positive test, user2 can alter managed partitions
     userStmt.execute("ALTER TABLE " + tabName + " ADD PARTITION (dt = '22-Dec-2012')");
+    userStmt.execute("ALTER TABLE " + tabName + " DROP PARTITION (dt = '22-Dec-2012')");
+    userStmt.execute("ALTER TABLE " + tabName + " ADD IF NOT EXISTS PARTITION (dt = '22-Dec-2012')");
     userStmt.execute("ALTER TABLE " + tabName + " DROP PARTITION (dt = '22-Dec-2012')");
     userConn.close();
 
