@@ -17,9 +17,9 @@
 package org.apache.sentry.tests.e2e.hive.fs;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import junit.framework.Assert;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
