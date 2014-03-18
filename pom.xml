@@ -79,7 +79,8 @@ limitations under the License.
     <shiro.version>1.2.1</shiro.version>
     <slf4j.version>1.6.1</slf4j.version>
     <solr.version>4.4.0-cdh5.1.0-SNAPSHOT</solr.version>
-    <zookeeper.version>3.4.5-cdh5.1.0-SNAPSHOT</zookeeper.version>
+    <solr.sentry.handlers.version>4.4.0-cdh5.0.0-SNAPSHOT</solr.sentry.handlers.version>
+    <zookeeper.version>3.4.5-cdh5.0.0-SNAPSHOT</zookeeper.version>
     <derby.version>10.4.2.0</derby.version>
     <libthrift.version>0.9.0.cloudera.2</libthrift.version>
   </properties>
@@ -471,7 +472,7 @@ limitations under the License.
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build.helper.maven.plugin.version}</version>
         </plugin>
-	<plugin>
+        <plugin>
           <groupId>org.datanucleus</groupId>
           <artifactId>datanucleus-maven-plugin</artifactId>
           <version>${datanucleus.maven.plugin.version}</version>
