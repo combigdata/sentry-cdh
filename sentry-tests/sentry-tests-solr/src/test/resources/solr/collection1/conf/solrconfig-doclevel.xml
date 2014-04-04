@@ -1344,6 +1344,7 @@
 
   <searchComponent name="queryDocAuthorization" class="org.apache.solr.handler.component.QueryDocAuthorizationComponent" >
     <str name="sentryAuthField">sentry_auth</str>
+    <str name="allGroupsToken">OR</str>
   </searchComponent>
 
   <!-- A request handler for demonstrating the spellcheck component.  

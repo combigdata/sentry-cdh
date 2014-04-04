@@ -43,7 +43,7 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
     .getLogger(TestDocLevelOperations.class);
   private static final String DEFAULT_COLLECTION = "collection1";
   private static final String AUTH_FIELD = "sentry_auth";
-  private static final int NUM_DOCS = 200;
+  private static final int NUM_DOCS = 100;
   private static final int EXTRA_AUTH_FIELDS = 2;
   private String userName = null;
 
@@ -57,19 +57,23 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
     setAuthenticationUser(userName);
   }
 
-  /**
-   * Test that queries from different users only return the documents they have access to.
-   */
-  @Test
-  public void testDocLevelOperations() throws Exception {
-    String collectionName = "docLevelCollection";
+  private void setupCollectionWithDocSecurity(String name) throws Exception {
     String configDir = RESOURCES_DIR + File.separator + DEFAULT_COLLECTION
       + File.separator + "conf";
     uploadConfigDirToZk(configDir);
     // replace solrconfig.xml with solrconfig-doc-level.xml
     uploadConfigFileToZk(configDir + File.separator + "solrconfig-doclevel.xml",
       "solrconfig.xml");
-    setupCollection(collectionName);
+    setupCollection(name);
+  }
+
+  /**
+   * Test that queries from different users only return the documents they have access to.
+   */
+  @Test
+  public void testDocLevelOperations() throws Exception {
+    String collectionName = "docLevelCollection";
+    setupCollectionWithDocSecurity(collectionName);
 
     // create documents
     ArrayList<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
@@ -89,7 +93,10 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
       } else {
         doc.addField(AUTH_FIELD, "admin");
       }
+      // add a token to all docs so we can check that we can get all
+      // documents returned
       doc.addField(AUTH_FIELD, "docLevel");
+
       docs.add(doc);
     }
     CloudSolrServer server = getCloudSolrServer(collectionName);
@@ -125,6 +132,83 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
       setAuthenticationUser("docLevel");
       rsp = server.query(query);
       assertEquals(NUM_DOCS, rsp.getResults().getNumFound());
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  /**
+   * Test the allGroupsToken.  Make it a keyword in the query language ("OR")
+   * to make sure it is treated literally rather than interpreted.
+   */
+  @Test
+  public void testAllGroupsToken() throws Exception {
+    String allGroupsToken = "OR";
+    String collectionName = "allGroupsCollection";
+    setupCollectionWithDocSecurity(collectionName);
+
+    int junitFactor = 2;
+    int allGroupsFactor  = 5;
+
+    int totalJunitAdded = 0; // total docs added with junit token
+    int totalAllGroupsAdded = 0; // total number of docs with the allGroupsToken
+    int totalOnlyAllGroupsAdded = 0; // total number of docs with _only_ the allGroupsToken
+
+    // create documents
+    ArrayList<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+    for (int i = 0; i < NUM_DOCS; ++i) {
+      boolean addedViaJunit = false;
+      SolrInputDocument doc = new SolrInputDocument();
+      String iStr = Long.toString(i);
+      doc.addField("id", iStr);
+      doc.addField("description", "description" + iStr);
+
+      if (i % junitFactor == 0) {
+        doc.addField(AUTH_FIELD, "junit");
+        addedViaJunit = true;
+        ++totalJunitAdded;
+      } if (i % allGroupsFactor == 0) {
+        doc.addField(AUTH_FIELD, allGroupsToken);
+        ++totalAllGroupsAdded;
+        if (!addedViaJunit) ++totalOnlyAllGroupsAdded;
+      }
+      docs.add(doc);
+    }
+    // make sure our factors give us interesting results --
+    // that some docs only have all groups and some only have junit
+    assert(totalOnlyAllGroupsAdded > 0);
+    assert(totalJunitAdded > totalAllGroupsAdded);
+
+    CloudSolrServer server = getCloudSolrServer(collectionName);
+    try {
+      server.add(docs);
+      server.commit(true, true);
+
+      // queries
+      SolrQuery query = new SolrQuery();
+      query.setQuery("*:*");
+
+      // as admin  -- should only get all groups token documents
+      setAuthenticationUser("admin");
+      QueryResponse rsp = server.query(query);
+      SolrDocumentList docList = rsp.getResults();
+      assertEquals(totalAllGroupsAdded, docList.getNumFound());
+      for (SolrDocument doc : docList) {
+        String id = doc.getFieldValue("id").toString();
+        assertEquals(0, Long.valueOf(id) % allGroupsFactor);
+      }
+
+      // as junit -- should get junit added + onlyAllGroupsAdded
+      setAuthenticationUser("junit");
+      rsp = server.query(query);
+      docList = rsp.getResults();
+      assertEquals(totalJunitAdded + totalOnlyAllGroupsAdded, docList.getNumFound());
+      for (SolrDocument doc : docList) {
+        String id = doc.getFieldValue("id").toString();
+        boolean addedJunit = (Long.valueOf(id) % junitFactor) == 0;
+        boolean onlyAllGroups = !addedJunit && (Long.valueOf(id) % allGroupsFactor) == 0;
+        assertEquals(true, addedJunit || onlyAllGroups);
+      }
     } finally {
       server.shutdown();
     }
