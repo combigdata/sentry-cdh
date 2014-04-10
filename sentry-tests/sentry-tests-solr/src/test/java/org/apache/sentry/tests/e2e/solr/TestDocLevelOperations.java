@@ -22,6 +22,15 @@ import org.slf4j.LoggerFactory;
 import org.junit.After;
 import org.junit.Before;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.apache.commons.io.IOUtils;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.util.EntityUtils;
 
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
@@ -31,7 +40,12 @@ import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
 
 import java.io.File;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Set;
 
 import org.junit.Test;
 import org.junit.Ignore;
@@ -67,6 +81,44 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
     uploadConfigFileToZk(configDir + File.separator + "solrconfig-doclevel.xml",
       "solrconfig.xml");
     setupCollection(name);
+  }
+
+  private String doHttpGet(CloudSolrServer server, String path) throws Exception {
+    HttpClient httpClient = server.getLbServer().getHttpClient();
+    Set<String> liveNodes =
+      server.getZkStateReader().getClusterState().getLiveNodes();
+    assertTrue("Expected at least one live node", !liveNodes.isEmpty());
+    String firstServer = liveNodes.toArray(new String[0])[0].replace("_solr", "/solr");
+    URI uri = new URI("http://" + firstServer + path);
+    HttpGet get = new HttpGet(uri);
+    HttpEntity httpEntity = null;
+    boolean success = false;
+    String retValue = "";
+    try {
+      final HttpResponse response = httpClient.execute(get);
+      int httpStatus = response.getStatusLine().getStatusCode();
+      httpEntity = response.getEntity();
+
+      if (httpEntity != null) {
+        InputStream is = httpEntity.getContent();
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        try {
+          IOUtils.copyLarge(is, os);
+          os.flush();
+        } finally {
+          IOUtils.closeQuietly(os);
+          IOUtils.closeQuietly(is);
+        }
+        retValue = os.toString();
+      }
+      success = true;
+    } finally {
+      if (!success) {
+        EntityUtils.consumeQuietly(httpEntity);
+        get.abort();
+      }
+    }
+    return retValue;
   }
 
   /**
@@ -134,6 +186,27 @@ public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
       setAuthenticationUser("docLevel");
       rsp = server.query(query);
       assertEquals(NUM_DOCS, rsp.getResults().getNumFound());
+
+      // test filter queries work as AND -- i.e. user can't avoid doc-level
+      // checks by prefixing their own filterQuery
+      setAuthenticationUser("junit");
+      String fq = URLEncoder.encode(" {!raw f=" + AUTH_FIELD + " v=docLevel}");
+      String path = "/" + collectionName + "/select?q=*:*&fq="+fq;
+      String retValue = doHttpGet(server, path);
+      assertTrue(retValue.contains("numFound=\"" + NUM_DOCS / 2 + "\" "));
+
+      // test that user can't inject an "OR" into the query
+      final String syntaxErrorMsg = "org.apache.solr.search.SyntaxError: Cannot parse";
+      fq = URLEncoder.encode(" {!raw f=" + AUTH_FIELD + " v=docLevel} OR ");
+      path = "/" + collectionName + "/select?q=*:*&fq="+fq;
+      retValue = doHttpGet(server, path);
+      assertTrue(retValue.contains(syntaxErrorMsg));
+
+      // same test, prefix OR this time
+      fq = URLEncoder.encode(" OR {!raw f=" + AUTH_FIELD + " v=docLevel}");
+      path = "/" + collectionName + "/select?q=*:*&fq="+fq;
+      retValue = doHttpGet(server, path);
+      assertTrue(retValue.contains(syntaxErrorMsg));
     } finally {
       server.shutdown();
     }
