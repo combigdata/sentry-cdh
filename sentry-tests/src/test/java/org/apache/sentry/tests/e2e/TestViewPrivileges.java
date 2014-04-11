@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.sentry.tests.e2e.hive;
+package org.apache.sentry.tests.e2e;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -30,14 +30,9 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.sentry.binding.hive.SentryHiveAuthorizationTaskFactoryImpl;
-import org.apache.sentry.provider.db.SimpleDBProviderBackend;
+// import org.apache.sentry.binding.SentryHiveAuthorizationTaskFactoryImpl;
 import org.apache.sentry.provider.file.PolicyFile;
-import org.apache.sentry.service.thrift.SentryService;
-import org.apache.sentry.service.thrift.SentryServiceFactory;
-import org.apache.sentry.service.thrift.ServiceConstants.ClientConfig;
-import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
-import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory;
+import org.apache.sentry.tests.e2e.hiveserver.HiveServerFactory;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -59,7 +54,7 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
   @Before
   public void setUp() throws Exception {
     properties = Maps.newHashMap();
-    policyFile = PolicyFile.setAdminOnServer1(ADMINGROUP);
+    policyFile = PolicyFile.createAdminOnServer1("admin1");
     context = createContext(properties);
   }
 
@@ -84,12 +79,12 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
     String tabNames[] = { "tab1", "tab2" } ;
     policyFile
         .addPermissionsToRole("view", "server=server1->db=" + db + "->table=" + viewName)
-        .addRolesToGroup(USERGROUP1, "view")
-        .setUserGroupMapping(StaticUserGroup.getStaticMapping());
+        .addRolesToGroup("user_group1", "view")
+        .addGroupsToUser("user1", "user_group1");
     policyFile.write(context.getPolicyFile());
 
     //admin creates a view
-    Connection conn = context.createConnection(ADMIN1);
+    Connection conn = context.createConnection("admin1", "foo");
     Statement stmt = context.createStatement(conn);
     stmt.execute("DROP DATABASE IF EXISTS " + db + " CASCADE");
     stmt.execute("CREATE DATABASE " + db);
@@ -115,7 +110,7 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
       rowsInView = res.getInt(1);
     }
 
-    Connection userConn = context.createConnection(USER1_1);
+    Connection userConn = context.createConnection("user1", "foo");
     Statement userStmt = context.createStatement(userConn);
     userStmt.execute("use " + db);
     res = userStmt.executeQuery("select count(*) from " + viewName);
@@ -140,12 +135,12 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
     String tabName = "tab1";
     policyFile
         .addPermissionsToRole("view", "server=server1->db=" + db + "->table=" + viewName)
-        .addRolesToGroup(USERGROUP1, "view")
-        .setUserGroupMapping(StaticUserGroup.getStaticMapping());
+        .addRolesToGroup("user_group1", "view")
+        .addGroupsToUser("user1", "user_group1");
     policyFile.write(context.getPolicyFile());
 
     //admin creates a view
-    Connection conn = context.createConnection(ADMIN1);
+    Connection conn = context.createConnection("admin1", "");
     Statement stmt = context.createStatement(conn);
     stmt.execute("DROP DATABASE IF EXISTS " + db + " CASCADE");
     stmt.execute("CREATE DATABASE " + db);
@@ -167,7 +162,7 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
       System.out.println("Admin: Rows in view: " + res.getInt(1));
       rowsInView = res.getInt(1);
     }
-    Connection userConn = context.createConnection(USER1_1);
+    Connection userConn = context.createConnection("user1", "foo");
     Statement userStmt = context.createStatement(userConn);
     userStmt.execute("use " + db);
     res = userStmt.executeQuery("select count(*) from " + viewName);
