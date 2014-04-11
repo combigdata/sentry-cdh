@@ -412,6 +412,7 @@ limitations under the License.
           <downloadSources>true</downloadSources>
           <workspaceActiveCodeStyleProfileName>GoogleStyle</workspaceActiveCodeStyleProfileName>
           <workspaceCodeStylesURL>https://google-styleguide.googlecode.com/svn/trunk/eclipse-java-google-style.xml</workspaceCodeStylesURL>
+          <sourceIncludes>src/gen/thrift/gen-javabean/**</sourceIncludes>
         </configuration>
       </plugin>
     </plugins>
@@ -540,6 +541,13 @@ limitations under the License.
               <version>${datanucleus-core.version}</version>
             </dependency>
           </dependencies>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <configuration>
+            <sourcepath>src/gen/thrift/gen-javabean</sourcepath>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
