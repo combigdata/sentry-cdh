@@ -36,12 +36,10 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import org.junit.Test;
-import org.junit.Ignore;
 
 /**
  * Test the document-level security features
  */
-@Ignore
 public class TestDocLevelOperations extends AbstractSolrSentryTestBase {
   private static final Logger LOG = LoggerFactory
     .getLogger(TestDocLevelOperations.class);
