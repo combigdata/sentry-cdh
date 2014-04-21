@@ -163,8 +163,6 @@
 
    <field name="payloads" type="payloads" indexed="true" stored="true"/>
 
-   <field name="sentry_auth" type="string" indexed="true" stored="false" multiValued="true"/>
-
    <field name="_version_" type="long" indexed="true" stored="true"/>
 
    <!--
@@ -216,6 +214,8 @@
 
    <dynamicField name="*_pi"  type="pint"    indexed="true"  stored="true"/>
    <dynamicField name="*_c"   type="currency" indexed="true"  stored="true"/>
+
+   <dynamicField name="*_auth" type="string" indexed="true" stored="false" multiValued="true"/>
 
    <dynamicField name="ignored_*" type="ignored" multiValued="true"/>
    <dynamicField name="attr_*" type="text_general" indexed="true" stored="true" multiValued="true"/>
