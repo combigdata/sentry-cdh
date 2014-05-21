@@ -397,6 +397,32 @@ limitations under the License.
           <sourceIncludes>src/gen/thrift/gen-javabean/**</sourceIncludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>org.apache.thrift:libthrift</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>org.apache.thrift</pattern>
+                  <shadedPattern>sentry.org.apache.thrift</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -504,6 +530,7 @@ limitations under the License.
                   <exclude>**/*.sql</exclude>
                   <exclude>**/upgrade.*</exclude>
                   <exclude>**/datanucleus.log</exclude>
+                  <exclude>**/dependency-reduced-pom.xml</exclude>
                 </excludes>
               </configuration>
             </execution>
