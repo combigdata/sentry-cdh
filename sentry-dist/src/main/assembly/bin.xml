@@ -59,6 +59,9 @@
         <include>org.apache.derby:derby</include>
         <include>org.apache.derby:derby</include>
       </includes>
+      <excludes>
+        <exclude>org.apache.thrift:*</exclude>
+      </excludes>
     </dependencySet>
   </dependencySets>
 
