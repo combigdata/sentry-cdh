@@ -392,7 +392,7 @@ public class SentryStore {
 
     // Validate privilege scope
     try {
-      scope = Enum.valueOf(PrivilegeScope.class, privilege.getPrivilegeScope());
+      scope = Enum.valueOf(PrivilegeScope.class, privilege.getPrivilegeScope().toUpperCase());
     } catch (IllegalArgumentException e) {
       throw new SentryInvalidInputException("Invalid Privilege scope: " +
           privilege.getPrivilegeScope());
@@ -461,6 +461,7 @@ public class SentryStore {
       } else {
         pm.retrieve(sentryRole);
         sentryRole.removePrivileges();
+
         pm.deletePersistent(sentryRole);
       }
       CommitContext commit = commitUpdateTransaction(pm);
