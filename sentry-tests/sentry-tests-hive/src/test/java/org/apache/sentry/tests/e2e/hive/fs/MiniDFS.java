@@ -18,16 +18,40 @@ package org.apache.sentry.tests.e2e.hive.fs;
 
 import java.io.File;
 import java.util.concurrent.TimeoutException;
+import java.io.IOException;
+import java.util.List;
+
 import junit.framework.Assert;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hive.service.auth.PlainSaslServer.SaslPlainProvider;
+import org.apache.hadoop.security.GroupMappingServiceProvider;
 
-import java.io.File;
-import java.util.concurrent.TimeoutException;
+import com.google.common.collect.Lists;
 
 public class MiniDFS extends AbstractDFS {
+  // mock user group mapping that maps user to same group
+  public static class PseudoGroupMappingService implements
+      GroupMappingServiceProvider {
+
+    @Override
+    public List<String> getGroups(String user) {
+      return Lists.newArrayList(user, System.getProperty("user.name"));
+    }
+
+    @Override
+    public void cacheGroupsRefresh() throws IOException {
+      // no-op
+    }
+
+    @Override
+    public void cacheGroupsAdd(List<String> groups) throws IOException {
+      // no-op
+    }
+  }
+
   private static MiniDFSCluster dfsCluster;
 
   MiniDFS(File baseDir) throws Exception {    
@@ -40,6 +64,9 @@ public class MiniDFS extends AbstractDFS {
     Configuration conf = new Configuration();
     File dfsDir = assertCreateDir(new File(baseDir, "dfs"));
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dfsDir.getPath());
+    conf.set("hadoop.security.group.mapping",
+        MiniDFS.PseudoGroupMappingService.class.getName());
+    Configuration.addDefaultResource("test.xml");
     dfsCluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
     waitForStartup(2L);
     fileSystem = dfsCluster.getFileSystem();
