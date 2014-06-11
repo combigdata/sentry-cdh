@@ -21,7 +21,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry</artifactId>
-    <version>1.2.0-cdh5.0.2</version>
+    <version>1.2.0-cdh5.0.3-SNAPSHOT</version>
   </parent>
 
   <artifactId>sentry-core</artifactId>
