@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hive.service.auth.PlainSaslServer.SaslPlainProvider;
 import org.apache.hadoop.security.GroupMappingServiceProvider;
+import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory.HiveServer2Type;
 
 import com.google.common.collect.Lists;
 
@@ -54,13 +55,16 @@ public class MiniDFS extends AbstractDFS {
 
   private static MiniDFSCluster dfsCluster;
 
-  MiniDFS(File baseDir) throws Exception {    
+  MiniDFS(File baseDir, String serverType) throws Exception {
     /**
      * Hadoop 2.1 includes its own implementation of Plain SASL server that conflicts with the one included with HS2
      * when we load the MiniDFS. This is a workaround to force Hive's implementation for the test
      */
     java.security.Security.addProvider(new SaslPlainProvider());
 
+    if (HiveServer2Type.InternalMetastore.name().equalsIgnoreCase(serverType)) {
+      Configuration.addDefaultResource("core-site-for-sentry-test.xml");
+    }
     Configuration conf = new Configuration();
     File dfsDir = assertCreateDir(new File(baseDir, "dfs"));
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dfsDir.getPath());
