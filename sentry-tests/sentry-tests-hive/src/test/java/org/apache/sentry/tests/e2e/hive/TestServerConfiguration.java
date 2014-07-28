@@ -175,9 +175,6 @@ public class TestServerConfiguration extends AbstractTestWithHiveServer {
         HiveAuthzBindingSessionHook.SEMANTIC_HOOK);
     verifyConfig(testUser, ConfVars.PREEXECHOOKS.varname,
         HiveAuthzBindingSessionHook.PRE_EXEC_HOOK);
-    verifyConfig(testUser, ConfVars.HIVE_EXEC_FILTER_HOOK.varname,
-        HiveAuthzBindingSessionHook.FILTER_HOOK);
-    verifyConfig(testUser, ConfVars.HIVE_EXTENDED_ENITITY_CAPTURE.varname, "true");
     verifyConfig(testUser, ConfVars.HIVE_SECURITY_COMMAND_WHITELIST.varname, "set");
     verifyConfig(testUser, ConfVars.SCRATCHDIRPERMISSION.varname, HiveAuthzBindingSessionHook.SCRATCH_DIR_PERMISSIONS);
     verifyConfig(testUser, HiveConf.ConfVars.HIVE_CONF_RESTRICTED_LIST.varname,
