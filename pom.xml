@@ -82,6 +82,7 @@ limitations under the License.
     <solr.sentry.handlers.version>${cdh.solr.version}</solr.sentry.handlers.version>
     <zookeeper.version>${cdh.zookeeper.version}</zookeeper.version>
     <pig.version>${cdh.pig.version}</pig.version>
+    <jackson.version>1.8.8</jackson.version>
   </properties>
 
   <dependencyManagement>
