@@ -21,8 +21,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry-provider</artifactId>
-<<<<<<< HEAD
-    <version>1.3.0-cdh5.1.0-SNAPSHOT</version>
+    <version>1.4.0-cdh5.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>sentry-provider-cache</artifactId>
