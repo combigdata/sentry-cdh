@@ -113,13 +113,6 @@ public class TestRuntimeMetadataRetrieval extends AbstractTestWithStaticConfigur
     // tables visible to user1 (not access to tb_4
     String tableNames[] = {"tb_1", "tb_2", "tb_3", "tb_4"};
     List<String> tableNamesValidation = new ArrayList<String>();
-
-    policyFile
-        .addRolesToGroup(USERGROUP1, "db_priv")
-        .addPermissionsToRole("db_priv", "server=server1->db=" + dbName1)
-        .setUserGroupMapping(StaticUserGroup.getStaticMapping());
-    writePolicyFile(policyFile);
-
     String user1TableNames[] = {"tb_1", "tb_2", "tb_3", "tb_4"};
 
     Connection connection = context.createConnection(ADMIN1);
@@ -133,6 +126,12 @@ public class TestRuntimeMetadataRetrieval extends AbstractTestWithStaticConfigur
     tableNamesValidation.addAll(Arrays.asList(tableNames));
     validateTables(rs, dbName1, tableNamesValidation);
     statement.close();
+
+    policyFile
+        .addRolesToGroup(USERGROUP1, "db_priv")
+        .addPermissionsToRole("db_priv", "server=server1->db=" + dbName1)
+        .setUserGroupMapping(StaticUserGroup.getStaticMapping());
+    writePolicyFile(policyFile);
 
     connection = context.createConnection(USER1_1);
     statement = context.createStatement(connection);
