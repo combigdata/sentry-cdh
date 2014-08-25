@@ -540,6 +540,8 @@ limitations under the License.
                   <exclude>**/solr/collection1/conf/**</exclude>
                   <!-- Exclude generated thrift files -->
                   <exclude>**/gen/**</exclude>
+                  <!-- Cloudera specific files -->
+                  <exclude>cloudera/*</exclude>
                   <!-- README and test data with exact format -->
                   <exclude>README*</exclude>
                   <exclude>**/kv1.dat</exclude>
