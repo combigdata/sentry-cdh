@@ -224,7 +224,7 @@ public class SentryPolicyServiceClient {
     request.setRequestorUserName(requestorUserName);
     request.setGroupName(groupName);
     TListSentryRolesResponse response;
-    Set<String> roles = new HashSet<String>();
+    Set<String> roles = Sets.newHashSet();
     try {
       response = client.list_sentry_roles_by_group(request);
       Status.throwIfNotOk(response.getStatus());
