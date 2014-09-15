@@ -562,6 +562,7 @@ limitations under the License.
                   <exclude>**/upgrade.*</exclude>
                   <exclude>**/datanucleus.log</exclude>
                   <exclude>**/dependency-reduced-pom.xml</exclude>
+                  <exclude>**/metastore_db/</exclude>
                 </excludes>
               </configuration>
             </execution>
