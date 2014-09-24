@@ -66,6 +66,9 @@ public class ServiceConstants {
     public static final String RPC_MIN_THREADS = "sentry.service.server-min-threads";
     public static final int RPC_MIN_THREADS_DEFAULT = 10;
     public static final String ALLOW_CONNECT = "sentry.service.allow.connect";
+    public static final String USE_COMPACT_TRANSPORT = "sentry.service.server.compact.transport";
+    public static final boolean USE_COMPACT_TRANSPORT_DEFAULT = false;
+
     public static final String PROCESSOR_FACTORIES = "sentry.service.processor.factories";
     public static final String PROCESSOR_FACTORIES_DEFAULT =
         "org.apache.sentry.provider.db.service.thrift.SentryPolicyStoreProcessorFactory";
@@ -130,6 +133,8 @@ public class ServiceConstants {
     public static final String SERVER_RPC_ADDRESS = "sentry.service.client.server.rpc-address";
     public static final String SERVER_RPC_CONN_TIMEOUT = "sentry.service.client.server.rpc-connection-timeout";
     public static final int SERVER_RPC_CONN_TIMEOUT_DEFAULT = 200000;
+    public static final String USE_COMPACT_TRANSPORT = "sentry.service.client.compact.transport";
+    public static final boolean USE_COMPACT_TRANSPORT_DEFAULT = false;
   }
 
   /**

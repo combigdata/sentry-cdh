@@ -49,6 +49,8 @@ import org.apache.sentry.service.thrift.ServiceConstants.ConfUtilties;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.thrift.TMultiplexedProcessor;
 import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TCompactProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TSaslServerTransport;
@@ -203,10 +205,17 @@ public class SentryService implements Callable {
     } else {
       transportFactory = new TTransportFactory();
     }
+
+    TProtocolFactory protocolFactory;
+    if (conf.getBoolean(ServerConfig.USE_COMPACT_TRANSPORT, ServerConfig.USE_COMPACT_TRANSPORT_DEFAULT)) {
+      protocolFactory = new TCompactProtocol.Factory();
+    } else {
+      protocolFactory = new TBinaryProtocol.Factory();
+    }
     TThreadPoolServer.Args args = new TThreadPoolServer.Args(
         serverTransport).processor(processor)
         .transportFactory(transportFactory)
-        .protocolFactory(new TBinaryProtocol.Factory())
+        .protocolFactory(protocolFactory)
         .minWorkerThreads(minThreads).maxWorkerThreads(maxThreads);
     thriftServer = new TThreadPoolServer(args);
     LOGGER.info("Serving on " + address);
