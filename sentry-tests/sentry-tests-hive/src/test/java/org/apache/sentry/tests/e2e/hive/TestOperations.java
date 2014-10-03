@@ -301,9 +301,9 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     //This is currently not set for pseudo cluster runs
     if( hiveServer2Type.equals(HiveServerFactory.HiveServer2Type.UnmanagedHiveServer2 ) &&
         policy_on_hdfs) {
-      statement.execute("DROP TABLE " + DB1 + ".tb2");
-    } else {
       statement.execute("DROP TABLE " + DB1 + ".tb1");
+    } else {
+      statement.execute("DROP TABLE " + DB1 + ".tb2");
     }
 
     statement.close();
