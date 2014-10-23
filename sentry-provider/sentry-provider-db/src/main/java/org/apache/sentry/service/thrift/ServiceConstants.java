@@ -66,6 +66,13 @@ public class ServiceConstants {
     public static final String RPC_MIN_THREADS = "sentry.service.server-min-threads";
     public static final int RPC_MIN_THREADS_DEFAULT = 10;
     public static final String ALLOW_CONNECT = "sentry.service.allow.connect";
+
+    public static final String SENTRY_POLICY_STORE_PLUGINS = "sentry.policy.store.plugins";
+    public static final String SENTRY_POLICY_STORE_PLUGINS_DEFAULT = "";
+
+    public static final String SENTRY_METASTORE_PLUGINS = "sentry.metastore.plugins";
+    public static final String SENTRY_METASTORE_PLUGINS_DEFAULT = "";
+
     public static final String USE_COMPACT_TRANSPORT = "sentry.service.server.compact.transport";
     public static final boolean USE_COMPACT_TRANSPORT_DEFAULT = false;
 
