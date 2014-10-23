@@ -26,5 +26,9 @@ public abstract class ProcessorFactory {
     this.conf = conf;
   }
 
-  public abstract boolean register(TMultiplexedProcessor processor) throws Exception;
+  public boolean register(TMultiplexedProcessor processor) throws Exception {
+    return registerProcessor(new SentryTMultiplexedProcessor(processor));
+  }
+
+  public abstract boolean registerProcessor(SentryTMultiplexedProcessor processor) throws Exception;
 }
