@@ -29,9 +29,9 @@ CREATE TABLE "SENTRY_DB_PRIVILEGE" (
   "DB_PRIVILEGE_ID" BIGINT NOT NULL,
   "PRIVILEGE_SCOPE" character varying(32) NOT NULL,
   "SERVER_NAME" character varying(128) NOT NULL,
-  "DB_NAME" character varying(128) DEFAULT NULL::character varying,
-  "TABLE_NAME" character varying(128) DEFAULT NULL::character varying,
-  "URI" character varying(4000) DEFAULT NULL::character varying,
+  "DB_NAME" character varying(128) DEFAULT '__NULL__',
+  "TABLE_NAME" character varying(128) DEFAULT '__NULL__',
+  "URI" character varying(4000) DEFAULT '__NULL__',
   "ACTION" character varying(128) NOT NULL,
   "CREATE_TIME" BIGINT NOT NULL,
   "WITH_GRANT_OPTION" CHAR(1) NOT NULL
