@@ -29,9 +29,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStore;
+import org.apache.hadoop.hive.metastore.HiveMetaStore.HMSHandler;
 import org.apache.hadoop.hive.metastore.IHMSHandler;
 import org.apache.hadoop.hive.metastore.MetaStorePreEventListener;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.sentry.hdfs.ServiceConstants.ServerConfig;
@@ -59,6 +61,16 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
  // will trigger a full Image fetch
   private final AtomicInteger seqNum = new AtomicInteger(5);
   private final ExecutorService threadPool;
+  
+  static class ProxyHMSHandler extends HMSHandler {
+	public ProxyHMSHandler(String name, HiveConf conf) throws MetaException {
+		super(name, conf);
+	}
+	@Override
+	public String startFunction(String function, String extraLogInfo) {
+		return function;
+	}
+  }
 
   public MetastorePlugin(Configuration conf) {
     this.conf = new HiveConf((HiveConf)conf);
@@ -67,7 +79,7 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
     this.conf.unset(HiveConf.ConfVars.METASTORE_END_FUNCTION_LISTENERS.varname);
     this.conf.unset(HiveConf.ConfVars.METASTOREURIS.varname);
     try {
-      this.authzPaths = createInitialUpdate(HiveMetaStore.newHMSHandler("sentry.hdfs", (HiveConf)this.conf));
+      this.authzPaths = createInitialUpdate(new ProxyHMSHandler("sentry.hdfs", (HiveConf)this.conf));
     } catch (Exception e1) {
       LOGGER.error("Could not create Initial AuthzPaths or HMSHandler !!", e1);
       throw new RuntimeException(e1);
