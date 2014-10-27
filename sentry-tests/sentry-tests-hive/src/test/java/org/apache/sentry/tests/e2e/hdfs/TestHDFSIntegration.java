@@ -222,8 +222,8 @@ public class TestHDFSIntegration {
         hiveConf.set("sentry.hdfs.service.client.server.rpc-address", "localhost");
         hiveConf.set("sentry.hdfs.service.client.server.rpc-port", String.valueOf(sentryPort));
         hiveConf.set("sentry.service.client.server.rpc-port", String.valueOf(sentryPort));
-        hiveConf.set("sentry.service.server.compact.transport", "true");
-        hiveConf.set("sentry.service.client.compact.transport", "true");
+//        hiveConf.set("sentry.service.server.compact.transport", "true");
+//        hiveConf.set("sentry.service.client.compact.transport", "true");
         hiveConf.set("sentry.service.security.mode", "none");
         hiveConf.set("sentry.hdfs.service.security.mode", "none");
         hiveConf.set("sentry.hdfs.init.update.retry.delay.ms", "500");
@@ -308,7 +308,7 @@ public class TestHDFSIntegration {
             MiniDFS.PseudoGroupMappingService.class.getName());
         Configuration.addDefaultResource("test.xml");
 
-        conf.set("sentry.authorization-provider.hdfs-path-prefixes", "/user/hive/warehouse");
+        conf.set("sentry.authorization-provider.hdfs-path-prefixes", "/user/hive/warehouse,/tmp/external");
         conf.set("sentry.authorization-provider.cache-refresh-retry-wait.ms", "5000");
         conf.set("sentry.authorization-provider.cache-stale-threshold.ms", "3000");
 
@@ -364,7 +364,7 @@ public class TestHDFSIntegration {
             .put(ConfVars.HIVE_SERVER2_THRIFT_MIN_WORKER_THREADS.varname, "2");
         properties.put("hive.metastore.uris", "thrift://localhost:" + hmsPort);
         properties.put(ServerConfig.SECURITY_MODE, ServerConfig.SECURITY_MODE_NONE);
-        properties.put("sentry.service.server.compact.transport", "true");
+//        properties.put("sentry.service.server.compact.transport", "true");
         properties.put("sentry.hive.testing.mode", "true");
         properties.put(ServerConfig.ADMIN_GROUPS, "hive,admin");
         properties.put(ServerConfig.RPC_ADDRESS, "localhost");
@@ -502,6 +502,27 @@ public class TestHDFSIntegration {
     Thread.sleep(1000);
     verifyOnAllSubDirs("/user/hive/warehouse/p2", FsAction.READ_EXECUTE, "hbase", true);
 
+    // Create external table
+    writeToPath("/tmp/external/ext1", 5, "foo", "bar");
+
+    stmt.execute("create table ext1 (s string) location \'/tmp/external/ext1\'");
+    ResultSet rs = stmt.executeQuery("select * from ext1");
+    int numRows = 0;
+    while (rs.next()) { numRows++; }
+    Assert.assertEquals(5, numRows);
+
+    // Ensure existing group permissions are never returned..
+    verifyOnAllSubDirs("/tmp/external/ext1", null, "bar", false);
+    verifyOnAllSubDirs("/tmp/external/ext1", null, "hbase", false);
+
+    stmt.execute("grant all on table ext1 to role p1_admin");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/tmp/external/ext1", FsAction.ALL, "hbase", true);
+
+    stmt.execute("revoke select on table ext1 from role p1_admin");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/tmp/external/ext1", FsAction.WRITE_EXECUTE, "hbase", true);
+
     stmt.close();
     conn.close();
   }
@@ -528,6 +549,18 @@ public class TestHDFSIntegration {
     }
     Assert.assertEquals(6, vals.size());
     rs.close();
+  }
+
+  private void writeToPath(String path, int numRows, String user, String group) throws IOException {
+    Path p = new Path(path);
+    miniDFS.getFileSystem().mkdirs(p);
+    miniDFS.getFileSystem().setOwner(p, user, group);
+    FSDataOutputStream f1 = miniDFS.getFileSystem().create(new Path(path + "/stuff.txt"));
+    for (int i = 0; i < numRows; i++) {
+      f1.writeChars("random" + i + "\n");
+    }
+    f1.flush();
+    f1.close();
   }
 
   private void verifyHDFSandMR(Statement stmt) throws IOException,
