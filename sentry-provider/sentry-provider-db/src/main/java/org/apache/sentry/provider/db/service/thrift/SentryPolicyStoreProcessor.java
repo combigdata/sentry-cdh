@@ -266,10 +266,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       }
     } catch (SentryNoSuchObjectException e) {
       String msg = "Privilege: [server=" + request.getPrivilege().getServerName() +
-    		  ",db=" + request.getPrivilege().getDbName() +
-    		  ",table=" + request.getPrivilege().getTableName() +
-    		  ",URI=" + request.getPrivilege().getURI() +
-    		  ",action=" + request.getPrivilege().getAction() + "] doesn't exist.";
+              ",db=" + request.getPrivilege().getDbName() +
+              ",table=" + request.getPrivilege().getTableName() +
+              ",URI=" + request.getPrivilege().getURI() +
+              ",action=" + request.getPrivilege().getAction() + "] doesn't exist.";
       LOGGER.error(msg, e);
       response.setStatus(Status.NoSuchObject(msg, e));
     } catch (SentryInvalidInputException e) {

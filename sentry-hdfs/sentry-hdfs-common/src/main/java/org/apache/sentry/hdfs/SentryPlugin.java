@@ -44,6 +44,8 @@ import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
+
 public class SentryPlugin implements SentryPolicyStorePlugin {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SentryPlugin.class);
@@ -87,6 +89,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
   private UpdateForwarder<PathsUpdate> pathsUpdater;
   private UpdateForwarder<PermissionsUpdate> permsUpdater;
   private final AtomicLong permSeqNum = new AtomicLong(5);
+  private PermImageRetriever permImageRetriever;
 
   long getLastSeenHMSPathSeqNum() {
     return pathsUpdater.getLastSeen();
@@ -102,10 +105,11 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
             ServerConfig.SENTRY_HDFS_INIT_UPDATE_RETRY_DELAY_DEFAULT);
     pathsUpdater = new UpdateForwarder<PathsUpdate>(new UpdateableAuthzPaths(
         pathPrefixes), null, 100, initUpdateRetryDelayMs);
-    PermImageRetriever permImageRetriever = new PermImageRetriever(sentryStore);
+    permImageRetriever = new PermImageRetriever(sentryStore);
     permsUpdater = new UpdateForwarder<PermissionsUpdate>(
         new UpdateablePermissions(permImageRetriever), permImageRetriever,
         100, initUpdateRetryDelayMs);
+    LOGGER.info("Sentry HDFS plugin initialized !!");
     instance = this;
   }
 
@@ -119,7 +123,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
 
   public void handlePathUpdateNotification(PathsUpdate update) {
     pathsUpdater.handleUpdateNotification(update);
-    LOGGER.info("Recieved Authz Path update [" + update.getSeqNum() + "]..");
+    LOGGER.debug("Recieved Authz Path update [" + update.getSeqNum() + "]..");
   }
 
   @Override
@@ -131,7 +135,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
       rUpdate.addToAddGroups(group.getGroupName());
     }
     permsUpdater.handleUpdateNotification(update);
-    LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
   @Override
@@ -144,7 +148,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
       rUpdate.addToDelGroups(group.getGroupName());
     }
     permsUpdater.handleUpdateNotification(update);
-    LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
   @Override
@@ -157,7 +161,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
       update.addPrivilegeUpdate(authzObj).putToAddPrivileges(
           request.getRoleName(), request.getPrivilege().getAction().toUpperCase());
       permsUpdater.handleUpdateNotification(update);
-      LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + "]..");
+      LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + "]..");
     }
   }
 
@@ -171,7 +175,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
     privUpdate.putToAddPrivileges(newAuthz, newAuthz);
     privUpdate.putToDelPrivileges(oldAuthz, oldAuthz);
     permsUpdater.handleUpdateNotification(update);
-    LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + ", " + newAuthz + ", " + oldAuthz + "]..");
+    LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + newAuthz + ", " + oldAuthz + "]..");
   }
 
   @Override
@@ -180,11 +184,18 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
       throws SentryPluginException {
     String authzObj = getAuthzObj(request.getPrivilege());
     if (authzObj != null) {
-      PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
-          request.getRoleName(), request.getPrivilege().getAction().toUpperCase());
+      PermissionsUpdate update = null;
+      if ( !Strings.isNullOrEmpty(request.getPrivilege().getDbName())
+          && Strings.isNullOrEmpty(request.getPrivilege().getTableName())) {
+        // TODO : Handle recursive revokes more efficiently..
+        update = permImageRetriever.retrieveFullImage(permSeqNum.incrementAndGet());
+      } else {
+        update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+        update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
+            request.getRoleName(), request.getPrivilege().getAction().toUpperCase());
+      }
       permsUpdater.handleUpdateNotification(update);
-      LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
+      LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
     }
   }
 
@@ -196,7 +207,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
         request.getRoleName(), PermissionsUpdate.ALL_AUTHZ_OBJ);
     update.addRoleUpdate(request.getRoleName()).addToDelGroups(PermissionsUpdate.ALL_GROUPS);
     permsUpdater.handleUpdateNotification(update);
-    LOGGER.info("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
   private String getAuthzObj(TSentryPrivilege privilege) {
