@@ -42,6 +42,7 @@ import junit.framework.Assert;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FsStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryType;
@@ -523,6 +524,45 @@ public class TestHDFSIntegration {
     Thread.sleep(1000);
     verifyOnAllSubDirs("/tmp/external/ext1", FsAction.WRITE_EXECUTE, "hbase", true);
 
+    // Verify database operations works correctly
+    stmt.execute("create database db1");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db", null, "hbase", false);
+
+    stmt.execute("create table db1.tbl1 (s string)");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", null, "hbase", false);
+    stmt.execute("create table db1.tbl2 (s string)");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", null, "hbase", false);
+
+    stmt.execute("grant select on database db1 to role p1_admin");
+    Thread.sleep(1000);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", null, "hbase", false);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", null, "hbase", false);
+
+    stmt.execute("use db1");
+    stmt.execute("grant all on table tbl1 to role p1_admin");
+    stmt.execute("grant select on table tbl2 to role p1_admin");
+    Thread.sleep(1000);
+
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", FsAction.ALL, "hbase", true);
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", FsAction.READ_EXECUTE, "hbase", true);
+
+    // Verify cleanup..
+    stmt.execute("drop table tbl1");
+    Thread.sleep(1000);
+    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db/tbl1")));
+
+    stmt.execute("drop table tbl2");
+    Thread.sleep(1000);
+    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db/tbl2")));
+
+    stmt.execute("use default");
+    stmt.execute("drop database db1");
+    Thread.sleep(1000);
+    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db")));
+
     stmt.close();
     conn.close();
   }
@@ -585,7 +625,7 @@ public class TestHDFSIntegration {
 
     stmt.execute("grant select on table p1 to role p1_admin");
 
-    Thread.sleep(1000);
+    Thread.sleep(5000);
     verifyOnAllSubDirs("/user/hive/warehouse/p1", FsAction.READ_EXECUTE, "hbase", true);
     // hbase user should now be allowed to read...
     hbaseUgi.doAs(new PrivilegedExceptionAction<Void>() {

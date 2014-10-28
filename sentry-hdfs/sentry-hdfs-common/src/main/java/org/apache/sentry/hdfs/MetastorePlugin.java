@@ -166,19 +166,27 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
   }
 
   @Override
-  public void removeAllPaths(String authzObj) {
+  public void removeAllPaths(String authzObj, List<String> childObjects) {
     LOGGER.debug("#### HMS Path Update ["
         + "OP : removeAllPaths, "
-        + "authzObj : " + authzObj + "]");
+        + "authzObj : " + authzObj + ", "
+        + "childObjs : " + (childObjects == null ? "[]" : childObjects) + "]");
     PathsUpdate update = createHMSUpdate();
-    update.newPathChange(authzObj).addToDelPaths(Lists.newArrayList(PathsUpdate.ALL_PATHS));
+    if (childObjects != null) {
+      for (String childObj : childObjects) {
+        update.newPathChange(authzObj + "." + childObj).addToDelPaths(
+            Lists.newArrayList(PathsUpdate.ALL_PATHS));
+      }
+    }
+    update.newPathChange(authzObj).addToDelPaths(
+        Lists.newArrayList(PathsUpdate.ALL_PATHS));
     notifySentry(update, true);
   }
 
   @Override
   public void removePath(String authzObj, String path) {
     if ("*".equals(path)) {
-      removeAllPaths(authzObj);
+      removeAllPaths(authzObj, null);
     } else {
       LOGGER.debug("#### HMS Path Update ["
           + "OP : removePath, "
