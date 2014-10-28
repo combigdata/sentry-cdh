@@ -76,7 +76,7 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
           lock.writeLock().lock();
         }
         seqNum.set(update.getSeqNum());
-        LOG.warn("##### Updated perms seq Num [" + seqNum.get() + "]");
+        LOG.debug("##### Updated perms seq Num [" + seqNum.get() + "]");
       }
     } finally {
       lock.writeLock().unlock();
