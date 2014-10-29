@@ -554,6 +554,9 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     try {
       authorize(request.getRequestorUserName(), adminGroups);
       sentryStore.dropPrivilege(request.getAuthorizable());
+      for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+        plugin.onDropSentryPrivilege(request);
+      }
       response.setStatus(Status.OK()); 
     } catch (SentryAccessDeniedException e) {
       LOGGER.error(e.getMessage(), e);

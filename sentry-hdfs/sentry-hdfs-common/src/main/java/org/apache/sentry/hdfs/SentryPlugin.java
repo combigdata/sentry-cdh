@@ -27,15 +27,18 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.hdfs.ServiceConstants.ServerConfig;
 import org.apache.sentry.hdfs.UpdateForwarder.ExternalImageRetriever;
+import org.apache.sentry.hdfs.service.thrift.TPathChanges;
 import org.apache.sentry.hdfs.service.thrift.TPermissionsUpdate;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 import org.apache.sentry.provider.db.SentryPolicyStorePlugin;
+import org.apache.sentry.provider.db.SentryPolicyStorePlugin.SentryPluginException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleAddGroupsRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleDeleteGroupsRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleGrantPrivilegeRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleRevokePrivilegeRequest;
+import org.apache.sentry.provider.db.service.thrift.TDropPrivilegesRequest;
 import org.apache.sentry.provider.db.service.thrift.TDropSentryRoleRequest;
 import org.apache.sentry.provider.db.service.thrift.TRenamePrivilegesRequest;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
@@ -184,16 +187,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
       throws SentryPluginException {
     String authzObj = getAuthzObj(request.getPrivilege());
     if (authzObj != null) {
-      PermissionsUpdate update = null;
-      if ( !Strings.isNullOrEmpty(request.getPrivilege().getDbName())
-          && Strings.isNullOrEmpty(request.getPrivilege().getTableName())) {
-        // TODO : Handle recursive revokes more efficiently..
-        update = permImageRetriever.retrieveFullImage(permSeqNum.incrementAndGet());
-      } else {
-        update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-        update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
-            request.getRoleName(), request.getPrivilege().getAction().toUpperCase());
-      }
+      PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+      update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
+          request.getRoleName(), request.getPrivilege().getAction().toUpperCase());
       permsUpdater.handleUpdateNotification(update);
       LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
     }
@@ -210,12 +206,23 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
+  @Override
+  public void onDropSentryPrivilege(TDropPrivilegesRequest request)
+      throws SentryPluginException {
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    String authzObj = getAuthzObj(request.getAuthorizable());
+    update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
+        PermissionsUpdate.ALL_ROLES, PermissionsUpdate.ALL_ROLES);
+    permsUpdater.handleUpdateNotification(update);
+    LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
+  }
+
   private String getAuthzObj(TSentryPrivilege privilege) {
     String authzObj = null;
     if (!SentryStore.isNULL(privilege.getDbName())) {
       String dbName = privilege.getDbName();
       String tblName = privilege.getTableName();
-      if (tblName == null) {
+      if (SentryStore.isNULL(tblName)) {
         authzObj = dbName;
       } else {
         authzObj = dbName + "." + tblName;
@@ -229,7 +236,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin {
     if (!SentryStore.isNULL(authzble.getDb())) {
       String dbName = authzble.getDb();
       String tblName = authzble.getTable();
-      if (tblName == null) {
+      if (SentryStore.isNULL(tblName)) {
         authzObj = dbName;
       } else {
         authzObj = dbName + "." + tblName;
