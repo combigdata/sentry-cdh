@@ -299,12 +299,10 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
 
     //Drop of the new tablename works only when Hive meta store syncs the alters with the sentry privileges.
     //This is currently not set for pseudo cluster runs
-    if( hiveServer2Type.equals(HiveServerFactory.HiveServer2Type.UnmanagedHiveServer2)) {
+    if( hiveServer2Type.equals(HiveServerFactory.HiveServer2Type.UnmanagedHiveServer2 ) &&
+        !policy_on_hdfs) {
       statement.execute("DROP TABLE " + DB1 + ".tb2");
-    } else {
-      statement.execute("DROP TABLE " + DB1 + ".tb1");
     }
-
     statement.close();
     connection.close();
 
