@@ -346,6 +346,20 @@ public class TestHDFSIntegration {
             + miniDFS.getFileSystem().getFileStatus(tmpPath).getGroup() + ", "
             + miniDFS.getFileSystem().getFileStatus(tmpPath).getPermission() + ", "
             + "\n\n");
+
+        int dfsSafeCheckRetry = 30;
+        boolean hasStarted = false;
+        for (int i = dfsSafeCheckRetry; i > 0; i--) {
+          if (!miniDFS.getFileSystem().isInSafeMode()) {
+            hasStarted = true;
+            System.out.println("HDFS safemode check num times : " + (31 - i));
+            break;
+          }
+        }
+        if (!hasStarted) {
+          throw new RuntimeException("HDFS hasnt exited safe mode yet..");
+        }
+
         return null;
       }
     });
@@ -368,6 +382,7 @@ public class TestHDFSIntegration {
         properties.put(ServerConfig.SECURITY_MODE, ServerConfig.SECURITY_MODE_NONE);
 //        properties.put("sentry.service.server.compact.transport", "true");
         properties.put("sentry.hive.testing.mode", "true");
+        properties.put("sentry.service.reporting", "CONSOLE");
         properties.put(ServerConfig.ADMIN_GROUPS, "hive,admin");
         properties.put(ServerConfig.RPC_ADDRESS, "localhost");
         properties.put(ServerConfig.RPC_PORT, String.valueOf(sentryPort < 0 ? 0 : sentryPort));
