@@ -436,7 +436,7 @@ public class TestHDFSIntegration {
   }
 
   @Test
-  public void testEnd2End() throws Exception {
+  public void testEnd2End() throws Throwable {
 
     Connection conn = hiveServer2.createConnection("hive", "hive");
     Statement stmt = conn.createStatement();
@@ -604,11 +604,11 @@ public class TestHDFSIntegration {
     conn.close();
   }
 
-  private void verifyQuery(Statement stmt, String table, int n) throws Exception {
+  private void verifyQuery(Statement stmt, String table, int n) throws Throwable {
     verifyQuery(stmt, table, n, NUM_RETRIES);
   }
   
-  private void verifyQuery(Statement stmt, String table, int n, int retry) throws Exception {
+  private void verifyQuery(Statement stmt, String table, int n, int retry) throws Throwable {
     ResultSet rs = null;
     try {
       rs = stmt.executeQuery("select * from " + table);
@@ -664,8 +664,7 @@ public class TestHDFSIntegration {
     miniDFS.getFileSystem().setPermission(new Path(path + "/stuff.txt"), FsPermission.valueOf("-rwxrwx---"));
   }
 
-  private void verifyHDFSandMR(Statement stmt) throws IOException,
-      InterruptedException, SQLException, Exception {
+  private void verifyHDFSandMR(Statement stmt) throws Throwable {
     // hbase user should not be allowed to read...
     UserGroupInformation hbaseUgi = UserGroupInformation.createUserForTesting("hbase", new String[] {"hbase"});
     hbaseUgi.doAs(new PrivilegedExceptionAction<Void>() {
@@ -707,19 +706,19 @@ public class TestHDFSIntegration {
 
   }
 
-  private void verifyOnAllSubDirs(String path, FsAction fsAction, String group, boolean groupShouldExist) throws Exception {
+  private void verifyOnAllSubDirs(String path, FsAction fsAction, String group, boolean groupShouldExist) throws Throwable {
     verifyOnAllSubDirs(path, fsAction, group, groupShouldExist, true);
   }
 
-  private void verifyOnPath(String path, FsAction fsAction, String group, boolean groupShouldExist) throws Exception {
+  private void verifyOnPath(String path, FsAction fsAction, String group, boolean groupShouldExist) throws Throwable {
     verifyOnAllSubDirs(path, fsAction, group, groupShouldExist, false);
   }
 
-  private void verifyOnAllSubDirs(String path, FsAction fsAction, String group, boolean groupShouldExist, boolean recurse) throws Exception {
+  private void verifyOnAllSubDirs(String path, FsAction fsAction, String group, boolean groupShouldExist, boolean recurse) throws Throwable {
     verifyOnAllSubDirs(new Path(path), fsAction, group, groupShouldExist, recurse, NUM_RETRIES);
   }
 
-  private void verifyOnAllSubDirs(Path p, FsAction fsAction, String group, boolean groupShouldExist, boolean recurse, int retry) throws Exception {
+  private void verifyOnAllSubDirs(Path p, FsAction fsAction, String group, boolean groupShouldExist, boolean recurse, int retry) throws Throwable {
     FileStatus fStatus = null;
     try {
       fStatus = miniDFS.getFileSystem().getFileStatus(p);
