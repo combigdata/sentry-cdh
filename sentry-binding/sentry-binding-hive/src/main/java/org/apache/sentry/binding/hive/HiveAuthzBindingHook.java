@@ -598,6 +598,9 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
   private boolean filterWriteEntity(WriteEntity writeEntity)
       throws AuthorizationException {
     // skip URI validation for session scratch file URIs
+    if (writeEntity.isTempURI()) {
+      return true;
+    }
     try {
       if (writeEntity.getTyp().equals(Type.DFS_DIR)
           || writeEntity.getTyp().equals(Type.LOCAL_DIR)) {
