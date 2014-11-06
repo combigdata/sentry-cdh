@@ -79,7 +79,7 @@ public class TestPrivilegesAtFunctionScope extends AbstractTestWithStaticConfigu
     context.close();
 
     policyFile
-        .addRolesToGroup(USERGROUP1, "db1_all", "UDF_JAR", "data_read")
+        .addRolesToGroup(USERGROUP1, "db1_all", "UDF_JAR")
         .addRolesToGroup(USERGROUP2, "db1_tab1", "UDF_JAR")
         .addRolesToGroup(USERGROUP3, "db1_tab1")
         .addPermissionsToRole("db1_all", "server=server1->db=" + DB1)
