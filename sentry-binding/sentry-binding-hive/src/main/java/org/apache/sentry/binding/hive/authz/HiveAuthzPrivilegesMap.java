@@ -190,6 +190,9 @@ public class HiveAuthzPrivilegesMap {
 
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERDATABASE, dbDDLPrivilege);
 
+    // MSCK REPAIR TABLE <table name> / ALTER TABLE RECOVER PARTITIONS <tableName>
+    hiveAuthzStmtPrivMap.put(HiveOperation.MSCK, tableDDLPrivilege);
+
     hiveAuthzStmtPrivMap.put(HiveOperation.ANALYZE_TABLE, tableQueryPrivilege);
 
     hiveAuthzStmtPrivMap.put(HiveOperation.SWITCHDATABASE, anyPrivilege);

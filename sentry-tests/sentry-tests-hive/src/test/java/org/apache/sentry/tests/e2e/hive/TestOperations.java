@@ -433,7 +433,8 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     connection.close();
   }
 
-  /* Test all operations which require all on table + all on URI
+  /**
+   * Test all operations which require all on table + all on URI
    1. HiveOperation.ALTERTABLE_LOCATION
    2. HiveOperation.ALTERTABLE_ADDPARTS
    3. TODO: HiveOperation.ALTERPARTITION_LOCATION
@@ -456,6 +457,7 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     statement.execute("Use " + DB1);
     statement.execute("ALTER TABLE tb1 SET LOCATION '" + tabLocation + "'");
     statement.execute("ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '" + tabLocation + "/part'");
+    statement.execute("MSCK REPAIR TABLE tb1");
     statement.close();
     connection.close();
 
@@ -468,6 +470,7 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     context.assertSentrySemanticException(statement,
         "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '" + tabLocation + "/part'",
         semanticException);
+
     statement.close();
     connection.close();
 
@@ -484,6 +487,7 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
         semanticException);
     context.assertSentrySemanticException(statement, "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '"
         + tabLocation + "/part'", semanticException);
+    context.assertSentrySemanticException(statement, "MSCK REPAIR TABLE tb1", semanticException);
     statement.close();
     connection.close();
 
