@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
@@ -194,6 +195,10 @@ public class TestHDFSIntegration {
   }
 
   private void startHiveAndMetastore() throws IOException, InterruptedException {
+    startHiveAndMetastore(NUM_RETRIES);
+  }
+
+  private void startHiveAndMetastore(final int retries) throws IOException, InterruptedException {
     hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws Exception {
@@ -273,23 +278,47 @@ public class TestHDFSIntegration {
           }
         }.start();
 
-        hiveServer2 = new InternalHiveServer(hiveConf);
-        new Thread() {
-          @Override
-          public void run() {
-            try {
-              hiveServer2.start();
-              while(true){}
-            } catch (Exception e) {
-              System.out.println("Could not start Hive Server");
-            }
-          }
-        }.start();
-
-        Thread.sleep(10000);
+        startHiveServer2(retries, hiveConf);
         return null;
       }
     });
+  }
+
+  private void startHiveServer2(final int retries, HiveConf hiveConf)
+      throws IOException, InterruptedException, SQLException {
+    Connection conn = null;
+    Thread th = null;
+    final AtomicBoolean keepRunning = new AtomicBoolean(true);
+    try {
+      hiveServer2 = new InternalHiveServer(hiveConf);
+      th = new Thread() {
+        @Override
+        public void run() {
+          try {
+            hiveServer2.start();
+            while(keepRunning.get()){}
+          } catch (Exception e) {
+            System.out.println("Could not start Hive Server");
+          }
+        }
+      };
+      th.start();
+      Thread.sleep(RETRY_WAIT * 5);
+      conn = hiveServer2.createConnection("hive", "hive");
+    } catch (Exception ex) {
+      if (retries > 0) {
+        try {
+          keepRunning.set(false);
+          hiveServer2.shutdown();
+        } catch (Exception e) {
+          // Ignore
+        }
+        startHiveServer2(retries - 1, hiveConf);
+      }
+    }
+    if (conn != null) {
+      conn.close();
+    }
   }
 
   private void startDFSandYARN() throws IOException,
@@ -785,4 +814,5 @@ public class TestHDFSIntegration {
     }
     
   }
+
 }
