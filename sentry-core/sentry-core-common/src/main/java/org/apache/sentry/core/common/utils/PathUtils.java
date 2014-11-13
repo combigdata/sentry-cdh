@@ -29,8 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Strings;
 
 public class PathUtils {
-  private static final Logger LOGGER = LoggerFactory
-      .getLogger(PathUtils.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(PathUtils.class);
   private static String LOCAL_FILE_SCHEMA = "file";
   private static String AUTHORITY_PREFIX = "://";
 
@@ -38,8 +37,7 @@ public class PathUtils {
    * URI is a a special case. For URI's, /a implies /a/b.
    * Therefore the test is "/a/b".startsWith("/a");
    */
-  public static boolean impliesURI(URI privilegeURI, URI requestURI)
-    throws URISyntaxException {
+  public static boolean impliesURI(URI privilegeURI, URI requestURI) throws URISyntaxException {
     if (privilegeURI.getPath() == null || requestURI.getPath() == null) {
       return false;
     }
@@ -56,9 +54,10 @@ public class PathUtils {
     // authorities (nullable) are equal
     String requestPath = ensureEndsWithSeparator(requestURI.getPath()).replace("//", "/");
     String privilegePath = ensureEndsWithSeparator(privilegeURI.getPath()).replace("//", "/");
-    if (requestURI.getPath().equals(requestURI.normalize().getPath()) &&
-        requestPath.startsWith(privilegePath) &&
-        Strings.nullToEmpty(privilegeURI.getAuthority()).equals(Strings.nullToEmpty(requestURI.getAuthority()))) {
+    if (requestURI.getPath().equals(requestURI.normalize().getPath())
+        && requestPath.startsWith(privilegePath)
+        && Strings.nullToEmpty(privilegeURI.getAuthority()).equals(
+            Strings.nullToEmpty(requestURI.getAuthority()))) {
       return true;
     }
     return false;
@@ -66,16 +65,16 @@ public class PathUtils {
 
   public static boolean impliesURI(String privilege, String request) {
     try {
-    URI privilegeURI = new URI(new StrSubstitutor(System.getProperties()).replace(privilege));
-    URI requestURI = new URI(request);
-    if(privilegeURI.getScheme() == null || privilegeURI.getPath() == null) {
-      LOGGER.warn("Privilege URI " + request + " is not valid. Either no scheme or no path.");
-      return false;
-    }
-    if(requestURI.getScheme() == null || requestURI.getPath() == null) {
-      LOGGER.warn("Request URI " + request + " is not valid. Either no scheme or no path.");
-      return false;
-    }
+      URI privilegeURI = new URI(new StrSubstitutor(System.getProperties()).replace(privilege));
+      URI requestURI = new URI(request);
+      if (privilegeURI.getScheme() == null || privilegeURI.getPath() == null) {
+        LOGGER.warn("Privilege URI " + request + " is not valid. Either no scheme or no path.");
+        return false;
+      }
+      if (requestURI.getScheme() == null || requestURI.getPath() == null) {
+        LOGGER.warn("Request URI " + request + " is not valid. Either no scheme or no path.");
+        return false;
+      }
       return PathUtils.impliesURI(privilegeURI, requestURI);
     } catch (URISyntaxException e) {
       LOGGER.warn("Request URI " + request + " is not a URI", e);
@@ -108,9 +107,8 @@ public class PathUtils {
   }
 
   /**
-   * Parse a URI which should be on HDFS in the normal case but can be on a local
-   * file system in the testing case. In either case it should be on the same fs
-   * as the warehouse directory.
+   * Parse a URI which can be HDFS, S3, SWIFT, WEBHDFS,etc. In either case it
+   * should be on the same fs as the warehouse directory.
    */
   public static String parseURI(String warehouseDir, String uri, boolean isLocal)
       throws URISyntaxException {
@@ -128,35 +126,13 @@ public class PathUtils {
 
       if (StringUtils.isEmpty(uriScheme) || isLocal) {
         uriScheme = LOCAL_FILE_SCHEMA;
-        uriAuthority = "";
       }
 
       uriPath = new Path(uriScheme + AUTHORITY_PREFIX + StringUtils.trimToEmpty(uriAuthority)
           + Path.getPathWithoutSchemeAndAuthority(uriPath));
     } else {
-      if (uri.startsWith("file:")) {
-        uri = uri.replace("file:", "file://");
-      } if (uri.startsWith("hdfs:")) {
-        uri = uri.replace("hdfs:", "hdfs://");
-      } else if (uri.startsWith("/")) {
-        if (warehouseDir.startsWith("hdfs:")) {
-          URI warehouse = toDFSURI(warehouseDir);
-          uri = warehouse.getScheme() + "://" + warehouse.getAuthority() + uri;
-        } else if (warehouseDir.startsWith("file:")) {
-          uri = "file://" + uri;
-        } else {
-          if (isLocal) {
-            uri = "file://" + uri;
-          } else {
-            // TODO fix this logic. I don't see why we would want to add hdfs://
-            // to a URI at this point in time since no namenode is specified
-            // and warehouseDir appear to just be a path starting with / ?
-            // I think in the isLocal = false case we might want to throw
-            uri = "hdfs://" + uri;
-          }
-        }
-      }
-      return uri;
+      // don't support relative path
+      throw new IllegalArgumentException("Invalid URI " + uri + ".");
     }
     return uriPath.toUri().toString();
   }
@@ -166,21 +142,15 @@ public class PathUtils {
    */
   public static String parseLocalURI(String uri)
       throws URISyntaxException {
-    if (uri.startsWith("file://")) {
-      return uri;
-    } else if (uri.startsWith("file:")) {
-      return uri.replace("file:", "file://");
-    } else if (uri.startsWith("/")) {
-      return "file://" + uri;
+    Path uriPath = new Path(uri);
+    if (uriPath.isAbsolute()) {
+      uriPath = new Path(LOCAL_FILE_SCHEMA + AUTHORITY_PREFIX
+          + StringUtils.trimToEmpty(uriPath.toUri().getAuthority())
+          + Path.getPathWithoutSchemeAndAuthority(uriPath));
+    } else {
+      throw new IllegalArgumentException("Parse URI does not work on relative URI: " + uri);
     }
-    throw new IllegalStateException("Parse URI does not work on relative URI: " + uri);
+    return uriPath.toUri().toString();
   }
 
-  private static URI toDFSURI(String s) throws URISyntaxException {
-    URI uri = new URI(s);
-    if(uri.getScheme() == null || uri.getAuthority() == null) {
-      throw new IllegalArgumentException("Invalid URI " + s + ". No scheme or authority.");
-    }
-    return uri;
-  }
 }
