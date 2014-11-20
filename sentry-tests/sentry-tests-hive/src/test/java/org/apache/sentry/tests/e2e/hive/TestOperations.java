@@ -57,7 +57,6 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     policyFile = PolicyFile.setAdminOnServer1(ADMINGROUP)
         .setUserGroupMapping(StaticUserGroup.getStaticMapping());
     writePolicyFile(policyFile);
-
   }
 
   private void adminCreate(String db, String table) throws Exception{
@@ -300,7 +299,7 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     //Drop of the new tablename works only when Hive meta store syncs the alters with the sentry privileges.
     //This is currently not set for pseudo cluster runs
     if( hiveServer2Type.equals(HiveServerFactory.HiveServer2Type.UnmanagedHiveServer2 ) &&
-        !policy_on_hdfs) {
+        !policyOnHdfs) {
       statement.execute("DROP TABLE " + DB1 + ".tb2");
     }
     statement.close();
