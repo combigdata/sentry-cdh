@@ -60,8 +60,11 @@ public class SentryAuthorizationInfo implements Runnable {
 
   private String[][] pathPrefixes;
 
+  // For use only for testing !!
   @VisibleForTesting
-  SentryAuthorizationInfo() {}
+  SentryAuthorizationInfo(String[] pathPrefixes) {
+    setPrefixPaths(pathPrefixes);
+  }
 
   public SentryAuthorizationInfo(Configuration conf) throws Exception {
     String[] pathPrefixes = conf.getTrimmedStrings(
@@ -84,15 +87,7 @@ public class SentryAuthorizationInfo implements Runnable {
 
       LOG.debug("Sentry authorization will enforced in the following HDFS " +
           "locations: [{}]", StringUtils.arrayToString(pathPrefixes));
-      this.pathPrefixes = new String[pathPrefixes.length][];
-      for (int i = 0; i < this.pathPrefixes.length; i++) {
-        Preconditions.checkArgument(
-            pathPrefixes[i].startsWith("" + Path.SEPARATOR_CHAR),
-            "Path prefix [" + pathPrefixes[i] + "]"
-                + "does not starting with [" + Path.SEPARATOR_CHAR + "]");
-        this.pathPrefixes[i] =
-            pathPrefixes[i].substring(1).split("" + Path.SEPARATOR_CHAR);
-      }
+      setPrefixPaths(pathPrefixes);
       LOG.debug("Refresh interval [{}]ms, retry wait [{}], stale threshold " +
               "[{}]ms", new Object[] 
           {refreshIntervalMillisec, retryWaitMillisec, staleThresholdMillisec});
@@ -102,6 +97,18 @@ public class SentryAuthorizationInfo implements Runnable {
       waitUntil = System.currentTimeMillis();
       lastStaleReport = 0;
       updater = new SentryUpdater(conf, this);
+    }
+  }
+
+  private void setPrefixPaths(String[] pathPrefixes) {
+    this.pathPrefixes = new String[pathPrefixes.length][];
+    for (int i = 0; i < this.pathPrefixes.length; i++) {
+      Preconditions.checkArgument(
+          pathPrefixes[i].startsWith("" + Path.SEPARATOR_CHAR),
+          "Path prefix [" + pathPrefixes[i] + "]"
+              + "does not starting with [" + Path.SEPARATOR_CHAR + "]");
+      this.pathPrefixes[i] =
+          pathPrefixes[i].substring(1).split("" + Path.SEPARATOR_CHAR);
     }
   }
 
