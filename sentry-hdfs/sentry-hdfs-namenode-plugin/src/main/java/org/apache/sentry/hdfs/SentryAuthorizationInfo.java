@@ -27,6 +27,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.sentry.hdfs.SentryHDFSServiceClient.SentryAuthzUpdate;
@@ -35,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 public class SentryAuthorizationInfo implements Runnable {
   private static Logger LOG =
@@ -55,6 +57,8 @@ public class SentryAuthorizationInfo implements Runnable {
   // Unfortunately, the ReentrantReadWriteLick is the only available
   // concrete implementation of a ReadWriteLock.
   private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+  private String[][] pathPrefixes;
 
   @VisibleForTesting
   SentryAuthorizationInfo() {}
@@ -80,6 +84,15 @@ public class SentryAuthorizationInfo implements Runnable {
 
       LOG.debug("Sentry authorization will enforced in the following HDFS " +
           "locations: [{}]", StringUtils.arrayToString(pathPrefixes));
+      this.pathPrefixes = new String[pathPrefixes.length][];
+      for (int i = 0; i < this.pathPrefixes.length; i++) {
+        Preconditions.checkArgument(
+            pathPrefixes[i].startsWith("" + Path.SEPARATOR_CHAR),
+            "Path prefix [" + pathPrefixes[i] + "]"
+                + "does not starting with [" + Path.SEPARATOR_CHAR + "]");
+        this.pathPrefixes[i] =
+            pathPrefixes[i].substring(1).split("" + Path.SEPARATOR_CHAR);
+      }
       LOG.debug("Refresh interval [{}]ms, retry wait [{}], stale threshold " +
               "[{}]ms", new Object[] 
           {refreshIntervalMillisec, retryWaitMillisec, staleThresholdMillisec});
@@ -90,6 +103,10 @@ public class SentryAuthorizationInfo implements Runnable {
       lastStaleReport = 0;
       updater = new SentryUpdater(conf, this);
     }
+  }
+
+  String[][] getPathPrefixes() {
+    return pathPrefixes;
   }
 
   UpdateableAuthzPaths getAuthzPaths() {
