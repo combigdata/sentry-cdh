@@ -27,6 +27,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
@@ -237,15 +238,16 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     connection = context.createConnection(USER2_1);
     statement = context.createStatement(connection);
     statement.execute("Use db1");
-    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) RENAME TO PARTITION (b = 2)");
-    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) SET SERDEPROPERTIES ('field.delim' = ',')");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = '10') RENAME TO PARTITION (b = 2)");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = '10') SET SERDEPROPERTIES ('field.delim' = ',')");
     //assertSemanticException(statement, "ALTER TABLE tb1 ARCHIVE PARTITION (b = 2)");
     //assertSemanticException(statement, "ALTER TABLE tb1 UNARCHIVE PARTITION (b = 2)");
-    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) SET FILEFORMAT RCFILE");
-    assertSemanticException(statement, "ALTER TABLE tb1 TOUCH PARTITION (b = 10)");
-    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) DISABLE NO_DROP");
-    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) DISABLE OFFLINE");
-    assertSemanticException(statement, "ALTER TABLE tb1 DROP PARTITION (b = 10)");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = '10') SET FILEFORMAT RCFILE");
+    assertSemanticException(statement, "ALTER TABLE tb1 TOUCH PARTITION (b = '10')");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = '10') DISABLE NO_DROP");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = '10') DISABLE OFFLINE");
+    assertSemanticException(statement, "ALTER TABLE tb1 DROP PARTITION (b = '10')");
+
 
     assertSemanticException(statement, "ALTER TABLE tb1 CHANGE COLUMN a c int");
     assertSemanticException(statement, "ALTER TABLE tb1 ADD COLUMNS (a int)");
@@ -275,15 +277,15 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     statement.execute("ALTER TABLE tb1 DISABLE OFFLINE");
     statement.execute("ALTER TABLE tb1 SET FILEFORMAT RCFILE");
 
-    statement.execute("ALTER TABLE tb1 PARTITION (b = 1) RENAME TO PARTITION (b = 2)");
-    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) SET SERDEPROPERTIES ('field.delim' = ',')");
-    //statement.execute("ALTER TABLE tb1 ARCHIVE PARTITION (b = 2)");
-    //statement.execute("ALTER TABLE tb1 UNARCHIVE PARTITION (b = 2)");
-    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) SET FILEFORMAT RCFILE");
-    statement.execute("ALTER TABLE tb1 TOUCH PARTITION (b = 2)");
-    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) DISABLE NO_DROP");
-    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) DISABLE OFFLINE");
-    statement.execute("ALTER TABLE tb1 DROP PARTITION (b = 2)");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = '1') RENAME TO PARTITION (b = '2')");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = '2') SET SERDEPROPERTIES ('field.delim' = ',')");
+    //statement.execute("ALTER TABLE tb1 ARCHIVE PARTITION (b = '2')");
+    //statement.execute("ALTER TABLE tb1 UNARCHIVE PARTITION (b = '2')");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = '2') SET FILEFORMAT RCFILE");
+    statement.execute("ALTER TABLE tb1 TOUCH PARTITION (b = '2')");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = '2') DISABLE NO_DROP");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = '2') DISABLE OFFLINE");
+    statement.execute("ALTER TABLE tb1 DROP PARTITION (b = '2')");
 
     statement.execute("ALTER TABLE tb1 CHANGE COLUMN a c int");
     statement.execute("ALTER TABLE tb1 ADD COLUMNS (a int)");
