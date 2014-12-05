@@ -720,5 +720,4 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
     statement.execute("use " + DB1);
     statement.execute("drop table tb1");
   }
-
 }
