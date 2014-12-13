@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.exec.SentryGrantRevokeTask;
 import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.hooks.Entity;
@@ -77,6 +78,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
   private Table currTab;
   private AccessURI udfURI;
   private AccessURI partitionURI;
+  private Table currOutTab = null;
+  private Database currOutDB = null;
 
   public HiveAuthzBindingHook() throws Exception {
     SessionState session = SessionState.get();
@@ -198,9 +201,10 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         break;
       case HiveParser.TOK_MSCK:
         // token name TOK_TABNAME is not properly set in this case and child(0) does
-    	  // not contain the table name.
-    	  currTab = extractTable((ASTNode)ast.getChild(1));
-        currDB = extractDatabase((ASTNode)ast.getChild(0));
+        // not contain the table name.
+        // TODO: Fix Hive to capture the table and DB name
+        currOutTab = extractTable((ASTNode)ast.getChild(1));
+        currOutDB  = extractDatabase((ASTNode)ast.getChild(0));
         break;
       case HiveParser.TOK_ALTERTABLE_ADDPARTS:
         /*
@@ -355,7 +359,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       HiveOperation hiveOp, AuthorizationException e) {
     SentryOnFailureHookContext hookCtx = new SentryOnFailureHookContextImpl(
         context.getCommand(), context.getInputs(), context.getOutputs(),
-        hiveOp, currDB, currTab, udfURI, partitionURI, context.getUserName(),
+        hiveOp, currDB, currTab, udfURI, null, context.getUserName(),
         context.getIpAddress(), e, context.getConf());
     String csHooks = authzConf.get(
         HiveAuthzConf.AuthzConfVars.AUTHZ_ONFAILURE_HOOKS.getVar(), "").trim();
@@ -424,14 +428,6 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         if (isChildTabForView(readEntity)) {
           continue;
         }
-        // If this is a UDF, then check whether its allowed to be executed
-         // TODO: when we support execute privileges on UDF, this can be removed.
-        if (isUDF(readEntity)) {
-          if (isBuiltinUDF(readEntity)) {
-            checkUDFWhiteList(readEntity.getUDF().getDisplayName());
-          }
-          continue;
-        }
         List<DBModelAuthorizable> entityHierarchy = new ArrayList<DBModelAuthorizable>();
         entityHierarchy.add(hiveAuthzBinding.getAuthServer());
         entityHierarchy.addAll(getAuthzHierarchyFromEntity(readEntity));
@@ -449,14 +445,6 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         if (isChildTabForView(readEntity)) {
           continue;
         }
-        // If this is a UDF, then check whether its allowed to be executed
-        // TODO: when we support execute privileges on UDF, this can be removed.
-        if (isUDF(readEntity)) {
-          if (isBuiltinUDF(readEntity)) {
-            checkUDFWhiteList(readEntity.getUDF().getDisplayName());
-          }
-          continue;
-        }
         List<DBModelAuthorizable> entityHierarchy = new ArrayList<DBModelAuthorizable>();
         entityHierarchy.add(hiveAuthzBinding.getAuthServer());
         entityHierarchy.addAll(getAuthzHierarchyFromEntity(readEntity));
@@ -472,13 +460,23 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         outputHierarchy.add(entityHierarchy);
       }
       // workaround for metadata queries.
-      // Capture the table name in pre-analyze and include that in the entity list
+      // Capture the table name in pre-analyze and include that in the input entity list
       if (currTab != null) {
         List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
         externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
         externalAuthorizableHierarchy.add(currDB);
         externalAuthorizableHierarchy.add(currTab);
         inputHierarchy.add(externalAuthorizableHierarchy);
+      }
+
+      // workaround for DDL statements
+      // Capture the table name in pre-analyze and include that in the output entity list
+      if (currOutTab != null) {
+        List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
+        externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
+        externalAuthorizableHierarchy.add(currOutDB);
+        externalAuthorizableHierarchy.add(currOutTab);
+        outputHierarchy.add(externalAuthorizableHierarchy);
       }
       break;
     case CONNECT:
@@ -536,13 +534,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
   }
 
   private boolean isUDF(ReadEntity readEntity) {
-    return readEntity.getType().equals(Type.UDF);
-  }
-
-  private boolean isBuiltinUDF(ReadEntity readEntity) {
-    return readEntity.getType().equals(Type.UDF) &&
-        readEntity.getUDF().isNative();
-
+    return readEntity.getType().equals(Type.FUNCTION);
   }
 
   private void checkUDFWhiteList(String queryUDF) throws AuthorizationException {
@@ -594,6 +586,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       }
       break;
     case DATABASE:
+    case FUNCTION:
       // TODO use database entities from compiler instead of capturing from AST
       break;
     default:
