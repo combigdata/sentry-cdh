@@ -24,6 +24,7 @@ public interface DBModelAuthorizable extends Authorizable {
     Server,
     Db,
     Table,
+    Column,
     View,
     URI
   };
