@@ -211,8 +211,8 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.EXPORT, tableExportPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.IMPORT, dbImportPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.LOAD, tableLoadPrivilege);
-    hiveAuthzStmtPrivMap.put(HiveOperation.LOCKTABLE, tableDMLPrivilege);
-    hiveAuthzStmtPrivMap.put(HiveOperation.UNLOCKTABLE, tableDMLPrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.LOCKTABLE, anyPrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.UNLOCKTABLE, anyPrivilege);
     // CREATEROLE
     // DROPROLE
     // GRANT_PRIVILEGE

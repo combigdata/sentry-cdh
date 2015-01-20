@@ -94,6 +94,10 @@ public class TestHiveAuthzBindings {
       HiveAuthzPrivilegesMap.getHiveAuthzPrivileges(HiveOperation.CREATEFUNCTION);
   private static final HiveAuthzPrivileges alterTabPrivileges =
       HiveAuthzPrivilegesMap.getHiveAuthzPrivileges(HiveOperation.ALTERTABLE_PROPERTIES);
+  private static final HiveAuthzPrivileges lockPrivileges =
+      HiveAuthzPrivilegesMap.getHiveAuthzPrivileges(HiveOperation.LOCKTABLE);
+  private static final HiveAuthzPrivileges unlockPrivileges =
+      HiveAuthzPrivilegesMap.getHiveAuthzPrivileges(HiveOperation.UNLOCKTABLE);
 
   // auth bindings handler
   private HiveAuthzBinding testAuth = null;
@@ -433,4 +437,23 @@ public class TestHiveAuthzBindings {
       "org.apache.sentry.provider.file.LocalGroupResourceAuthorizationProvider");
     new HiveAuthzBinding(hiveConf, authzConf);
   }
+
+  /**
+   * validate lock and unlock table permissions for admin in customer db
+   */
+  @Test
+  public void testValidateLockTabPrivileges() throws Exception {
+    inputTabHierarcyList.add(buildObjectHierarchy(SERVER1, CUSTOMER_DB, PURCHASES_TAB));
+    // Any privilege should be sufficient for Lock
+    testAuth.authorize(HiveOperation.LOCKTABLE, lockPrivileges, ANALYST_SUBJECT,
+        inputTabHierarcyList, outputTabHierarcyList);
+    testAuth.authorize(HiveOperation.LOCKTABLE, lockPrivileges, ADMIN_SUBJECT,
+        inputTabHierarcyList, outputTabHierarcyList);
+
+    testAuth.authorize(HiveOperation.UNLOCKTABLE, lockPrivileges, ANALYST_SUBJECT,
+        inputTabHierarcyList, outputTabHierarcyList);
+    testAuth.authorize(HiveOperation.UNLOCKTABLE, lockPrivileges, ADMIN_SUBJECT,
+        inputTabHierarcyList, outputTabHierarcyList);
+  }
+
 }
