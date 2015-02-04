@@ -38,6 +38,7 @@ import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -498,6 +499,7 @@ public class TestMetastoreEndToEnd extends
   /**
    * Verify data load into new partition using INSERT .. PARTITION statement
    */
+  @Ignore
   @Test
   public void testPartionInsert() throws Exception {
     String partVal1 = "part1", partVal2 = "part2", partVal3 = "part3";

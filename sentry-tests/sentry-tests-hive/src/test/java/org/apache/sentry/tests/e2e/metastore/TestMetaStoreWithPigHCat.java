@@ -19,6 +19,7 @@
 package org.apache.sentry.tests.e2e.metastore;
 
 import org.apache.sentry.provider.file.PolicyFile;
+
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -33,6 +34,7 @@ import org.apache.sentry.tests.e2e.hive.Context;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
@@ -76,6 +78,7 @@ public class TestMetaStoreWithPigHCat extends
   /**
    * Verify add partition via Pig+HCatStore
    */
+  @Ignore
   @Test
   public void testPartionLoad() throws Exception {
     String tabName = "tab1";
