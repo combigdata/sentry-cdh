@@ -22,7 +22,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry</artifactId>
-    <version>1.4.0-cdh5.3.2-SNAPSHOT</version>
+    <version>1.4.0-cdh5.3.3-SNAPSHOT</version>
   </parent>
 
   <artifactId>sentry-provider</artifactId>
