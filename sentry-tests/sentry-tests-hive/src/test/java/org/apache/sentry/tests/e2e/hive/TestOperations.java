@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
@@ -438,7 +439,10 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
    2. HiveOperation.ALTERTABLE_ADDPARTS
    3. TODO: HiveOperation.ALTERPARTITION_LOCATION
    4. TODO: HiveOperation.ALTERTBLPART_SKEWED_LOCATION
+
+   *** The test is disabled till CDH-24914 is addressed  ***
    */
+  @Ignore
   @Test
   public void testAlterAllOnTableAndURI() throws Exception {
     adminCreate(DB1, tableName, true);
