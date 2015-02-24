@@ -324,11 +324,11 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       }
     }
 
-    if (stmtAuthObject == null) {
-      // We don't handle authorizing this statement
-      return;
-    }
     try {
+      if (stmtAuthObject == null) {
+        // We don't handle authorizing this statement
+        return;
+      }
       authorizeWithHiveBindings(context, stmtAuthObject, stmtOperation);
     } catch (AuthorizationException e) {
       executeOnFailureHooks(context, stmtOperation, e);
@@ -340,13 +340,15 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       String msg = HiveAuthzConf.HIVE_SENTRY_PRIVILEGE_ERROR_MESSAGE + "\n Required privileges for this query: "
           + permsRequired;
       throw new SemanticException(msg, e);
+    } finally {
+      hiveAuthzBinding.close();
     }
+
     if ("true".equalsIgnoreCase(context.getConf().
         get(HiveAuthzConf.HIVE_SENTRY_MOCK_COMPILATION))) {
       throw new SemanticException(HiveAuthzConf.HIVE_SENTRY_MOCK_ERROR + " Mock query compilation aborted. Set " +
           HiveAuthzConf.HIVE_SENTRY_MOCK_COMPILATION + " to 'false' for normal query processing");
     }
-    hiveAuthzBinding.set(context.getConf());
   }
 
   private void executeOnFailureHooks(HiveSemanticAnalyzerHookContext context,
@@ -529,8 +531,6 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     // validate permission
     hiveAuthzBinding.authorize(stmtOperation, stmtAuthObject, getCurrentSubject(context),
         inputHierarchy, outputHierarchy);
-
-    hiveAuthzBinding.set(context.getConf());
   }
 
   private boolean isUDF(ReadEntity readEntity) {
