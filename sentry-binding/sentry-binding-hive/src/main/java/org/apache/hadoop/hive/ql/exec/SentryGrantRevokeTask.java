@@ -186,6 +186,9 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
       if (sentryClient != null) {
         sentryClient.close();
       }
+      if (hiveAuthzBinding != null) {
+        hiveAuthzBinding.close();
+      }
     }
   }
 
