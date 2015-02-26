@@ -143,6 +143,10 @@ limitations under the License.
     <dependency>
       <groupId>org.apache.sentry</groupId>
       <artifactId>solr-sentry-handlers</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>solr-sentry-handlers</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
