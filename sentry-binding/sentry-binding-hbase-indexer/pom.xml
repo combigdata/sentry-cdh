@@ -21,50 +21,50 @@ limitations under the License.
 
   <parent>
     <groupId>org.apache.sentry</groupId>
-    <artifactId>sentry-tests</artifactId>
+    <artifactId>sentry-binding</artifactId>
     <version>1.4.0-cdh5.4.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>sentry-tests-solr</artifactId>
-  <name>Sentry Solr Tests</name>
-  <description>end to end tests for sentry-solr integration</description>
-
-  <properties>
-    <lucene-junit.version>4.10</lucene-junit.version>
-    <carrot-search.version>2.0.10</carrot-search.version>
-  </properties>
+  <artifactId>sentry-binding-hbase-indexer</artifactId>
+  <name>Sentry Binding for HBase Indexer</name>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.solr</groupId>
-      <artifactId>solr-test-framework</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.solr</groupId>
-      <artifactId>solr-sentry-handlers</artifactId>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.solr</groupId>
-      <artifactId>solr-solrj</artifactId>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-core-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-core-model-indexer</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-provider-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-provider-file</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-policy-indexer</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-minicluster</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>${lucene-junit.version}</version> <!-- required for LuceneTestCase -->
-    </dependency>
-    <dependency>
-      <groupId>com.carrotsearch.randomizedtesting</groupId>
-      <artifactId>randomizedtesting-runner</artifactId>
-      <version>${carrot-search.version}</version>
+      <groupId>com.ngdata</groupId>
+      <artifactId>hbase-indexer-model</artifactId>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
+
 </project>
