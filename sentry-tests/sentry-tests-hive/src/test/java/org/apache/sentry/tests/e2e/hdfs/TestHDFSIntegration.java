@@ -745,6 +745,15 @@ public class TestHDFSIntegration {
     verifyOnPath("/tmp/external/tables/ext2_after/i=2/stuff.txt", FsAction.ALL, "hbase", true);
     // END : Verify external table set location..
 
+    miniDFS.shutdown();
+    miniDFS.restartNameNode(true);
+    miniDFS.waitActive();
+    verifyOnPath("/tmp/external/tables/ext2_after", FsAction.ALL, "hbase", true);
+    verifyOnPath("/tmp/external/tables/ext2_after/i=1", FsAction.ALL, "hbase", true);
+    verifyOnPath("/tmp/external/tables/ext2_after/i=2", FsAction.ALL, "hbase", true);
+    verifyOnPath("/tmp/external/tables/ext2_after/i=1/stuff.txt", FsAction.ALL, "hbase", true);
+    verifyOnPath("/tmp/external/tables/ext2_after/i=2/stuff.txt", FsAction.ALL, "hbase", true);
+
     stmt.close();
     conn.close();
   }
