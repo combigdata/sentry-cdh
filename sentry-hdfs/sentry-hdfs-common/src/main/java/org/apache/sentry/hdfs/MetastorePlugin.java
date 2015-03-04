@@ -90,10 +90,10 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
 
   //Initialized to some value > 1 so that the first update notification
  // will trigger a full Image fetch
-  private final AtomicLong seqNum = new AtomicLong(5);
+  private static final AtomicLong seqNum = new AtomicLong(5);
 
   // For some reason, HMS sometimes restarts the plugin
-  private static volatile long lastSentSeqNum = -1;
+  private static volatile long lastSentSeqNum = 5;
   private volatile boolean syncSent = false;
   private final ExecutorService threadPool;
 
