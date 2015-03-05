@@ -25,6 +25,8 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import org.apache.sentry.hdfs.service.thrift.TPathChanges;
 import org.apache.sentry.hdfs.service.thrift.TPathsUpdate;
+import org.apache.commons.httpclient.util.URIUtil;
+import org.apache.commons.httpclient.URIException;
 
 import com.google.common.collect.Lists;
 
@@ -84,7 +86,7 @@ public class PathsUpdate implements Updateable.Update {
    */
   public static List<String> parsePath(String path) {
     try {
-      URI uri = new URI(path.replace(" ","%20"));
+      URI uri = new URI(URIUtil.encodePath(path));
       Preconditions.checkNotNull(uri.getScheme());
       if(uri.getScheme().equalsIgnoreCase("hdfs")) {
         return Lists.newArrayList(uri.getPath().split("^/")[1]
@@ -94,6 +96,8 @@ public class PathsUpdate implements Updateable.Update {
       }
     } catch (URISyntaxException e) {
       throw new RuntimeException("Incomprehensible path [" + path + "]");
+    } catch (URIException e){
+      throw new RuntimeException("Unable to create URI: ",e);
     }
   }
 
