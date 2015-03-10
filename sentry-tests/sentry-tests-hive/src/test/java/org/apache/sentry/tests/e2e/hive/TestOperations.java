@@ -439,10 +439,7 @@ public class TestOperations extends AbstractTestWithStaticConfiguration {
    2. HiveOperation.ALTERTABLE_ADDPARTS
    3. TODO: HiveOperation.ALTERPARTITION_LOCATION
    4. TODO: HiveOperation.ALTERTBLPART_SKEWED_LOCATION
-
-   *** The test is disabled till CDH-24914 is addressed  ***
    */
-  @Ignore
   @Test
   public void testAlterAllOnTableAndURI() throws Exception {
     adminCreate(DB1, tableName, true);

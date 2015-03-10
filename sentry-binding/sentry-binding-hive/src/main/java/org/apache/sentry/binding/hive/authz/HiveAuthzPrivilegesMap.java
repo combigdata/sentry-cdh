@@ -36,6 +36,11 @@ public class HiveAuthzPrivilegesMap {
         setOperationScope(HiveOperationScope.TABLE).
         setOperationType(HiveOperationType.DDL).
         build();
+    HiveAuthzPrivileges msckDDLPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder()
+        .addOutputObjectPriviledge(AuthorizableType.Table,
+            EnumSet.of(DBModelAction.ALL))
+        .setOperationScope(HiveOperationScope.TABLE)
+        .setOperationType(HiveOperationType.DDL).build();
     HiveAuthzPrivileges tableDDLAndUriPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
         addOutputObjectPriviledge(AuthorizableType.URI, EnumSet.of(DBModelAction.ALL)).
@@ -196,7 +201,7 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERDATABASE, dbDDLPrivilege);
 
     // MSCK REPAIR TABLE <table name> / ALTER TABLE RECOVER PARTITIONS <tableName>
-    hiveAuthzStmtPrivMap.put(HiveOperation.MSCK, tableDDLPrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.MSCK, msckDDLPrivilege);
 
     hiveAuthzStmtPrivMap.put(HiveOperation.ANALYZE_TABLE, tableQueryPrivilege);
 
