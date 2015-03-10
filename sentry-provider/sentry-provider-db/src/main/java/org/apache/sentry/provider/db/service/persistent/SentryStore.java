@@ -591,9 +591,9 @@ public class SentryStore {
 
   private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm) {
     Query query = pm.newQuery(MSentryPrivilege.class);
-    query.setFilter("this.serverName == \"" + toNULLCol(tPriv.getServerName()) + "\" "
-				+ "&& this.dbName == \"" + toNULLCol(tPriv.getDbName()) + "\" "
-				+ "&& this.tableName == \"" + toNULLCol(tPriv.getTableName()) + "\" "
+    query.setFilter("this.serverName == \"" + toNULLCol(safeTrimLower(tPriv.getServerName())) + "\" "
+				+ "&& this.dbName == \"" + toNULLCol(safeTrimLower(tPriv.getDbName())) + "\" "
+				+ "&& this.tableName == \"" + toNULLCol(safeTrimLower(tPriv.getTableName())) + "\" "
 				+ "&& this.URI == \"" + toNULLCol(tPriv.getURI()) + "\" "
 				+ "&& this.grantOption == grantOption "
 				+ "&& this.action == \"" + toNULLCol(tPriv.getAction().toLowerCase()) + "\"");

@@ -101,6 +101,9 @@ public class TestDatabaseProvider extends AbstractTestWithStaticConfiguration {
     statement.execute("CREATE ROLE user_role");
     statement.execute("GRANT SELECT ON TABLE t1 TO ROLE user_role");
     statement.execute("GRANT ROLE user_role TO GROUP " + USERGROUP1);
+    statement.execute("DROP TABLE t1");
+    statement.execute("CREATE TABLE t1 (c1 string)");
+    statement.execute("GRANT SELECT ON TABLE T1 TO ROLE user_role");
     statement.close();
     connection.close();
     connection = context.createConnection(USER1_1);
