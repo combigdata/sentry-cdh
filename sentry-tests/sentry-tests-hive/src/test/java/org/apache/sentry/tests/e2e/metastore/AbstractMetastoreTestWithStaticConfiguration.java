@@ -17,10 +17,12 @@
  */
 package org.apache.sentry.tests.e2e.metastore;
 
+import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.hive.cli.CliSessionState;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -33,6 +35,7 @@ import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.Driver;
+import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.shims.ShimLoader;
@@ -43,6 +46,8 @@ import org.apache.sentry.tests.e2e.hive.AbstractTestWithStaticConfiguration;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory.HiveServer2Type;
 import org.junit.After;
 import org.junit.BeforeClass;
+
+import com.google.common.collect.Maps;
 
 public abstract class AbstractMetastoreTestWithStaticConfiguration extends
     AbstractTestWithStaticConfiguration {
@@ -152,7 +157,6 @@ public abstract class AbstractMetastoreTestWithStaticConfiguration extends
       List<String> ptnVals, Table tbl) {
     Partition part = makeMetastoreBasePartitionObject(dbName, tblName, ptnVals,
         tbl);
-    part.getSd().setLocation(null);
     return part;
   }
 
@@ -176,13 +180,35 @@ public abstract class AbstractMetastoreTestWithStaticConfiguration extends
     client.createDatabase(db);
   }
 
+  public void execHiveSQLwithOverlay(final String sqlStmt,
+      final String userName, Map<String, String> overLay) throws Exception {
+    final HiveConf hiveConf = new HiveConf();
+    for (Map.Entry<String, String> entry : overLay.entrySet()) {
+      hiveConf.set(entry.getKey(), entry.getValue());
+    }
+    UserGroupInformation clientUgi = UserGroupInformation
+        .createRemoteUser(userName);
+    clientUgi.doAs(new PrivilegedExceptionAction<Object>() {
+      @Override
+      public Void run() throws Exception {
+        Driver driver = new Driver(hiveConf, userName);
+        SessionState.start(new CliSessionState(hiveConf));
+        CommandProcessorResponse cpr = driver.run(sqlStmt);
+        if (cpr.getResponseCode() != 0) {
+          throw new IOException("Failed to execute \"" + sqlStmt
+              + "\". Driver returned " + cpr.getResponseCode() + " Error: "
+              + cpr.getErrorMessage());
+        }
+        driver.close();
+        SessionState.get().close();
+        return null;
+      }
+    });
+  }
+
+
   public void execHiveSQL(String sqlStmt, String userName) throws Exception {
-    HiveConf hiveConf = new HiveConf();
-    Driver driver = new Driver(hiveConf);
-    SessionState.start(new CliSessionState(hiveConf));
-    driver.run(sqlStmt);
-    driver.close();
-    SessionState.get().close();
+    execHiveSQLwithOverlay(sqlStmt, userName, new HashMap<String, String>());
   }
 
   public void execPigLatin(String userName, final PigServer pigServer,
