@@ -81,7 +81,7 @@ public abstract class SentryServiceIntegrationBase extends SentryMiniKdcTestcase
   protected final Configuration conf = new Configuration(false);
   protected PolicyFile policyFile;
   protected File policyFilePath;
-  protected Properties kdcConfOverlay = new Properties();
+  protected static Properties kdcConfOverlay = new Properties();
 
   @Before
   public void setup() throws Exception {
