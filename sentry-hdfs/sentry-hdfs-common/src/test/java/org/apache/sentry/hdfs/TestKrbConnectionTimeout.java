@@ -40,7 +40,6 @@ public class TestKrbConnectionTimeout extends
     Assume.assumeTrue("true".equalsIgnoreCase(System.getProperty(
         "sentry.hive.test.ticket.timeout", "false")));
     kdcConfOverlay.setProperty(MiniKdc.MAX_TICKET_LIFETIME, "300001");
-    setup();
   }
 
   /***
