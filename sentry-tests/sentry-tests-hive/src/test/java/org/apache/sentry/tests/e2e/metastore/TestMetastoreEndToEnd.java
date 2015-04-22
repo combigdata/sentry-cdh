@@ -36,6 +36,7 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.tests.e2e.hive.Context;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
@@ -559,19 +560,19 @@ public class TestMetastoreEndToEnd extends
     execHiveSQL("CREATE TABLE " + dbName + "." + tabName1
         + " (id int) PARTITIONED BY (part_col string)", USER1_1);
 
-    execHiveSQL("ALTER TABLE " + dbName + "." + tabName1
-        + " ADD PARTITION (part_col ='" + partVal1 +  "')", USER1_1);
+    execHiveSQLForDb("ALTER TABLE " + tabName1
+        + " ADD PARTITION (part_col ='" + partVal1 +  "')", USER1_1, dbName);
     verifyPartitionExists(dbName, tabName1, partVal1);
 
-    execHiveSQL("ALTER TABLE " + dbName + "." + tabName1
+    execHiveSQLForDb("ALTER TABLE " + tabName1
         + " ADD PARTITION (part_col ='" + partVal2 +  "') location '"
-        + tabDir1 + "'", USER1_1);
+        + tabDir1 + "'", USER1_1, dbName);
     verifyPartitionExists(dbName, tabName1, partVal2);
 
     try {
-      execHiveSQL("ALTER TABLE " + dbName + "." + tabName1
+      execHiveSQLForDb("ALTER TABLE " + tabName1
           + " ADD PARTITION (part_col ='" + partVal2 + "') location '"
-          + tabDir1 + "'", USER2_1);
+          + tabDir1 + "'", USER2_1, dbName);
       fail("alter table should have failed due to missing URI privilege");
     } catch (IOException e) {
       // Expected error

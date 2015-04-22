@@ -184,6 +184,11 @@ public abstract class AbstractMetastoreTestWithStaticConfiguration extends
 
   public void execHiveSQLwithOverlay(final String sqlStmt,
       final String userName, Map<String, String> overLay) throws Exception {
+    execHiveSQLForDBwithOverlay(sqlStmt, userName, overLay, null);
+  }
+
+  public void execHiveSQLForDBwithOverlay(final String sqlStmt,
+      final String userName, Map<String, String> overLay, final String dbName) throws Exception {
     final HiveConf hiveConf = new HiveConf();
     for (Map.Entry<String, String> entry : overLay.entrySet()) {
       hiveConf.set(entry.getKey(), entry.getValue());
@@ -195,6 +200,7 @@ public abstract class AbstractMetastoreTestWithStaticConfiguration extends
       public Void run() throws Exception {
         Driver driver = new Driver(hiveConf, userName);
         SessionState.start(new CliSessionState(hiveConf));
+        SessionState.get().setCurrentDatabase(dbName);
         CommandProcessorResponse cpr = driver.run(sqlStmt);
         if (cpr.getResponseCode() != 0) {
           throw new IOException("Failed to execute \"" + sqlStmt
@@ -208,6 +214,10 @@ public abstract class AbstractMetastoreTestWithStaticConfiguration extends
     });
   }
 
+
+  public void execHiveSQLForDb(String sqlStmt, String userName, String dbName) throws Exception {
+    execHiveSQLForDBwithOverlay(sqlStmt, userName, new HashMap<String, String>(), dbName);
+  }
 
   public void execHiveSQL(String sqlStmt, String userName) throws Exception {
     execHiveSQLwithOverlay(sqlStmt, userName, new HashMap<String, String>());
