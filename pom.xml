@@ -939,13 +939,15 @@ limitations under the License.
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${surefire.version}</version>
           <configuration>
+            <forkCount>1</forkCount>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
+            <reuseForks>false</reuseForks>
             <environmentVariables>
               <HADOOP_CLIENT_OPTS>-Xmx1500m -Dhive.log.dir=./target/</HADOOP_CLIENT_OPTS>
             </environmentVariables>
             <forkedProcessTimeoutInSeconds>900</forkedProcessTimeoutInSeconds>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
-            <argLine>-Xms512m -Xmx2g -XX:MaxPermSize=256m</argLine>
+            <argLine>-Xms512m -Xmx2g -XX:MaxPermSize=2g</argLine>
             <systemPropertyVariables>
               <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
               <java.io.tmpdir>${test.tmp.dir}</java.io.tmpdir>
