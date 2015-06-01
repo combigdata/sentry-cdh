@@ -30,6 +30,8 @@ import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 public class HiveAuthzPrivilegesMap {
   private static final Map <HiveOperation, HiveAuthzPrivileges> hiveAuthzStmtPrivMap =
     new HashMap<HiveOperation, HiveAuthzPrivileges>();
+  private static final Map <HiveExtendedOperation, HiveAuthzPrivileges> hiveAuthzExtendedPrivMap =
+    new HashMap<HiveExtendedOperation, HiveAuthzPrivileges>();
   static {
     HiveAuthzPrivileges tableDDLPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
@@ -59,8 +61,6 @@ public class HiveAuthzPrivilegesMap {
      */
     HiveAuthzPrivileges tableQueryPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.SELECT)).
-        addInputObjectPriviledge(AuthorizableType.URI, EnumSet.of(DBModelAction.ALL)).
-        addInputObjectPriviledge(AuthorizableType.Column, EnumSet.of(DBModelAction.SELECT)).
         addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.INSERT)).
         addOutputObjectPriviledge(AuthorizableType.URI, EnumSet.of(DBModelAction.ALL)).
         setOperationScope(HiveOperationScope.TABLE).
@@ -232,9 +232,15 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.QUERY, tableQueryPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.DESCDATABASE, dbMetaDataPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.DESCTABLE, tableMetaDataPrivilege);
+
+    hiveAuthzExtendedPrivMap.put(HiveExtendedOperation.TRANSFORM, serverPrivilege);
   }
 
   public static HiveAuthzPrivileges getHiveAuthzPrivileges(HiveOperation hiveStmtOp) {
     return hiveAuthzStmtPrivMap.get(hiveStmtOp);
+  }
+
+  public static HiveAuthzPrivileges getHiveExtendedAuthzPrivileges(HiveExtendedOperation hiveExtOp) {
+    return hiveAuthzExtendedPrivMap.get(hiveExtOp);
   }
 }

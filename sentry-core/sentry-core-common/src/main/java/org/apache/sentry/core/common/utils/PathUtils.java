@@ -20,9 +20,7 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +29,6 @@ import com.google.common.base.Strings;
 public class PathUtils {
   private static final Logger LOGGER = LoggerFactory
       .getLogger(PathUtils.class);
-  private static String LOCAL_FILE_SCHEMA = "file";
-  private static String AUTHORITY_PREFIX = "://";
-
   /**
    * URI is a a special case. For URI's, /a implies /a/b.
    * Therefore the test is "/a/b".startsWith("/a");
@@ -99,12 +94,7 @@ public class PathUtils {
 
   public static String parseDFSURI(String warehouseDir, String uri)
       throws URISyntaxException {
-    return parseURI(warehouseDir, uri, false);
-  }
-
-  public static String parseDFSURI(String warehouseDir, String uri, boolean isLocal)
-      throws URISyntaxException {
-    return parseURI(warehouseDir, uri, isLocal);
+    return parseDFSURI(warehouseDir, uri, false);
   }
 
   /**
@@ -112,27 +102,10 @@ public class PathUtils {
    * file system in the testing case. In either case it should be on the same fs
    * as the warehouse directory.
    */
-  public static String parseURI(String warehouseDir, String uri, boolean isLocal)
+  public static String parseDFSURI(String warehouseDir, String uri, boolean isLocal)
       throws URISyntaxException {
-    Path warehouseDirPath = new Path(warehouseDir);
-    Path uriPath = new Path(uri);
-
-    if (uriPath.isAbsolute()) {
-      // Merge warehouseDir and uri only when there is no scheme and authority
-      // in uri.
-      if (uriPath.isAbsoluteAndSchemeAuthorityNull()) {
-        uriPath = uriPath.makeQualified(warehouseDirPath.toUri(), warehouseDirPath);
-      }
-      String uriScheme = uriPath.toUri().getScheme();
-      String uriAuthority = uriPath.toUri().getAuthority();
-
-      if (StringUtils.isEmpty(uriScheme) || isLocal) {
-        uriScheme = LOCAL_FILE_SCHEMA;
-        uriAuthority = "";
-      }
-
-      uriPath = new Path(uriScheme + AUTHORITY_PREFIX + StringUtils.trimToEmpty(uriAuthority)
-          + Path.getPathWithoutSchemeAndAuthority(uriPath));
+    if ((uri.startsWith("file://") || uri.startsWith("hdfs://"))) {
+      return uri;
     } else {
       if (uri.startsWith("file:")) {
         uri = uri.replace("file:", "file://");
@@ -158,7 +131,6 @@ public class PathUtils {
       }
       return uri;
     }
-    return uriPath.toUri().toString();
   }
 
   /**
