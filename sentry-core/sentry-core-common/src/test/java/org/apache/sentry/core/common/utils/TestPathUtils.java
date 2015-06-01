@@ -19,7 +19,6 @@ package org.apache.sentry.core.common.utils;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
-import static junit.framework.Assert.fail;
 
 import java.net.URI;
 
@@ -64,19 +63,6 @@ public class TestPathUtils {
     // warehouse file:/, path file:///
     assertEquals("file:///tmp/hive-user", PathUtils.
       parseDFSURI("file:/tmp/hive-warehouse", "file:///tmp/hive-user"));
-
-    // for local test case
-    assertEquals("file:///tmp/hive-user",
-        PathUtils.parseURI("testLocal:///tmp/hive-warehouse", "/tmp/hive-user", true));
-    try {
-      PathUtils.parseURI("testLocal:///tmp/hive-warehouse", "tmp/hive-user", true);
-      fail("IllegalStateException should be thrown");
-    } catch (IllegalArgumentException ue) {
-    }
-
-    // warehouse /, path /
-    assertEquals("file:///tmp/hive-user",
-        PathUtils.parseDFSURI("/tmp/hive-warehouse", "/tmp/hive-user"));
   }
 
   @Test
