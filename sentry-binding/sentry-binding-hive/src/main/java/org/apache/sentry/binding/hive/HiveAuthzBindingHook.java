@@ -341,7 +341,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
           + permsRequired;
       throw new SemanticException(msg, e);
     } finally {
-      hiveAuthzBinding.close();
+      //hiveAuthzBinding.close();
     }
 
     if ("true".equalsIgnoreCase(context.getConf().
@@ -349,6 +349,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       throw new SemanticException(HiveAuthzConf.HIVE_SENTRY_MOCK_ERROR + " Mock query compilation aborted. Set " +
           HiveAuthzConf.HIVE_SENTRY_MOCK_COMPILATION + " to 'false' for normal query processing");
     }
+    hiveAuthzBinding.set(context.getConf());
   }
 
   private void executeOnFailureHooks(HiveSemanticAnalyzerHookContext context,
@@ -531,6 +532,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     // validate permission
     hiveAuthzBinding.authorize(stmtOperation, stmtAuthObject, getCurrentSubject(context),
         inputHierarchy, outputHierarchy);
+
+    hiveAuthzBinding.set(context.getConf());
   }
 
   private boolean isUDF(ReadEntity readEntity) {
