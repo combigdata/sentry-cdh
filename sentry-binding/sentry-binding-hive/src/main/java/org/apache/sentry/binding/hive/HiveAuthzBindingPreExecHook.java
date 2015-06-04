@@ -65,6 +65,7 @@ public class HiveAuthzBindingPreExecHook implements ExecuteWithHookContext {
     } finally {
       if (hiveAuthzBinding != null) {
         hiveAuthzBinding.clear(hookContext.getConf());
+        hiveAuthzBinding.close();
       }
     }
   }
