@@ -612,6 +612,29 @@ public class TestHDFSIntegration {
     verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);
     verifyOnAllSubDirs("/user/hive/warehouse/p3/month=1/day=3", FsAction.WRITE_EXECUTE, "hbase", true);
 
+    // TODO : Capital One TEST -START
+    // Test DB perm propagation
+    stmt.execute("create database extdb");
+    stmt.execute("grant all on database extdb to role p1_admin");
+    writeToPath("/tmp/external/ext100", 5, "foo", "bar");
+    writeToPath("/tmp/external/ext101", 5, "foo", "bar");
+    stmt.execute("use extdb");
+    stmt.execute(
+            "create table ext100 (s string) location \'/tmp/external/ext100\'");
+    verifyQuery(stmt, "ext100", 5);
+    verifyOnAllSubDirs("/tmp/external/ext100", FsAction.ALL, "hbase", true);
+    stmt.execute("use default");
+
+    stmt.execute("use EXTDB");
+    stmt.execute(
+            "create table ext101 (s string) location \'/tmp/external/ext101\'");
+    verifyQuery(stmt, "ext101", 5);
+    verifyOnAllSubDirs("/tmp/external/ext101", FsAction.ALL, "hbase", true);
+    stmt.execute("use default");
+
+    stmt.execute("use default");
+    // TODO : Capital One TEST -END
+
     sentryService.stop();
     // Verify that Sentry permission are still enforced for the "stale" period
     verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);

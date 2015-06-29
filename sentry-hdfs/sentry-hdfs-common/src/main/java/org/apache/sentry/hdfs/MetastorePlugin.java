@@ -192,6 +192,7 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
 
   @Override
   public void addPath(String authzObj, String path) {
+    authzObj = authzObj.toLowerCase();
     List<String> pathTree = PathsUpdate.parsePath(path);
     if(pathTree == null) {
       return;
@@ -207,6 +208,7 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
 
   @Override
   public void removeAllPaths(String authzObj, List<String> childObjects) {
+    authzObj = authzObj.toLowerCase();
     LOGGER.debug("#### HMS Path Update ["
         + "OP : removeAllPaths, "
         + "authzObj : " + authzObj + ", "
@@ -225,6 +227,7 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
 
   @Override
   public void removePath(String authzObj, String path) {
+    authzObj = authzObj.toLowerCase();
     if ("*".equals(path)) {
       removeAllPaths(authzObj, null);
     } else {
@@ -245,6 +248,12 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
   @Override
   public void renameAuthzObject(String oldName, String oldPath, String newName,
       String newPath) {
+    if (oldName != null) {
+      oldName = oldName.toLowerCase();
+    }
+    if (newName != null) {
+      newName = newName.toLowerCase();
+    }
     PathsUpdate update = createHMSUpdate();
     LOGGER.debug("#### HMS Path Update ["
         + "OP : renameAuthzObject, "
