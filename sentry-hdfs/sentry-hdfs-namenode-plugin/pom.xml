@@ -21,7 +21,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry-hdfs</artifactId>
-    <version>1.4.0-cdh5.4.5-SNAPSHOT</version>
+    <version>1.4.0-cdh5.4.5</version>
   </parent>
 
   <artifactId>sentry-hdfs-namenode-plugin</artifactId>
