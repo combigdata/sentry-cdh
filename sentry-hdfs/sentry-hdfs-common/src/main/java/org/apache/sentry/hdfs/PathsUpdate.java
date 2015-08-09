@@ -28,8 +28,8 @@ import org.apache.sentry.hdfs.service.thrift.TPathChanges;
 import org.apache.sentry.hdfs.service.thrift.TPathsUpdate;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.httpclient.URIException;
-
 import org.apache.commons.lang.StringUtils;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.conf.Configuration;
 
