@@ -442,9 +442,7 @@ public class DefaultSentryValidator extends SentryHiveAuthorizationValidator {
         new HiveAuthzPrivileges.AuthzPrivilegeBuilder()
             .addInputObjectPriviledge(
                 AuthorizableType.Column,
-                EnumSet.of(DBModelAction.SELECT, DBModelAction.INSERT, DBModelAction.ALTER,
-                    DBModelAction.CREATE, DBModelAction.DROP, DBModelAction.INDEX,
-                    DBModelAction.LOCK))
+                EnumSet.of(DBModelAction.SELECT, DBModelAction.INSERT))
             .setOperationScope(HiveOperationScope.CONNECT)
             .setOperationType(
                 HiveAuthzPrivileges.HiveOperationType.QUERY)
