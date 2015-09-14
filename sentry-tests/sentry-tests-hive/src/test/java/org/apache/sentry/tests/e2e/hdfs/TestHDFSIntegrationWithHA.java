@@ -18,7 +18,9 @@
 package org.apache.sentry.tests.e2e.hdfs;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
+@Ignore
 public class TestHDFSIntegrationWithHA extends TestHDFSIntegration {
   @BeforeClass
   public static void setup() throws Exception {

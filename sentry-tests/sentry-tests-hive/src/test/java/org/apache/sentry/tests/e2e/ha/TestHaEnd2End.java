@@ -29,6 +29,7 @@ import org.apache.sentry.service.thrift.HAClientInvocationHandler;
 import org.apache.sentry.tests.e2e.hive.AbstractTestWithStaticConfiguration;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
@@ -36,6 +37,7 @@ import com.google.common.io.Resources;
 /**
  * End2End tests with Sentry service HA enabled.
  */
+@Ignore
 public class TestHaEnd2End extends AbstractTestWithStaticConfiguration {
 
   private final String SINGLE_TYPE_DATA_FILE_NAME = "kv1.dat";

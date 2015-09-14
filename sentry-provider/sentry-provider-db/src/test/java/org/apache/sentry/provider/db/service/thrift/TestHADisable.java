@@ -17,30 +17,22 @@
  */
 package org.apache.sentry.provider.db.service.thrift;
 
-
+import junit.framework.Assert;
 import org.apache.sentry.SentryUserException;
 import org.apache.sentry.service.thrift.SentryServiceIntegrationBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
- * Test various kerberos related stuff on the SentryService side
+ * Test Sentry HA is disabled
  */
-@Ignore
-public class TestSentryServiceForHAWithKerberos extends SentryServiceIntegrationBase {
+public class TestHADisable extends SentryServiceIntegrationBase {
 
   @BeforeClass
   public static void setup() throws Exception {
-    kerberos = true;
-    haEnabled = true;
-    SERVER_KERBEROS_NAME = "sentry/_HOST@" + REALM;
-    beforeSetup();
-    setupConf();
-    startSentryService();
-    afterSetup();
+
   }
 
   @Override
@@ -53,15 +45,15 @@ public class TestSentryServiceForHAWithKerberos extends SentryServiceIntegration
   public void after() throws SentryUserException {
   }
 
-  /**
-   * Test that we are correctly substituting "_HOST" if/when needed.
-   *
-   * @throws Exception
-   */
-
   @Test
-  public void testHostSubstitution() throws Exception {
-    // We just need to ensure that we are able to correct connect to the server
-    connectToSentryService();
+  public void testSentryFailsToStartWithHa() throws Exception {
+    haEnabled = true;
+    try {
+      setupConf();
+      Assert.fail("Expected Sentry startup to fail when HA is enabled");
+    } catch (Exception e) {
+      Assert.assertTrue(e instanceof UnsupportedOperationException);
+    }
   }
+
 }

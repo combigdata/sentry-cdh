@@ -95,6 +95,9 @@ public class SentryService implements Callable {
 
   public SentryService(Configuration conf) {
     this.conf = conf;
+    if (conf.getBoolean(ServerConfig.SENTRY_HA_ENABLED, ServerConfig.SENTRY_HA_ENABLED_DEFAULT)) {
+      throw new UnsupportedOperationException("Sentry HA is not supported");
+    }
     int port = conf
         .getInt(ServerConfig.RPC_PORT, ServerConfig.RPC_PORT_DEFAULT);
     if (port == 0) {
