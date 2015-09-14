@@ -31,11 +31,13 @@ import org.apache.sentry.core.model.db.Server;
 import org.apache.sentry.core.model.db.Table;
 import org.apache.sentry.service.thrift.SentryServiceIntegrationBase;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+@Ignore
 public class TestSentryServerForHaWithoutKerberos extends SentryServiceIntegrationBase {
 
   @BeforeClass
