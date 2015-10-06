@@ -130,7 +130,7 @@ public class TestSentryAuthorizationProvider {
         path = new Path("/user/authz/obj");
         Assert.assertEquals("hive", fs.getFileStatus(path).getOwner());
         Assert.assertEquals("hive", fs.getFileStatus(path).getGroup());
-        Assert.assertEquals(new FsPermission((short) 0770), fs.getFileStatus(path).getPermission());
+        Assert.assertEquals(new FsPermission((short) 0771), fs.getFileStatus(path).getPermission());
         Assert.assertFalse(fs.getAclStatus(path).getEntries().isEmpty());
 
         List<AclEntry> acls = new ArrayList<AclEntry>();
@@ -143,7 +143,7 @@ public class TestSentryAuthorizationProvider {
         path = new Path("/user/authz/obj/xxx");
         Assert.assertEquals("hive", fs.getFileStatus(path).getOwner());
         Assert.assertEquals("hive", fs.getFileStatus(path).getGroup());
-        Assert.assertEquals(new FsPermission((short) 0770), fs.getFileStatus(path).getPermission());
+        Assert.assertEquals(new FsPermission((short) 0771), fs.getFileStatus(path).getPermission());
         Assert.assertFalse(fs.getAclStatus(path).getEntries().isEmpty());
         
         Path path2 = new Path("/user/authz/obj/path2");
