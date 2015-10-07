@@ -21,7 +21,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry-policy</artifactId>
-    <version>1.4.0-cdh5.3.7-SNAPSHOT</version>
+    <version>1.4.0-cdh5.3.9-SNAPSHOT</version>
   </parent>
 
   <artifactId>sentry-policy-db</artifactId>
