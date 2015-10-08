@@ -7,5 +7,5 @@ source /mnt/toolchain/toolchain.sh
 
 find . -name test-classes | grep target/test-classes | xargs rm -rf
 
-# For now, just verify the code compiles.
-mvn clean compile package -DskipTests -Dmaven.test.failure.ignore=true
+mvn clean compile package -DskipTests=true
+mvn test
