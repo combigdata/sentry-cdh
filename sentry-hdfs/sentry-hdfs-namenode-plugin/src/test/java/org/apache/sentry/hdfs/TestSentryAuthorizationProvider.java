@@ -156,6 +156,16 @@ public class TestSentryAuthorizationProvider {
         Assert.assertEquals("supergroup", fs.getFileStatus(path).getGroup());
         Assert.assertEquals(new FsPermission((short) 0755), fs.getFileStatus(path).getPermission());
         Assert.assertTrue(fs.getAclStatus(path).getEntries().isEmpty());
+
+        //stale and dir inside of prefix, obj
+        System.setProperty("test.stale", "true");
+        path = new Path("/user/authz/xxx");
+        status = fs.getFileStatus(path);
+        Assert.assertEquals(sysUser, status.getOwner());
+        Assert.assertEquals("supergroup", status.getGroup());
+        Assert.assertEquals(new FsPermission((short) 0755), status.getPermission());
+        Assert.assertTrue(fs.getAclStatus(path).getEntries().isEmpty());
+
         return null;
       }
     });
