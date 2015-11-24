@@ -95,6 +95,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     }
     authzConf = loadAuthzConf(hiveConf);
     hiveAuthzBinding = new HiveAuthzBinding(hiveConf, authzConf);
+
+    FunctionRegistry.setupPermissionsForBuiltinUDFs("", HiveAuthzConf.HIVE_UDF_BLACK_LIST);
   }
 
   public static HiveAuthzConf loadAuthzConf(HiveConf hiveConf) {
@@ -531,23 +533,6 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     // validate permission
     hiveAuthzBinding.authorize(stmtOperation, stmtAuthObject, getCurrentSubject(context),
         inputHierarchy, outputHierarchy);
-  }
-
-  private boolean isUDF(ReadEntity readEntity) {
-    return readEntity.getType().equals(Type.FUNCTION);
-  }
-
-  private void checkUDFWhiteList(String queryUDF) throws AuthorizationException {
-    String whiteList = authzConf.get(HiveAuthzConf.AuthzConfVars.AUTHZ_UDF_WHITELIST.getVar());
-    if (whiteList == null) {
-      return;
-    }
-    for (String hiveUDF : Splitter.on(",").omitEmptyStrings().trimResults().split(whiteList)) {
-      if (queryUDF.equalsIgnoreCase(hiveUDF)) {
-        return; // found the given UDF in whitelist
-      }
-    }
-    throw new AuthorizationException("The UDF " + queryUDF + " is not found in the list of allowed UDFs");
   }
 
   private HiveOperation getCurrentHiveStmtOp() {
