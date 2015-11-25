@@ -61,6 +61,9 @@ import org.apache.sentry.core.model.db.DBModelAuthorizable;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 import org.apache.sentry.core.model.db.Database;
 import org.apache.sentry.core.model.db.Table;
+import org.apache.sentry.provider.cache.PrivilegeCache;
+import org.apache.sentry.provider.cache.SimplePrivilegeCache;
+import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -649,6 +652,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         setOperationType(HiveOperationType.INFO).
         build();
 
+    HiveAuthzBinding hiveBindingWithPrivilegeCache = getHiveBindingWithPrivilegeCache(hiveAuthzBinding, userName);
+
     for (String tableName : queryResult) {
       // if user has privileges on table, add to filtered list, else discard
       Table table = new Table(tableName);
@@ -664,7 +669,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       inputHierarchy.add(externalAuthorizableHierarchy);
 
       try {
-        hiveAuthzBinding.authorize(operation, tableMetaDataPrivilege, subject,
+        // do the authorization by new HiveAuthzBinding with PrivilegeCache
+        hiveBindingWithPrivilegeCache.authorize(operation, tableMetaDataPrivilege, subject,
             inputHierarchy, outputHierarchy);
         filteredResult.add(table.getName());
       } catch (AuthorizationException e) {
@@ -682,6 +688,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       HiveOperation operation, String userName) throws SemanticException {
     List<String> filteredResult = new ArrayList<String>();
     Subject subject = new Subject(userName);
+    HiveAuthzBinding hiveBindingWithPrivilegeCache = getHiveBindingWithPrivilegeCache(hiveAuthzBinding, userName);
+
     HiveAuthzPrivileges anyPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.SELECT, DBModelAction.INSERT)).
         addInputObjectPriviledge(AuthorizableType.URI, EnumSet.of(DBModelAction.SELECT)).
@@ -694,9 +702,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       Database database = null;
 
       // if default is not restricted, continue
-      if (DEFAULT_DATABASE_NAME.equalsIgnoreCase(dbName) &&
- "false".equalsIgnoreCase(
-hiveAuthzBinding.getAuthzConf().get(
+      if (DEFAULT_DATABASE_NAME.equalsIgnoreCase(dbName) && "false".equalsIgnoreCase(
+        hiveAuthzBinding.getAuthzConf().get(
               HiveAuthzConf.AuthzConfVars.AUTHZ_RESTRICT_DEFAULT_DB.getVar(),
               "false"))) {
         filteredResult.add(DEFAULT_DATABASE_NAME);
@@ -714,7 +721,8 @@ hiveAuthzBinding.getAuthzConf().get(
       inputHierarchy.add(externalAuthorizableHierarchy);
 
       try {
-        hiveAuthzBinding.authorize(operation, anyPrivilege, subject,
+        // do the authorization by new HiveAuthzBinding with PrivilegeCache
+        hiveBindingWithPrivilegeCache.authorize(operation, anyPrivilege, subject,
             inputHierarchy, outputHierarchy);
         filteredResult.add(database.getName());
       } catch (AuthorizationException e) {
@@ -797,5 +805,26 @@ hiveAuthzBinding.getAuthzConf().get(
     }
 
     return hooks;
+  }
+
+  // create hiveBinding with PrivilegeCache
+  private static HiveAuthzBinding getHiveBindingWithPrivilegeCache(HiveAuthzBinding hiveAuthzBinding,
+      String userName) throws SemanticException {
+    // get the original HiveAuthzBinding, and get the user's privileges by AuthorizationProvider
+    AuthorizationProvider authProvider = hiveAuthzBinding.getCurrentAuthProvider();
+    Set<String> userPrivileges = authProvider.getPolicyEngine().getPrivileges(
+            authProvider.getGroupMapping().getGroups(userName), hiveAuthzBinding.getActiveRoleSet(),
+            hiveAuthzBinding.getAuthServer());
+
+    // create PrivilegeCache using user's privileges
+    PrivilegeCache privilegeCache = new SimplePrivilegeCache(userPrivileges);
+    try {
+      // create new instance of HiveAuthzBinding whose backend provider should be SimpleCacheProviderBackend
+      return new HiveAuthzBinding(HiveAuthzBinding.HiveHook.HiveServer2, hiveAuthzBinding.getHiveConf(),
+              hiveAuthzBinding.getAuthzConf(), privilegeCache);
+    } catch (Exception e) {
+      LOG.error("Can not create HiveAuthzBinding with privilege cache.");
+      throw new SemanticException(e);
+    }
   }
 }

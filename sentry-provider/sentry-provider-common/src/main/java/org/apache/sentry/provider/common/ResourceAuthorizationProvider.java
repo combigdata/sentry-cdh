@@ -209,4 +209,9 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
     }
     return requestedPermissions;
   }
+
+  @Override
+  public PolicyEngine getPolicyEngine() {
+    return policy;
+  }
 }
