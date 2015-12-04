@@ -22,7 +22,7 @@ limitations under the License.
   <parent>
     <groupId>org.apache.sentry</groupId>
     <artifactId>sentry-binding</artifactId>
-    <version>1.4.0-cdh5.4.9-SNAPSHOT</version>
+    <version>1.4.0-cdh5.4.10-SNAPSHOT</version>
   </parent>
 
   <artifactId>sentry-binding-solr</artifactId>
