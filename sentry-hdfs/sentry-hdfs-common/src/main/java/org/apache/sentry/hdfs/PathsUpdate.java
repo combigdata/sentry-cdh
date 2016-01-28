@@ -22,11 +22,16 @@ import java.net.URISyntaxException;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.sentry.hdfs.service.thrift.TPathChanges;
 import org.apache.sentry.hdfs.service.thrift.TPathsUpdate;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.httpclient.URIException;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.collect.Lists;
 
@@ -37,7 +42,7 @@ import com.google.common.collect.Lists;
 public class PathsUpdate implements Updateable.Update {
   
   public static String ALL_PATHS = "__ALL_PATHS__";
-
+  private static final Configuration CONF = new Configuration();
   private final TPathsUpdate tPathsUpdate;
 
   public PathsUpdate(TPathsUpdate tPathsUpdate) {
@@ -80,6 +85,10 @@ public class PathsUpdate implements Updateable.Update {
     return tPathsUpdate;
   }
 
+  @VisibleForTesting
+  public static Configuration getConfiguration() {
+    return CONF;
+  }
 
   /**
    *
@@ -89,9 +98,26 @@ public class PathsUpdate implements Updateable.Update {
    */
   public static List<String> parsePath(String path) {
     try {
-      URI uri = new URI(URIUtil.encodePath(path));
-      Preconditions.checkNotNull(uri.getScheme());
-      if(uri.getScheme().equalsIgnoreCase("hdfs")) {
+
+      URI uri = null;
+      if (StringUtils.isNotEmpty(path)) {
+        uri = new URI(URIUtil.encodePath(path));
+      } else {
+        return null;
+      }
+
+      String scheme = uri.getScheme();
+      if (scheme == null) {
+        // Use the default URI scheme only if the paths has no scheme.
+        URI defaultUri = FileSystem.getDefaultUri(CONF);
+        scheme = defaultUri.getScheme();
+      }
+
+      // The paths without a scheme will be default to default scheme.
+      Preconditions.checkNotNull(scheme);
+
+      // Non-HDFS paths will be skipped.
+      if(scheme.equalsIgnoreCase("hdfs")) {
         return Lists.newArrayList(uri.getPath().split("^/")[1]
             .split("/"));
       } else {
