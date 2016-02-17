@@ -136,7 +136,7 @@ public class HiveServerFactory {
       properties.put(SUPPORT_CONCURRENCY, "false");
     }
     if(!properties.containsKey(HADOOPBIN)) {
-      properties.put(HADOOPBIN, "./target/hadoop/bin/hadoop");
+      properties.put(HADOOPBIN, "./target/hadoop");
     }
     if (!properties.containsKey(METASTORE_URI)) {
       if (HiveServer2Type.InternalMetastore.equals(type)) {
