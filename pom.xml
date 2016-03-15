@@ -85,6 +85,7 @@ limitations under the License.
     <jackson.version>1.8.8</jackson.version>
     <metrics.version>3.0.2</metrics.version>
     <jettyVersion>7.6.16.v20140903</jettyVersion>
+    <test.sentry.hadoop.classpath>${maven.test.classpath}</test.sentry.hadoop.classpath>
   </properties>
 
   <dependencyManagement>
@@ -459,6 +460,25 @@ limitations under the License.
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>define-classpath</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <exportAntProperties>true</exportAntProperties>
+              <target>
+                <property name="maven.test.classpath" refid="maven.test.classpath"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
