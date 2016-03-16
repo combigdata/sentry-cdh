@@ -35,6 +35,7 @@ import junit.framework.Assert;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
@@ -188,6 +189,7 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
    * DB2.tab_2 User user2 has select on DB2.tab_3 Test show database and show
    * tables for both user1 and user2
    */
+  @Ignore //per CDH-38252 and CDH-38222
   @Test
   public void testJDBCGetSchemasAndGetTables() throws Exception {
     // edit policy file
