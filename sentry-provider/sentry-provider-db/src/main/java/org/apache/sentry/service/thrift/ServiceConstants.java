@@ -171,6 +171,12 @@ public class ServiceConstants {
     // max message size for thrift messages
     public static String SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE = "sentry.policy.server.thrift.max.message.size";
     public static long SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE_DEFAULT = 100 * 1024 * 1024;
+
+    // Sentry is never a client to other Kerberos Services, it should not be required to renew the TGT
+    @Deprecated
+    public static final String SENTRY_KERBEROS_TGT_AUTORENEW = "sentry.service.kerberos.tgt.autorenew";
+    @Deprecated
+    public static final Boolean SENTRY_KERBEROS_TGT_AUTORENEW_DEFAULT = false;
   }
   public static class ClientConfig {
     public static final ImmutableMap<String, String> SASL_PROPERTIES = ServiceConstants.SASL_PROPERTIES;
