@@ -167,6 +167,12 @@ public class ServiceConstants {
     public static final String SENTRY_WEB_SECURITY_PRINCIPAL = SENTRY_WEB_SECURITY_PREFIX + ".kerberos.principal";
     public static final String SENTRY_WEB_SECURITY_KEYTAB = SENTRY_WEB_SECURITY_PREFIX + ".kerberos.keytab";
     public static final String SENTRY_WEB_SECURITY_ALLOW_CONNECT_USERS = SENTRY_WEB_SECURITY_PREFIX + ".allow.connect.users";
+
+    // Sentry is never a client to other Kerberos Services, it should not be required to renew the TGT
+    @Deprecated
+    public static final String SENTRY_KERBEROS_TGT_AUTORENEW = "sentry.service.kerberos.tgt.autorenew";
+    @Deprecated
+    public static final Boolean SENTRY_KERBEROS_TGT_AUTORENEW_DEFAULT = false;
   }
   public static class ClientConfig {
     public static final ImmutableMap<String, String> SASL_PROPERTIES = ServiceConstants.SASL_PROPERTIES;
