@@ -69,6 +69,9 @@ public class TestPrivilegesAtTableScope extends AbstractTestWithStaticConfigurat
     Connection connection = context.createConnection(ADMIN1);
     Statement statement = context.createStatement(connection);
 
+    statement.execute("DROP DATABASE IF EXISTS DB_2 CASCADE");
+    statement.execute("CREATE DATABASE DB_2");
+
     statement.execute("DROP DATABASE IF EXISTS DB_1 CASCADE");
     statement.execute("CREATE DATABASE DB_1");
     statement.execute("USE DB_1");
@@ -443,6 +446,13 @@ public class TestPrivilegesAtTableScope extends AbstractTestWithStaticConfigurat
     // verify admin can execute truncate table
     statement.execute("TRUNCATE TABLE " + TBL1);
     assertFalse(hasData(statement, TBL1));
+    // verify admin can execute truncate table from different db
+    statement.execute("LOAD DATA LOCAL INPATH '" + dataFile.getPath()
+    + "' INTO TABLE " + TBL1);
+    statement.execute("USE " + DB2);
+    statement.execute("TRUNCATE TABLE " + DB1 + "." + TBL1);
+    assertFalse(hasData(statement, DB1 + "." + TBL1));
+
     statement.close();
     connection.close();
 
@@ -484,6 +494,11 @@ public class TestPrivilegesAtTableScope extends AbstractTestWithStaticConfigurat
     // verify admin can execute truncate empty partitioned table
     statement.execute("TRUNCATE TABLE " + TBL1);
     assertFalse(hasData(statement, TBL1));
+    // verify admin can execute truncate empty partitioned table from outside db
+    statement.execute("USE " + DB2);
+    statement.execute("TRUNCATE TABLE " + DB1 + "." + TBL1);
+    assertFalse(hasData(statement, DB1 + "."+ TBL1));
+
     statement.close();
     connection.close();
 
