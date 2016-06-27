@@ -109,6 +109,14 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
             newPathInfo.getAuthzObj(), newPathInfo.getAddPaths());
         return;
       }
+      //If Alter table property - that is oldName==newName and oldPath == newPath,
+      // then we do not have to process the update as there are no obj to path changes
+      //TODO: We are taking this route for now as it is the least intrusive one.
+      // We should make this more elegant in a follow on.
+      if (isAlterProperty(update)) {
+        return;
+      }
+
     }
     for (TPathChanges pathChanges : update.getPathChanges()) {
       paths.addPathsToAuthzObject(pathChanges.getAuthzObj(), pathChanges
@@ -123,6 +131,48 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
             .getDelPaths());
       }
     }
+  }
+
+  private boolean isAlterProperty(PathsUpdate update) {
+    // Alter table's have exactly two pathChanges
+    // 1 is add path and the other is del path and oldName == newName
+    // If location is not being changed, then oldPath == newPath as well
+    boolean samePathChange = false;
+    if (update.getPathChanges().size() == 2) {
+      List<TPathChanges> pathChanges = update.getPathChanges();
+      String oldName = null, newName = null;
+      List<String> oldLocation = null, newLocation = null;
+      if ((pathChanges.get(0).getAddPathsSize() == 1)
+              && (pathChanges.get(1).getDelPathsSize() == 1)) {
+        newLocation = pathChanges.get(0).getAddPaths().get(0);
+        newName = pathChanges.get(0).getAuthzObj();
+        oldLocation = pathChanges.get(1).getDelPaths().get(0);
+        oldName = pathChanges.get(1).getAuthzObj();
+
+      } else if ((pathChanges.get(1).getAddPathsSize() == 1)
+              && (pathChanges.get(0).getDelPathsSize() == 1)) {
+        newLocation = pathChanges.get(1).getAddPaths().get(0);
+        newName = pathChanges.get(1).getAuthzObj();
+        oldLocation = pathChanges.get(0).getDelPaths().get(0);
+        oldName = pathChanges.get(0).getAuthzObj();
+      } else {
+        LOG.warn("Update has two updates but they do not have exactly one addPaths and one deletePaths as expected." +
+                " update.get(0): " + update.getPathChanges().get(0) + " update.get(1): " + update.getPathChanges().get(1));
+
+      }
+      if (newName != null && oldName != null && newName.equalsIgnoreCase(oldName)) {
+        if (newLocation != null && oldLocation != null && newLocation.size() == oldLocation.size()) {
+          samePathChange = true;
+          for (int i = 0; i < newLocation.size(); i++) {
+            if (!newLocation.get(i).equals(oldLocation.get(i))) {
+              samePathChange = false;
+              break;
+            }
+          }
+        }
+      }
+    }
+    return samePathChange;
   }
 
   @Override
