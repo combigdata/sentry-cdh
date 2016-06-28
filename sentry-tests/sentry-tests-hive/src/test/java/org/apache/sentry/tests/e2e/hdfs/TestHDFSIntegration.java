@@ -1706,7 +1706,145 @@ public class TestHDFSIntegration {
     verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName + "/month=1/day=1", FsAction.READ_EXECUTE, "flume", true);// old partition location
   }
 
+  @Test
+  public void testAlterTableLocation() throws Throwable {
+    tmpHDFSDir = new Path("/tmp/external");
+    dbNames = new String[]{"db1"};
+    roles = new String[]{"admin_role", "tab_role"};
+    admin = "hive";
 
+    Connection conn;
+    Statement stmt;
+    conn = hiveServer2.createConnection("hive", "hive");
+    stmt = conn.createStatement();
+    stmt.execute("create role admin_role");
+    stmt.execute("grant role admin_role to group hive");
+    stmt.execute("grant all on server server1 to role admin_role");
+    stmt.execute("create database db1");
+    stmt.execute("use db1");
+
+    //Managed, unpartitioned table
+    // Set location on a managed table is allowed
+    // users should
+    // - have acls on the new table location
+    // - should not have acls on the old table location
+    // - Drop should remove acls on the new table location
+    String tableName = "un_partitioned_table";
+    String location = "/user/hive/warehouse/temptables/";
+    String tableLocation = location + tableName;
+    stmt.execute("create table " + tableName + " (s string)");
+    stmt.execute("create role tab_role");
+    stmt.execute("grant select on table " + tableName + " to role tab_role");
+    stmt.execute("grant role tab_role to group flume");
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", true);
+    stmt.execute("alter table " + tableName + " set location \'" + tableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(tableLocation));
+    verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", false);// old location
+    //TODO: SENTRY-1372: set location of managed table -> drop table does not remove ACLS on tableLocation
+    //stmt.execute("drop table " + tableName);
+    //verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", false);// after drop
+
+    //Managed, partitioned table
+    // Set location on a managed table is allowed
+    // In the case of partitioned table, users should
+    // - have acls on the new table location
+    // - should not have acls on the old table location
+    // - if there are partitions associated, old partition locations should have ACLS as these partitions are still part of the table
+    // TODO:Is this partitions assumption correct?
+    tableName = "partitioned_table";
+    stmt.execute("create table " + tableName + " (s string) partitioned by (month int, day int)");
+    stmt.execute("grant select on table " + tableName + " to role tab_role");
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", true);
+    tableLocation = location + tableName;
+    stmt.execute("alter table " + tableName + " set location \'" + tableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(tableLocation));
+    verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", false);//old location
+
+    //Managed, partitioned table with partitions
+    stmt.execute("alter table " + tableName + " add partition (month=1, day=1)");
+    verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", true);// table location
+    verifyOnAllSubDirs(tableLocation + "/month=1/day=1", FsAction.READ_EXECUTE, "flume", true);// partition location
+    String newtableLocation = tableLocation + "_withpartitions";
+    stmt.execute("alter table " + tableName + " set location \'" + newtableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(newtableLocation));
+    verifyOnAllSubDirs(newtableLocation, FsAction.READ_EXECUTE, "flume", true);// new table location
+    verifyOnAllSubDirs(tableLocation + "/month=1/day=1", FsAction.READ_EXECUTE, "flume", true);// partition location
+    //TODO: SENTRY-1373:Alter table location on a managed/unmanaged partitioned table, ACLS on oldTable location remain
+    //verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", false);// old table location
+
+    //Unmanaged unpartitioned table
+    //After set location users should
+    // - have acls on the new table location
+    // - should not have acls on the old table location
+    tableName = "unmanaged_unpartitioned";
+    stmt.execute("create external table " + tableName + " (s string)");
+    stmt.execute("grant select on table " + tableName + " to role tab_role");
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", true);
+    tableLocation = location + tableName;
+    stmt.execute("alter table " + tableName + " set location \'" + tableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(tableLocation));
+    verifyOnAllSubDirs(tableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", false); // old location
+
+    //Unmanaged partitioned table with no partitions
+    //After set location users should
+    // - have acls on the new table location
+    // - should not have acls on the old table location
+    //If there are partitions associated with old table, user should have acls on these oldLocations
+    tableName = "unmanaged_partitioned";
+    stmt.execute("create external table " + tableName + " (s string) partitioned by (month int, day int)");
+    stmt.execute("grant select on table " + tableName + " to role tab_role");
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", true);//table location
+    newtableLocation = tableLocation + "_1";
+    stmt.execute("alter table " + tableName + " set location \'" + newtableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(newtableLocation));
+    verifyOnAllSubDirs(newtableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/" + tableName, FsAction.READ_EXECUTE, "flume", false);//old table location
+
+    //Unmanaged partitioned table with partitions
+    stmt.execute("alter table " + tableName + " add partition (month=1, day=1)");
+    verifyOnAllSubDirs(newtableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    verifyOnAllSubDirs(newtableLocation + "/month=1/day=1", FsAction.READ_EXECUTE, "flume", true);// partition location
+    String newestTableLocation = tableLocation + "_2";
+    stmt.execute("alter table " + tableName + " set location \'" + newestTableLocation + "\'");
+    miniDFS.getFileSystem().mkdirs(new Path(newestTableLocation));
+    verifyOnAllSubDirs(newestTableLocation, FsAction.READ_EXECUTE, "flume", true);// new location
+    //TODO: Alter table location on a managed/unmanaged partitioned table, ACLS on oldTable location remain
+    //verifyOnAllSubDirs(newtableLocation, FsAction.READ_EXECUTE, "flume", false);// old location
+    verifyOnAllSubDirs(newtableLocation + "/month=1/day=1", FsAction.READ_EXECUTE, "flume", true);// partition location un altered
+  }
+
+  @Test
+  public void testAlterTableProperty() throws Throwable {
+    tmpHDFSDir = new Path("/tmp/external");
+    dbNames = new String[]{"db1"};
+    roles = new String[]{"admin_role", "tab_role"};
+    admin = "hive";
+
+    Connection conn;
+    Statement stmt;
+    conn = hiveServer2.createConnection("hive", "hive");
+    stmt = conn.createStatement();
+    stmt.execute("create role admin_role");
+    stmt.execute("grant role admin_role to group hive");
+    stmt.execute("grant all on server server1 to role admin_role");
+
+    //Create table and grant select to user flume
+    stmt.execute("create database db1");
+    stmt.execute("use db1");
+    stmt.execute("create table t1 (s string)");
+    stmt.execute("create role tab_role");
+    stmt.execute("grant select on table t1 to role tab_role");
+    stmt.execute("grant role tab_role to group flume");
+
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/t1", FsAction.READ_EXECUTE, "flume", true);
+    stmt.execute("ALTER TABLE t1 SET TBLPROPERTIES ('comment' = 'new_comment')");
+    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/t1", FsAction.READ_EXECUTE, "flume", true);
+
+  }
+  
   private void verifyAccessToPath(String user, String group, String path, boolean hasPermission) throws Exception{
     Path p = new Path(path);
     UserGroupInformation hadoopUser =
