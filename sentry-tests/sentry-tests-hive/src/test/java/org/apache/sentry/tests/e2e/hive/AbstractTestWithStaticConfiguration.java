@@ -126,6 +126,7 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
   private static final String ENABLE_SENTRY_HA = "sentry.e2etest.enable.service.ha";
 
   protected static boolean policyOnHdfs = false;
+  protected static boolean defaultFSOnHdfs = false;
   protected static boolean useSentryService = false;
   protected static boolean setMetastoreListener = true;
   protected static String testServerType = null;
@@ -290,9 +291,10 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
           "org.apache.hadoop.hive.ql.lockmgr.EmbeddedLockManager");
     }
 
-    properties.put(ConfVars.HIVE_SERVER2_WEBUI_PORT.varname, "0");
+    if (defaultFSOnHdfs) {
+      properties.put("fs.defaultFS", fileSystem.getUri().toString());
+    }
 
-    HiveConf hiveConf = new HiveConf();
     hiveServer = create(properties, baseDir, confDir, logDir, policyURI, fileSystem);
     hiveServer.start();
     createContext();
