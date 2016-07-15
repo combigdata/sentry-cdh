@@ -132,6 +132,7 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
   private static final String ENABLE_NOTIFICATION_LOG = "sentry.e2etest.enable.notification.log";
 
   protected static boolean policyOnHdfs = false;
+  protected static boolean defaultFSOnHdfs = false;
   protected static boolean useSentryService = false;
   protected static boolean setMetastoreListener = true;
   protected static boolean useDbNotificationListener = false;
@@ -301,7 +302,10 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
 
     properties.put(ConfVars.HIVE_SERVER2_WEBUI_PORT.varname, "0");
 
-    HiveConf hiveConf = new HiveConf();
+    if (defaultFSOnHdfs) {
+      properties.put("fs.defaultFS", fileSystem.getUri().toString());
+    }
+
     hiveServer = create(properties, baseDir, confDir, logDir, policyURI, fileSystem);
     hiveServer.start();
 
