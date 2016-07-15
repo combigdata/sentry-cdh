@@ -165,6 +165,7 @@ public abstract class AbstractTestWithStaticConfiguration {
   private static final String ENABLE_SENTRY_HA = "sentry.e2etest.enable.service.ha";
 
   protected static boolean policyOnHdfs = false;
+  protected static boolean defaultFSOnHdfs = false;
   protected static boolean useSentryService = false;
   protected static boolean setMetastoreListener = true;
   protected static String testServerType = null;
@@ -331,7 +332,10 @@ public abstract class AbstractTestWithStaticConfiguration {
 
     properties.put(ConfVars.HIVE_SERVER2_WEBUI_PORT.varname, "0");
 
-    HiveConf hiveConf = new HiveConf();
+    if (defaultFSOnHdfs) {
+      properties.put("fs.defaultFS", fileSystem.getUri().toString());
+    }
+
     hiveServer = create(properties, baseDir, confDir, logDir, policyURI, fileSystem);
     hiveServer.start();
     createContext();
