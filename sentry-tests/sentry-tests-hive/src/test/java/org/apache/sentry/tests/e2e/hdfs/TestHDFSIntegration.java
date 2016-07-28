@@ -491,15 +491,17 @@ public class TestHDFSIntegration {
 
     
     try {
-    conn = hiveServer2.createConnection(admin, admin);
-    stmt = conn.createStatement();
-    for( String dbName: dbNames) {
-      try {
-      stmt.execute("drop database if exists " + dbName + " cascade");
-      } catch (Exception e) {
-        xlist.add(e);
+      conn = hiveServer2.createConnection(admin, admin);
+      stmt = conn.createStatement();
+      for( String dbName: dbNames) {
+        try {
+          stmt.execute("drop database if exists " + dbName + " cascade");
+        } catch (Exception e) {
+          xlist.add(e);
+        }
       }
-    }
+    } catch (Exception e) {
+      xlist.add(e);
     } finally {
       safeClose(conn, stmt);
       stmt = null;
@@ -508,15 +510,17 @@ public class TestHDFSIntegration {
 
     //Clean up roles
     try {
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-    for( String role:roles) {
-      try {
-      stmt.execute("drop role " + role);
-      } catch (Exception e) {
-        xlist.add(e);
+      conn = hiveServer2.createConnection("hive", "hive");
+      stmt = conn.createStatement();
+      for( String role:roles) {
+        try {
+          stmt.execute("drop role " + role);
+        } catch (Exception e) {
+          xlist.add(e);
+        }
       }
-    }
+    } catch (Exception e) {
+      xlist.add(e);
     } finally {
       safeClose(conn, stmt);
       stmt = null;
@@ -525,17 +529,16 @@ public class TestHDFSIntegration {
 
     //Clean up hdfs directories
     try {
-    if (miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().delete(tmpHDFSDir, true);
-
-    }
+      if (miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+        miniDFS.getFileSystem().delete(tmpHDFSDir, true);
+      }
     } catch (Exception e) {
       xlist.add(e);
     } finally {
-    tmpHDFSDir = null;
-    dbNames = null;
-    roles = null;
-    admin = null;
+      tmpHDFSDir = null;
+      dbNames = null;
+      roles = null;
+      admin = null;
     }
 
     if (!xlist.isEmpty()) {
@@ -571,7 +574,7 @@ public class TestHDFSIntegration {
   public void testEnd2End() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     dbNames = new String[]{"db1"};
     roles = new String[]{"admin_role", "db_role", "tab_role"};
@@ -926,7 +929,7 @@ public class TestHDFSIntegration {
     stmt = conn.createStatement();
 
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     miniDFS.getFileSystem().setOwner(tmpHDFSDir, "hive", "hive");
 
@@ -973,7 +976,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role"};
@@ -1235,7 +1238,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role", "table_role"};
@@ -1276,7 +1279,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     Path partitionDir = new Path("/tmp/external/p1");
     miniDFS.getFileSystem().mkdirs(partitionDir);
@@ -1371,7 +1374,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external/p1");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
 
     dbNames = new String[]{dbName};
@@ -1420,7 +1423,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external/p1");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
 
     dbNames = new String[]{dbName};
@@ -1476,7 +1479,7 @@ public class TestHDFSIntegration {
   public void testNoPartitionInsert() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     dbNames = new String[]{"db1"};
     roles = new String[]{"admin_role", "tab_role"};
@@ -1527,7 +1530,7 @@ public class TestHDFSIntegration {
 
     tmpHDFSDir = new Path("/tmp/external");
     if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
     }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role"};
