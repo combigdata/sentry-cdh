@@ -482,36 +482,70 @@ public class TestHDFSIntegration {
 
   @After
   public void cleanAfterTest() throws Exception {
+    List<Exception> xlist = new ArrayList<Exception>();
     //Clean up database
-    Connection conn;
-    Statement stmt;
+    Connection conn = null;
+    Statement stmt = null;
     Preconditions.checkArgument(admin != null && dbNames !=null && roles != null && tmpHDFSDir != null,
         "Test case did not set some of these values required for clean up: admin, dbNames, roles, tmpHDFSDir");
 
+    
+    try {
     conn = hiveServer2.createConnection(admin, admin);
     stmt = conn.createStatement();
     for( String dbName: dbNames) {
+      try {
       stmt.execute("drop database if exists " + dbName + " cascade");
+      } catch (Exception e) {
+        xlist.add(e);
+      }
     }
-    stmt.close();
-    conn.close();
+    } finally {
+      safeClose(conn, stmt);
+      stmt = null;
+      conn = null;
+    }
 
     //Clean up roles
+    try {
     conn = hiveServer2.createConnection("hive", "hive");
     stmt = conn.createStatement();
     for( String role:roles) {
+      try {
       stmt.execute("drop role " + role);
+      } catch (Exception e) {
+        xlist.add(e);
+      }
     }
-    stmt.close();
-    conn.close();
+    } finally {
+      safeClose(conn, stmt);
+      stmt = null;
+      conn = null;
+    }
 
     //Clean up hdfs directories
+    try {
+    if (miniDFS.getFileSystem().exists(tmpHDFSDir)) {
     miniDFS.getFileSystem().delete(tmpHDFSDir, true);
 
+    }
+    } catch (Exception e) {
+      xlist.add(e);
+    } finally {
     tmpHDFSDir = null;
     dbNames = null;
     roles = null;
     admin = null;
+    }
+
+    if (!xlist.isEmpty()) {
+      throw xlist.get(0);
+    }
+  }
+
+  private void safeClose(Connection conn, Statement stmt) {
+    if (stmt != null) try { stmt.close(); } catch (Exception ignore) {}
+    if (conn != null) try { conn.close(); } catch (Exception ignore) {}
   }
 
   @AfterClass
@@ -536,8 +570,11 @@ public class TestHDFSIntegration {
   @Test
   public void testEnd2End() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{"db1"};
-    roles = new String[]{"admin_role"};
+    roles = new String[]{"admin_role", "db_role", "tab_role"};
     admin = "hive";
 
     Connection conn;
@@ -853,6 +890,9 @@ public class TestHDFSIntegration {
     String dbName = "db2";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role", "user_role"};
     admin = StaticUserGroup.ADMIN1;
@@ -885,7 +925,9 @@ public class TestHDFSIntegration {
     conn = hiveServer2.createConnection(admin, admin);
     stmt = conn.createStatement();
 
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
     miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     miniDFS.getFileSystem().setOwner(tmpHDFSDir, "hive", "hive");
 
     //External table on local file system
@@ -916,6 +958,7 @@ public class TestHDFSIntegration {
     stmt.execute("create table tab4(a int) location 'file:///tmp/external/tab4_loc'");
     stmt.execute("alter table tab4 set location 'hdfs:///tmp/external/tab4_loc'");
     miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab4_loc"));
+    //Thread.sleep(CACHE_REFRESH); //Wait till sentry cache is updated in Namenode
     // SENTRY-546
     // verifyOnAllSubDirs("/tmp/external/tab4_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
     verifyOnAllSubDirs("/tmp/external/tab4_loc", null, StaticUserGroup.USERGROUP1, true);
@@ -929,6 +972,9 @@ public class TestHDFSIntegration {
     String dbName = "db2";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role"};
     admin = StaticUserGroup.ADMIN1;
@@ -1113,6 +1159,7 @@ public class TestHDFSIntegration {
       System.out.print("Exception when creating table: " + ex.getMessage());
     }
 
+    Thread.sleep(CACHE_REFRESH); //Wait till sentry cache is updated in Namenode
     // When the table dropping failed, the path will still be managed by sentry. And the
     // permission of the path still should be hive:hive.
     verifyOnAllSubDirs("/tmp/external/p1", FsAction.ALL, StaticUserGroup.HIVE, true);
@@ -1172,6 +1219,7 @@ public class TestHDFSIntegration {
       System.out.print("Exception when dropping partition: " + ex.getMessage());
     }
 
+    Thread.sleep(CACHE_REFRESH); //Wait till sentry cache is updated in Namenode
     // When the partition dropping failed, the path for the partition will still
     // be managed by sentry. And the permission of the path still should be hive:hive.
     verifyOnAllSubDirs("/tmp/external/p1", FsAction.ALL, StaticUserGroup.HIVE, true);
@@ -1186,6 +1234,9 @@ public class TestHDFSIntegration {
     String dbName= "db1";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role", "table_role"};
     admin = StaticUserGroup.ADMIN1;
@@ -1224,7 +1275,9 @@ public class TestHDFSIntegration {
     String dbName = "db1";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
     miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     Path partitionDir = new Path("/tmp/external/p1");
     miniDFS.getFileSystem().mkdirs(partitionDir);
 
@@ -1317,7 +1370,9 @@ public class TestHDFSIntegration {
     String dbName = "db1";
 
     tmpHDFSDir = new Path("/tmp/external/p1");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
     miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
 
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role", "tab1_role"};
@@ -1364,7 +1419,9 @@ public class TestHDFSIntegration {
     String dbName = "db1";
 
     tmpHDFSDir = new Path("/tmp/external/p1");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
     miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
 
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role", "tab1_role", "tab2_role"};
@@ -1418,6 +1475,9 @@ public class TestHDFSIntegration {
   @Test
   public void testNoPartitionInsert() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{"db1"};
     roles = new String[]{"admin_role", "tab_role"};
     admin = "hive";
@@ -1466,6 +1526,9 @@ public class TestHDFSIntegration {
     String dbName= "db1";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role"};
     admin = StaticUserGroup.ADMIN1;
