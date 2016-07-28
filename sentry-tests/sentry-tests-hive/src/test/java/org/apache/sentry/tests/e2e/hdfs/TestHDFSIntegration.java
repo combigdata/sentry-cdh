@@ -102,7 +102,13 @@ import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import org.apache.hadoop.hive.metastore.api.Table;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TestHDFSIntegration {
+
+  private static final Logger LOGGER = LoggerFactory
+      .getLogger(TestHDFSIntegration.class);
 
   public static class WordCountMapper extends MapReduceBase implements
       Mapper<LongWritable, Text, String, Long> {
@@ -497,10 +503,12 @@ public class TestHDFSIntegration {
         try {
           stmt.execute("drop database if exists " + dbName + " cascade");
         } catch (Exception e) {
+          LOGGER.warn("Failed to drop database " + dbName, e);
           xlist.add(e);
         }
       }
     } catch (Exception e) {
+      LOGGER.warn("Failed to clean up databases", e);
       xlist.add(e);
     } finally {
       safeClose(conn, stmt);
@@ -516,10 +524,12 @@ public class TestHDFSIntegration {
         try {
           stmt.execute("drop role " + role);
         } catch (Exception e) {
+          LOGGER.warn("Failed to drop role " + role, e);
           xlist.add(e);
         }
       }
     } catch (Exception e) {
+      LOGGER.warn("Failed to drop roles", e);
       xlist.add(e);
     } finally {
       safeClose(conn, stmt);
@@ -533,6 +543,7 @@ public class TestHDFSIntegration {
         miniDFS.getFileSystem().delete(tmpHDFSDir, true);
       }
     } catch (Exception e) {
+      LOGGER.warn("Failed to delete file system", e);
       xlist.add(e);
     } finally {
       tmpHDFSDir = null;
@@ -547,8 +558,20 @@ public class TestHDFSIntegration {
   }
 
   private void safeClose(Connection conn, Statement stmt) {
-    if (stmt != null) try { stmt.close(); } catch (Exception ignore) {}
-    if (conn != null) try { conn.close(); } catch (Exception ignore) {}
+    if (stmt != null) {
+      try {
+        stmt.close();
+      } catch (Exception e) {
+        LOGGER.warn("Cannot close Statement", e);
+      }
+    }
+    if (conn != null) {
+      try {
+        conn.close();
+      } catch (Exception e) {
+        LOGGER.warn("Cannot close Connection", e);
+      }
+    }
   }
 
   @AfterClass
@@ -961,10 +984,10 @@ public class TestHDFSIntegration {
     stmt.execute("create table tab4(a int) location 'file:///tmp/external/tab4_loc'");
     stmt.execute("alter table tab4 set location 'hdfs:///tmp/external/tab4_loc'");
     miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab4_loc"));
-    //Thread.sleep(CACHE_REFRESH); //Wait till sentry cache is updated in Namenode
+    Thread.sleep(CACHE_REFRESH); //Wait till sentry cache is updated in Namenode
     // SENTRY-546
-    // verifyOnAllSubDirs("/tmp/external/tab4_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
-    verifyOnAllSubDirs("/tmp/external/tab4_loc", null, StaticUserGroup.USERGROUP1, true);
+    verifyOnAllSubDirs("/tmp/external/tab4_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
+    //verifyOnAllSubDirs("/tmp/external/tab4_loc", null, StaticUserGroup.USERGROUP1, true);
     stmt.close();
     conn.close();
   }
