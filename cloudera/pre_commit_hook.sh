@@ -19,5 +19,5 @@ find . -name test-classes | grep target/test-classes | xargs rm -rf
 # For now, just verify the code compiles.
 mvn -s "${BUILD_SETTINGS_FILE}" clean compile package -DskipTests -Dmaven.test.failure.ignore=true
 
-# Run a subset of tests to quickly verify patches
-mvn -s "${BUILD_SETTINGS_FILE}" test -PskipSlowAndNotThreadSafeTests --fail-at-end
+# enable full tests for now
+mvn -s "${BUILD_SETTINGS_FILE}" test -PskipOnlySlowTests --fail-at-end
