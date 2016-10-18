@@ -137,7 +137,7 @@ public class ServiceConstants {
         .put("datanucleus.autoCreateSchema", "false")
         .put("datanucleus.fixedDatastore", "true")
         .put("datanucleus.autoStartMechanismMode", "checked")
-        .put("datanucleus.transactionIsolation", "repeatable-read")
+        .put("datanucleus.transactionIsolation", "read-committed")
         .put("datanucleus.cache.level2", "false")
         .put("datanucleus.cache.level2.type", "none")
         .put("datanucleus.identifierFactory", "datanucleus1")
