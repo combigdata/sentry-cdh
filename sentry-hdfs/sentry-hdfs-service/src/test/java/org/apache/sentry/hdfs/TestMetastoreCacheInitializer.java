@@ -164,7 +164,7 @@ public class TestMetastoreCacheInitializer {
     try {
       MetastoreCacheInitializer cacheInitializer = new
           MetastoreCacheInitializer(hmsHandler, setConf());
-      UpdateableAuthzPaths update = cacheInitializer.createInitialUpdate();
+      cacheInitializer.createInitialUpdate();
       Assert.fail("Expected cacheInitializer to fail");
     } catch (Exception e) {
       Assert.assertTrue(e instanceof RuntimeException);

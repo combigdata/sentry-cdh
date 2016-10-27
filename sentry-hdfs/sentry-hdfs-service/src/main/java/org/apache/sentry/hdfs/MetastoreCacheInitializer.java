@@ -348,7 +348,7 @@ class MetastoreCacheInitializer implements Closeable {
 
       // Fail the HMS startup if tasks are not all successful and
       // fail on partial updates flag is set in the config.
-      if (callResult.getSuccessStatus() == false && failOnRetry) {
+      if (!callResult.getSuccessStatus() && failOnRetry) {
         throw callResult.getFailure();
       }
     }
