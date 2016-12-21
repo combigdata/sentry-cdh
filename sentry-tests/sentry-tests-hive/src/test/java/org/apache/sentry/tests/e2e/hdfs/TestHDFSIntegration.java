@@ -298,18 +298,7 @@ public class TestHDFSIntegration {
             .set(hiveSite.toURI().toURL());
 
         metastore = new InternalMetastoreServer(hiveConf);
-        new Thread() {
-          @Override
-          public void run() {
-            try {
-              metastore.start();
-              while (true) {
-              }
-            } catch (Exception e) {
-              LOGGER.info("Could not start Hive Server");
-            }
-          }
-        }.start();
+        metastore.start();
 
         hmsClient = new HiveMetaStoreClient(hiveConf);
         startHiveServer2(retries, hiveConf);
@@ -318,41 +307,31 @@ public class TestHDFSIntegration {
     });
   }
 
-  private static void startHiveServer2(final int retries, HiveConf hiveConf)
-      throws IOException, InterruptedException, SQLException {
-    Connection conn = null;
-    Thread th = null;
-    final AtomicBoolean keepRunning = new AtomicBoolean(true);
-    try {
-      hiveServer2 = new InternalHiveServer(hiveConf);
-      th = new Thread() {
-        @Override
-        public void run() {
+  private static void startHiveServer2(int retries, HiveConf hiveConf)
+      throws Exception {
+    try_loop:
+    while (true) {
+      try {
+        hiveServer2 = new InternalHiveServer(hiveConf);
+        hiveServer2.start();
+        try (Connection conn = hiveServer2.createConnection("hive", "hive")) {
+          // just trying to test connection
+        }
+        break try_loop; // success
+      } catch (Exception ex) {
+        LOGGER.info("Could not start Hive Server");
+        if (retries-- > 0) {
           try {
-            hiveServer2.start();
-            while(keepRunning.get()){}
+            hiveServer2.shutdown();
           } catch (Exception e) {
-            LOGGER.info("Could not start Hive Server");
+            // Ignore
           }
+          LOGGER.info("Re-starting Hive Server2 !!");
+          Thread.sleep(RETRY_WAIT * 5);
+        } else {
+          throw ex;
         }
-      };
-      th.start();
-      Thread.sleep(RETRY_WAIT * 5);
-      conn = hiveServer2.createConnection("hive", "hive");
-    } catch (Exception ex) {
-      if (retries > 0) {
-        try {
-          keepRunning.set(false);
-          hiveServer2.shutdown();
-        } catch (Exception e) {
-          // Ignore
-        }
-        LOGGER.info("Re-starting Hive Server2 !!");
-        startHiveServer2(retries - 1, hiveConf);
       }
-    }
-    if (conn != null) {
-      conn.close();
     }
   }
 
@@ -552,331 +531,6 @@ public class TestHDFSIntegration {
     }
   }
 
-  @Test
-  public void testEnd2End() throws Throwable {
-    tmpHDFSDir = new Path("/tmp/external");
-    dbNames = new String[]{"db1"};
-    roles = new String[]{"admin_role", "db_role", "tab_role", "p1_admin"};
-    admin = "hive";
-
-    Connection conn;
-    Statement stmt;
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-    stmt.execute("create role admin_role");
-    stmt.execute("grant role admin_role to group hive");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("create table p1 (s string) partitioned by (month int, day int)");
-    stmt.execute("alter table p1 add partition (month=1, day=1)");
-    stmt.execute("alter table p1 add partition (month=1, day=2)");
-    stmt.execute("alter table p1 add partition (month=2, day=1)");
-    stmt.execute("alter table p1 add partition (month=2, day=2)");
-
-    // db privileges
-    stmt.execute("create database db5");
-    stmt.execute("create role db_role");
-    stmt.execute("create role tab_role");
-    stmt.execute("grant role db_role to group hbase");
-    stmt.execute("grant role tab_role to group flume");
-    stmt.execute("create table db5.p2(id int)");
-
-    stmt.execute("create role p1_admin");
-    stmt.execute("grant role p1_admin to group hbase");
-
-    // Verify default db is inaccessible initially
-    verifyOnAllSubDirs("/user/hive/warehouse", null, "hbase", false);
-
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", null, "hbase", false);
-
-    stmt.execute("grant all on database db5 to role db_role");
-    stmt.execute("use db5");
-    stmt.execute("grant all on table p2 to role tab_role");
-    stmt.execute("use default");
-    verifyOnAllSubDirs("/user/hive/warehouse/db5.db", FsAction.ALL, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db5.db/p2", FsAction.ALL, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db5.db/p2", FsAction.ALL, "flume", true);
-    verifyOnPath("/user/hive/warehouse/db5.db", FsAction.ALL, "flume", false);
-
-    loadData(stmt);
-
-    verifyHDFSandMR(stmt);
-
-    // Verify default db is STILL inaccessible after grants but tables are fine
-    verifyOnPath("/user/hive/warehouse", null, "hbase", false);
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", FsAction.READ_EXECUTE, "hbase", true);
-
-    adminUgi.doAs(new PrivilegedExceptionAction<Void>() {
-      @Override
-      public Void run() throws Exception {
-        // Simulate hdfs dfs -setfacl -m <aclantry> <path>
-        AclStatus existing =
-            miniDFS.getFileSystem()
-            .getAclStatus(new Path("/user/hive/warehouse/p1"));
-        ArrayList<AclEntry> newEntries =
-            new ArrayList<AclEntry>(existing.getEntries());
-        newEntries.add(AclEntry.parseAclEntry("user::---", true));
-        newEntries.add(AclEntry.parseAclEntry("group:bla:rwx", true));
-        newEntries.add(AclEntry.parseAclEntry("other::---", true));
-        miniDFS.getFileSystem().setAcl(new Path("/user/hive/warehouse/p1"),
-            newEntries);
-        return null;
-      }
-    });
-
-    stmt.execute("revoke select on table p1 from role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", null, "hbase", false);
-
-    // Verify default db grants work
-    stmt.execute("grant select on database default to role p1_admin");
-    verifyOnPath("/user/hive/warehouse", FsAction.READ_EXECUTE, "hbase", true);
-
-    // Verify default db grants are propagated to the tables
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", FsAction.READ_EXECUTE, "hbase", true);
-
-    // Verify default db revokes work
-    stmt.execute("revoke select on database default from role p1_admin");
-    verifyOnPath("/user/hive/warehouse", null, "hbase", false);
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", null, "hbase", false);
-
-    stmt.execute("grant all on table p1 to role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", FsAction.ALL, "hbase", true);
-
-    stmt.execute("revoke select on table p1 from role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/p1", FsAction.WRITE_EXECUTE, "hbase", true);
-
-
-    // Verify table rename works when locations are also changed
-    stmt.execute("alter table p1 rename to p3");
-    verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);
-    //This is true as parent hive object's (p3) ACLS are used.
-    verifyOnAllSubDirs("/user/hive/warehouse/p3/month=1/day=1", FsAction.WRITE_EXECUTE, "hbase", true);
-
-    // Verify when oldName == newName and oldPath != newPath
-    stmt.execute("alter table p3 partition (month=1, day=1) rename to partition (month=1, day=3)");
-    verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/p3/month=1/day=3", FsAction.WRITE_EXECUTE, "hbase", true);
-
-    // Test DB case insensitivity
-    stmt.execute("create database extdb");
-    stmt.execute("grant all on database ExtDb to role p1_admin");
-    writeToPath("/tmp/external/ext100", 5, "foo", "bar");
-    writeToPath("/tmp/external/ext101", 5, "foo", "bar");
-    stmt.execute("use extdb");
-    stmt.execute(
-            "create table ext100 (s string) location \'/tmp/external/ext100\'");
-    verifyQuery(stmt, "ext100", 5);
-    verifyOnAllSubDirs("/tmp/external/ext100", FsAction.ALL, "hbase", true);
-    stmt.execute("use default");
-
-    stmt.execute("use EXTDB");
-    stmt.execute(
-            "create table ext101 (s string) location \'/tmp/external/ext101\'");
-    verifyQuery(stmt, "ext101", 5);
-    verifyOnAllSubDirs("/tmp/external/ext101", FsAction.ALL, "hbase", true);
-
-    // Test table case insensitivity
-    stmt.execute("grant all on table exT100 to role tab_role");
-    verifyOnAllSubDirs("/tmp/external/ext100", FsAction.ALL, "flume", true);
-
-    stmt.execute("use default");
-
-    //TODO: SENTRY-795: HDFS permissions do not sync when Sentry restarts in HA mode.
-    if(!testSentryHA) {
-      long beforeStop = System.currentTimeMillis();
-      sentryServer.stopAll();
-      long timeTakenForStopMs = System.currentTimeMillis() - beforeStop;
-      LOGGER.info("Time taken for Sentry server stop: " + timeTakenForStopMs);
-
-      // Verify that Sentry permission are still enforced for the "stale" period only if stop did not take too long
-      if(timeTakenForStopMs < STALE_THRESHOLD) {
-        verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);
-        Thread.sleep((STALE_THRESHOLD - timeTakenForStopMs));
-      } else {
-        LOGGER.warn("Sentry server stop took too long");
-      }
-
-      // Verify that Sentry permission are NOT enforced AFTER "stale" period
-      verifyOnAllSubDirs("/user/hive/warehouse/p3", null, "hbase", false);
-
-      sentryServer.startAll();
-    }
-
-    // Verify that After Sentry restart permissions are re-enforced
-    verifyOnAllSubDirs("/user/hive/warehouse/p3", FsAction.WRITE_EXECUTE, "hbase", true);
-
-    // Create new table and verify everything is fine after restart...
-    stmt.execute("create table p2 (s string) partitioned by (month int, day int)");
-    stmt.execute("alter table p2 add partition (month=1, day=1)");
-    stmt.execute("alter table p2 add partition (month=1, day=2)");
-    stmt.execute("alter table p2 add partition (month=2, day=1)");
-    stmt.execute("alter table p2 add partition (month=2, day=2)");
-
-    verifyOnAllSubDirs("/user/hive/warehouse/p2", null, "hbase", false);
-
-    stmt.execute("grant select on table p2 to role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/p2", FsAction.READ_EXECUTE, "hbase", true);
-
-    stmt.execute("grant select on table p2 to role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/p2", FsAction.READ_EXECUTE, "hbase", true);
-
-    // Create external table
-    writeToPath("/tmp/external/ext1", 5, "foo", "bar");
-
-    stmt.execute("create table ext1 (s string) location \'/tmp/external/ext1\'");
-    verifyQuery(stmt, "ext1", 5);
-
-    // Ensure existing group permissions are never returned..
-    verifyOnAllSubDirs("/tmp/external/ext1", null, "bar", false);
-    verifyOnAllSubDirs("/tmp/external/ext1", null, "hbase", false);
-
-    stmt.execute("grant all on table ext1 to role p1_admin");
-    verifyOnAllSubDirs("/tmp/external/ext1", FsAction.ALL, "hbase", true);
-
-    stmt.execute("revoke select on table ext1 from role p1_admin");
-    verifyOnAllSubDirs("/tmp/external/ext1", FsAction.WRITE_EXECUTE, "hbase", true);
-
-    // Verify database operations works correctly
-    stmt.execute("create database db1");
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db", null, "hbase", false);
-
-    stmt.execute("create table db1.tbl1 (s string)");
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", null, "hbase", false);
-    stmt.execute("create table db1.tbl2 (s string)");
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", null, "hbase", false);
-
-    // Verify default db grants do not affect other dbs
-    stmt.execute("grant all on database default to role p1_admin");
-    verifyOnPath("/user/hive/warehouse", FsAction.ALL, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db", null, "hbase", false);
-
-    // Verify table rename works
-    stmt.execute("create table q1 (s string)");
-    verifyOnAllSubDirs("/user/hive/warehouse/q1", FsAction.ALL, "hbase", true);
-    stmt.execute("alter table q1 rename to q2");
-    verifyOnAllSubDirs("/user/hive/warehouse/q2", FsAction.ALL, "hbase", true);
-
-    // Verify table GRANTS do not trump db GRANTS
-    stmt.execute("grant select on table q2 to role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/q2", FsAction.ALL, "hbase", true);
-
-    stmt.execute("create table q3 (s string)");
-    verifyOnAllSubDirs("/user/hive/warehouse/q3", FsAction.ALL, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/q2", FsAction.ALL, "hbase", true);
-
-    // Verify db privileges are propagated to tables
-    stmt.execute("grant select on database db1 to role p1_admin");
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", FsAction.READ_EXECUTE, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", FsAction.READ_EXECUTE, "hbase", true);
-
-    // Verify default db revokes do not affect other dbs
-    stmt.execute("revoke all on database default from role p1_admin");
-    verifyOnPath("/user/hive/warehouse", null, "hbase", false);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", FsAction.READ_EXECUTE, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", FsAction.READ_EXECUTE, "hbase", true);
-
-    stmt.execute("use db1");
-    stmt.execute("grant all on table tbl1 to role p1_admin");
-
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", FsAction.ALL, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", FsAction.READ_EXECUTE, "hbase", true);
-
-    // Verify recursive revoke
-    stmt.execute("revoke select on database db1 from role p1_admin");
-
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl1", FsAction.WRITE_EXECUTE, "hbase", true);
-    verifyOnAllSubDirs("/user/hive/warehouse/db1.db/tbl2", null, "hbase", false);
-
-    // Verify cleanup..
-    stmt.execute("drop table tbl1");
-    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db/tbl1")));
-
-    stmt.execute("drop table tbl2");
-    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db/tbl2")));
-
-    stmt.execute("use default");
-    stmt.execute("drop database db1");
-    Assert.assertFalse(miniDFS.getFileSystem().exists(new Path("/user/hive/warehouse/db1.db")));
-
-    // START : Verify external table set location..
-    writeToPath("/tmp/external/tables/ext2_before/i=1", 5, "foo", "bar");
-    writeToPath("/tmp/external/tables/ext2_before/i=2", 5, "foo", "bar");
-
-    stmt.execute("create external table ext2 (s string) partitioned by (i int) location \'/tmp/external/tables/ext2_before\'");
-    stmt.execute("alter table ext2 add partition (i=1)");
-    stmt.execute("alter table ext2 add partition (i=2)");
-    verifyQuery(stmt, "ext2", 10);
-    verifyOnAllSubDirs("/tmp/external/tables/ext2_before", null, "hbase", false);
-    stmt.execute("grant all on table ext2 to role p1_admin");
-    verifyOnPath("/tmp/external/tables/ext2_before", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1/stuff.txt", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2/stuff.txt", FsAction.ALL, "hbase", true);
-
-    writeToPath("/tmp/external/tables/ext2_after/i=1", 6, "foo", "bar");
-    writeToPath("/tmp/external/tables/ext2_after/i=2", 6, "foo", "bar");
-
-    stmt.execute("alter table ext2 set location \'hdfs:///tmp/external/tables/ext2_after\'");
-    // Even though table location is altered, partition location is still old (still 10 rows)
-    verifyQuery(stmt, "ext2", 10);
-    // You have to explicitly alter partition location..
-    verifyOnPath("/tmp/external/tables/ext2_before", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1/stuff.txt", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2/stuff.txt", FsAction.ALL, "hbase", true);
-
-    stmt.execute("alter table ext2 partition (i=1) set location \'hdfs:///tmp/external/tables/ext2_after/i=1\'");
-    stmt.execute("alter table ext2 partition (i=2) set location \'hdfs:///tmp/external/tables/ext2_after/i=2\'");
-    // Now that partition location is altered, it picks up new data (12 rows instead of 10)
-    verifyQuery(stmt, "ext2", 12);
-
-    verifyOnPath("/tmp/external/tables/ext2_before", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=1/stuff.txt", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_before/i=2/stuff.txt", null, "hbase", false);
-    verifyOnPath("/tmp/external/tables/ext2_after", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=2", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1/stuff.txt", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=2/stuff.txt", FsAction.ALL, "hbase", true);
-    // END : Verify external table set location..
-
-    //Create a new table partition on the existing partition
-    stmt.execute("create table tmp (s string) partitioned by (i int)");
-    stmt.execute("alter table tmp add partition (i=1)");
-    stmt.execute("alter table tmp partition (i=1) set location \'hdfs:///tmp/external/tables/ext2_after/i=1\'");
-    stmt.execute("grant all on table tmp to role tab_role");
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1", FsAction.ALL, "flume", true);
-
-    //Alter table rename of external table => oldName != newName, oldPath == newPath
-    stmt.execute("alter table ext2 rename to ext3");
-    //Verify all original paths still have the privileges
-    verifyOnPath("/tmp/external/tables/ext2_after", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1", FsAction.ALL, "flume", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=2", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=1/stuff.txt", FsAction.ALL, "hbase", true);
-    verifyOnPath("/tmp/external/tables/ext2_after/i=2/stuff.txt", FsAction.ALL, "hbase", true);
-
-
-    // Restart HDFS to verify if things are fine after re-start..
-
-    // TODO : this is currently commented out since miniDFS.restartNameNode() does
-    //        not work corectly on the version of hadoop sentry depends on
-    //        This has been verified to work on a real cluster.
-    //        Once miniDFS is fixed, this should be uncommented..
-    // miniDFS.shutdown();
-    // miniDFS.restartNameNode(true);
-    // miniDFS.waitActive();
-    // verifyOnPath("/tmp/external/tables/ext2_after", FsAction.ALL, "hbase", true);
-    // verifyOnAllSubDirs("/user/hive/warehouse/p2", FsAction.READ_EXECUTE, "hbase", true);
-
-    stmt.close();
-    conn.close();
-  }
-
   /**
    * Make sure non HDFS paths are not added to the object - location map.
    * @throws Throwable
@@ -925,43 +579,64 @@ public class TestHDFSIntegration {
     miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab1_loc"));
     stmt.execute("use " + dbName);
     stmt.execute("create external table tab1(a int) location 'file:///tmp/external/tab1_loc'");
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     verifyOnAllSubDirs("/tmp/external/tab1_loc", null, StaticUserGroup.USERGROUP1, false);
 
     //External partitioned table on local file system
     miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab2_loc/i=1"));
     stmt.execute("create external table tab2 (s string) partitioned by (i int) location 'file:///tmp/external/tab2_loc'");
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     verifyOnAllSubDirs("/tmp/external/tab2_loc", null, StaticUserGroup.USERGROUP1, false);
+
     //Partition on local file system
     stmt.execute("alter table tab2 add partition (i=1)");
     stmt.execute("alter table tab2 partition (i=1) set location 'file:///tmp/external/tab2_loc/i=1'");
 
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     verifyOnAllSubDirs("/tmp/external/tab2_loc/i=1", null, StaticUserGroup.USERGROUP1, false);
 
     //HDFS to local file system, also make sure does not specifying scheme still works
     stmt.execute("create external table tab3(a int) location '/tmp/external/tab3_loc'");
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     // SENTRY-546
-    // verifyOnAllSubDirs("/tmp/external/tab3_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
-    verifyOnAllSubDirs("/tmp/external/tab3_loc", null, StaticUserGroup.USERGROUP1, true);
+    verifyOnAllSubDirs("/tmp/external/tab3_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
+
+    // verifyOnAllSubDirs("/tmp/external/tab3_loc", null, StaticUserGroup.USERGROUP1, true);
     stmt.execute("alter table tab3 set location 'file:///tmp/external/tab3_loc'");
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     verifyOnAllSubDirs("/tmp/external/tab3_loc", null, StaticUserGroup.USERGROUP1, false);
 
     //Local file system to HDFS
     stmt.execute("create table tab4(a int) location 'file:///tmp/external/tab4_loc'");
     stmt.execute("alter table tab4 set location 'hdfs:///tmp/external/tab4_loc'");
     miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab4_loc"));
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     // SENTRY-546
-    // verifyOnAllSubDirs("/tmp/external/tab4_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
-    verifyOnAllSubDirs("/tmp/external/tab4_loc", null, StaticUserGroup.USERGROUP1, true);
+    verifyOnAllSubDirs("/tmp/external/tab4_loc", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
+    //verifyOnAllSubDirs("/tmp/external/tab4_loc", null, StaticUserGroup.USERGROUP1, true);
+
     stmt.close();
     conn.close();
   }
 
-  @Ignore("SENTRY-546")
+  @Ignore
   @Test
   public void testExternalTable() throws Throwable {
     String dbName = "db2";
 
     tmpHDFSDir = new Path("/tmp/external");
+    if (!miniDFS.getFileSystem().exists(tmpHDFSDir)) {
+      miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
+    }
+    miniDFS.getFileSystem().setOwner(tmpHDFSDir, "hive", "hive");
+    miniDFS.getFileSystem().setPermission(tmpHDFSDir, FsPermission.valueOf("drwxrwx---"));
+    miniDFS.getFileSystem().mkdirs(new Path("/tmp/external/tab1_loc"));
+
     dbNames = new String[]{dbName};
     roles = new String[]{"admin_role"};
     admin = StaticUserGroup.ADMIN1;
@@ -980,6 +655,8 @@ public class TestHDFSIntegration {
     stmt = conn.createStatement();
     stmt.execute("create database " + dbName);
     stmt.execute("create external table tab1(a int) location '/tmp/external/tab1_loc'");
+
+    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
     verifyOnAllSubDirs("/tmp/external/tab1_loc", FsAction.ALL, StaticUserGroup.ADMINGROUP, true);
 
     stmt.close();
@@ -1356,200 +1033,6 @@ public class TestHDFSIntegration {
     conn.close();
   }
 
-  @Test
-  public void testURIsWithoutSchemeandAuthority() throws Throwable {
-    // In the local test environment, EXTERNAL_SENTRY_SERVICE is false,
-    // set the default URI scheme to be hdfs.
-    boolean testConfOff = new Boolean(System.getProperty(EXTERNAL_SENTRY_SERVICE, "false"));
-    if (!testConfOff) {
-      PathUtils.getConfiguration().set("fs.defaultFS", fsURI);
-    }
-
-    String dbName= "db1";
-
-    tmpHDFSDir = new Path("/tmp/external");
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "db_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-
-    stmt.execute("create database " + dbName);
-    stmt.execute("create role db_role");
-    stmt.execute("grant all on database " + dbName +" to role db_role");
-    stmt.execute("grant all on URI '/tmp/external' to role db_role");
-    stmt.execute("grant role db_role to group " + StaticUserGroup.USERGROUP1);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.USER1_1, StaticUserGroup.USER1_1);
-    stmt = conn.createStatement();
-
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) location '/tmp/external'");
-
-    stmt.close();
-    conn.close();
-  }
-
-  /**
-   * Test combination of "grant all on URI" where URI has scheme,
-   * followed by "create external table" where location URI has no scheme.
-   * Neither URI has authority.
-   */
-  @Test
-  public void testURIsWithAndWithoutSchemeNoAuthority() throws Throwable {
-    // In the local test environment, EXTERNAL_SENTRY_SERVICE is false,
-    // set the default URI scheme to be hdfs.
-    boolean testConfOff = new Boolean(System.getProperty(EXTERNAL_SENTRY_SERVICE, "false"));
-    if (!testConfOff) {
-      PathUtils.getConfiguration().set("fs.defaultFS", fsURI);
-    }
-
-    String dbName= "db1";
-
-    tmpHDFSDir = new Path("/tmp/external");
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "db_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-
-    stmt.execute("create database " + dbName);
-    stmt.execute("create role db_role");
-    stmt.execute("grant all on database " + dbName +" to role db_role");
-    stmt.execute("grant all on URI 'hdfs:///tmp/external' to role db_role");
-    stmt.execute("grant role db_role to group " + StaticUserGroup.USERGROUP1);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.USER1_1, StaticUserGroup.USER1_1);
-    stmt = conn.createStatement();
-
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) location '/tmp/external'");
-
-    stmt.close();
-    conn.close();
-  }
-
-  /**
-   * Test combination of "grant all on URI" where URI has no scheme,
-   * followed by "create external table" where location URI has scheme.
-   * Neither URI has authority.
-   */
-  @Test
-  public void testURIsWithoutAndWithSchemeNoAuthority() throws Throwable {
-    // In the local test environment, EXTERNAL_SENTRY_SERVICE is false,
-    // set the default URI scheme to be hdfs.
-    boolean testConfOff = new Boolean(System.getProperty(EXTERNAL_SENTRY_SERVICE, "false"));
-    if (!testConfOff) {
-      PathUtils.getConfiguration().set("fs.defaultFS", fsURI);
-    }
-
-    String dbName= "db1";
-
-    tmpHDFSDir = new Path("/tmp/external");
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "db_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-
-    stmt.execute("create database " + dbName);
-    stmt.execute("create role db_role");
-    stmt.execute("grant all on database " + dbName +" to role db_role");
-    stmt.execute("grant all on URI '/tmp/external' to role db_role");
-    stmt.execute("grant role db_role to group " + StaticUserGroup.USERGROUP1);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.USER1_1, StaticUserGroup.USER1_1);
-    stmt = conn.createStatement();
-
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) location 'hdfs:///tmp/external'");
-
-    stmt.close();
-    conn.close();
-  }
-
-  /**
-   * Test combination of "grant all on URI" where URI has scheme and authority,
-   * followed by "create external table" where location URI has neither scheme nor authority.
-   */
-  @Test
-  public void testURIsWithAndWithoutSchemeAndAuthority() throws Throwable {
-    // In the local test environment, EXTERNAL_SENTRY_SERVICE is false,
-    // set the default URI scheme to be hdfs.
-    boolean testConfOff = new Boolean(System.getProperty(EXTERNAL_SENTRY_SERVICE, "false"));
-    if (!testConfOff) {
-      PathUtils.getConfiguration().set("fs.defaultFS", fsURI);
-    }
-
-    String dbName= "db1";
-
-    tmpHDFSDir = new Path("/tmp/external");
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "db_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-
-    stmt.execute("create database " + dbName);
-    stmt.execute("create role db_role");
-    stmt.execute("grant all on database " + dbName +" to role db_role");
-    stmt.execute("grant all on URI 'hdfs://" + new URI(fsURI).getAuthority() + "/tmp/external' to role db_role");
-    stmt.execute("grant role db_role to group " + StaticUserGroup.USERGROUP1);
-
-    conn = hiveServer2.createConnection(StaticUserGroup.USER1_1, StaticUserGroup.USER1_1);
-    stmt = conn.createStatement();
-
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) location '/tmp/external'");
-
-    stmt.close();
-    conn.close();
-  }
-
   //SENTRY-884
   @Test
   public void testAccessToTableDirectory() throws Throwable {
@@ -1587,203 +1070,6 @@ public class TestHDFSIntegration {
     conn.close();
   }
 
-  /* SENTRY-953 */
-  @Test
-  public void testAuthzObjOnPartitionMultipleTables() throws Throwable {
-    String dbName = "db1";
-
-    tmpHDFSDir = new Path("/tmp/external");
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
-    Path partitionDir = new Path("/tmp/external/p1");
-    miniDFS.getFileSystem().mkdirs(partitionDir);
-
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "tab1_role", "tab2_role", "tab3_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    // Create external table tab1 on location '/tmp/external/p1'.
-    // Create tab1_role, and grant it with insert permission on table tab1 to user_group1.
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-    stmt.execute("create database " + dbName);
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) partitioned by (month int) location '/tmp/external/p1'");
-    stmt.execute("create role tab1_role");
-    stmt.execute("grant insert on table tab1 to role tab1_role");
-    stmt.execute("grant role tab1_role to group " + StaticUserGroup.USERGROUP1);
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-
-    // Verify that user_group1 has insert(write_execute) permission on '/tmp/external/p1'.
-    verifyOnAllSubDirs("/tmp/external/p1", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP1, true);
-
-    // Create external table tab2 and partition on location '/tmp/external'.
-    // Create tab2_role, and grant it with select permission on table tab2 to user_group2.
-    stmt.execute("create external table tab2 (s string) partitioned by (month int)");
-    stmt.execute("alter table tab2 add partition (month = 1) location '/tmp/external'");
-    stmt.execute("create role tab2_role");
-    stmt.execute("grant select on table tab2 to role tab2_role");
-    stmt.execute("grant role tab2_role to group " + StaticUserGroup.USERGROUP2);
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-
-    // Verify that user_group2 have select(read_execute) permission on both paths.
-    verifyOnAllSubDirs("/user/hive/warehouse/" + dbName + ".db/tab2", FsAction.READ_EXECUTE, StaticUserGroup.USERGROUP2, true);
-    verifyOnPath("/tmp/external", FsAction.READ_EXECUTE, StaticUserGroup.USERGROUP2, true);
-
-    // Create table tab3 and partition on the same location '/tmp/external' as tab2.
-    // Create tab3_role, and grant it with insert permission on table tab3 to user_group3.
-    stmt.execute("create table tab3 (s string) partitioned by (month int)");
-    stmt.execute("alter table tab3 add partition (month = 1) location '/tmp/external'");
-    stmt.execute("create role tab3_role");
-    stmt.execute("grant insert on table tab3 to role tab3_role");
-    stmt.execute("grant role tab3_role to group " + StaticUserGroup.USERGROUP3);
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-
-    // When two partitions of different tables pointing to the same location with different grants,
-    // ACLs should have union (no duplicates) of both rules.
-    verifyOnAllSubDirs("/user/hive/warehouse/" + dbName + ".db/tab3", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-    verifyOnPath("/tmp/external", FsAction.READ_EXECUTE, StaticUserGroup.USERGROUP2, true);
-    verifyOnPath("/tmp/external", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-
-    // When alter the table name (tab2 to be tabx), ACLs should remain the same.
-    stmt.execute("alter table tab2 rename to tabx");
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-    verifyOnPath("/tmp/external", FsAction.READ_EXECUTE, StaticUserGroup.USERGROUP2, true);
-    verifyOnPath("/tmp/external", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-
-    // When drop a partition that shares the same location with other partition belonging to
-    // other table, should still have the other table permissions.
-    stmt.execute("ALTER TABLE tabx DROP PARTITION (month = 1)");
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-    verifyOnAllSubDirs("/user/hive/warehouse/" + dbName + ".db/tab3", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-    verifyOnPath("/tmp/external", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-
-    // When drop a table that has a partition shares the same location with other partition
-    // belonging to other table, should still have the other table permissions.
-    stmt.execute("DROP TABLE IF EXISTS tabx");
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-    verifyOnAllSubDirs("/user/hive/warehouse/" + dbName + ".db/tab3", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-    verifyOnPath("/tmp/external", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP3, true);
-
-    stmt.close();
-    conn.close();
-
-    miniDFS.getFileSystem().delete(partitionDir, true);
-  }
-
-  /* SENTRY-953 */
-  @Test
-  public void testAuthzObjOnPartitionSameTable() throws Throwable {
-    String dbName = "db1";
-
-    tmpHDFSDir = new Path("/tmp/external/p1");
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
-
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "tab1_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    // Create table tab1 and partition on the same location '/tmp/external/p1'.
-    // Create tab1_role, and grant it with insert permission on table tab1 to user_group1.
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-    stmt.execute("create database " + dbName);
-    stmt.execute("use " + dbName);
-    stmt.execute("create table tab1 (s string) partitioned by (month int)");
-    stmt.execute("alter table tab1 add partition (month = 1) location '/tmp/external/p1'");
-    stmt.execute("create role tab1_role");
-    stmt.execute("grant insert on table tab1 to role tab1_role");
-    stmt.execute("grant role tab1_role to group " + StaticUserGroup.USERGROUP1);
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-
-    // Verify that user_group1 has insert(write_execute) permission on '/tmp/external/p1'.
-    verifyOnAllSubDirs("/tmp/external/p1", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP1, true);
-
-    // When two partitions of the same table pointing to the same location,
-    // ACLS should not be repeated. Exception will be thrown if there are duplicates.
-    stmt.execute("alter table tab1 add partition (month = 2) location '/tmp/external/p1'");
-    verifyOnPath("/tmp/external/p1", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP1, true);
-
-    stmt.close();
-    conn.close();
-  }
-
-  /* SENTRY-953 */
-  @Test
-  public void testAuthzObjOnMultipleTables() throws Throwable {
-    String dbName = "db1";
-
-    tmpHDFSDir = new Path("/tmp/external/p1");
-    miniDFS.getFileSystem().mkdirs(tmpHDFSDir);
-
-    dbNames = new String[]{dbName};
-    roles = new String[]{"admin_role", "tab1_role", "tab2_role"};
-    admin = StaticUserGroup.ADMIN1;
-
-    Connection conn;
-    Statement stmt;
-
-    conn = hiveServer2.createConnection("hive", "hive");
-    stmt = conn.createStatement();
-
-    stmt.execute("create role admin_role");
-    stmt.execute("grant all on server server1 to role admin_role");
-    stmt.execute("grant role admin_role to group " + StaticUserGroup.ADMINGROUP);
-
-    // Create external table tab1 on location '/tmp/external/p1'.
-    // Create tab1_role, and grant it with insert permission on table tab1 to user_group1.
-    conn = hiveServer2.createConnection(StaticUserGroup.ADMIN1, StaticUserGroup.ADMIN1);
-    stmt = conn.createStatement();
-    stmt.execute("create database " + dbName);
-    stmt.execute("use " + dbName);
-    stmt.execute("create external table tab1 (s string) partitioned by (month int) location '/tmp/external/p1'");
-    stmt.execute("create role tab1_role");
-    stmt.execute("grant insert on table tab1 to role tab1_role");
-    stmt.execute("grant role tab1_role to group " + StaticUserGroup.USERGROUP1);
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-
-    // Verify that user_group1 has insert(write_execute) permission on '/tmp/external/p1'.
-    verifyOnAllSubDirs("/tmp/external/p1", FsAction.WRITE_EXECUTE, StaticUserGroup.USERGROUP1, true);
-
-    // Create table tab2 on the same location '/tmp/external/p1' as table tab1.
-    // Create tab2_role, and grant it with select permission on table tab2 to user_group1.
-    stmt.execute("create table tab2 (s string) partitioned by (month int) location '/tmp/external/p1'");
-    stmt.execute("create role tab2_role");
-    stmt.execute("grant select on table tab2 to role tab2_role");
-    stmt.execute("grant role tab2_role to group " + StaticUserGroup.USERGROUP1);
-
-    // When two tables pointing to the same location, ACLS should have union (no duplicates)
-    // of both rules.
-    verifyOnPath("/tmp/external/p1", FsAction.ALL, StaticUserGroup.USERGROUP1, true);
-
-    // When drop table tab1, ACLs of tab2 still remain.
-    stmt.execute("DROP TABLE IF EXISTS tab1");
-    Thread.sleep(CACHE_REFRESH);//Wait till sentry cache is updated in Namenode
-    verifyOnPath("/tmp/external/p1", FsAction.READ_EXECUTE, StaticUserGroup.USERGROUP1, true);
-
-    stmt.close();
-    conn.close();
-  }
-
   @Test
   public void testNoPartitionInsert() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
@@ -1813,6 +1099,7 @@ public class TestHDFSIntegration {
 
   }
 
+  @Ignore
   @Test
   public void testRenameTable() throws Throwable {
     tmpHDFSDir = new Path("/tmp/external");
@@ -2209,7 +1496,7 @@ public class TestHDFSIntegration {
     f1.flush();
     f1.close();
     miniDFS.getFileSystem().setOwner(new Path(path + "/stuff.txt"), "asuresh", "supergroup");
-    miniDFS.getFileSystem().setPermission(new Path(path + "/stuff.txt"), FsPermission.valueOf("-rwxrwx---"));
+    miniDFS.getFileSystem().setPermission(new Path(path + "/stuff.txt"), FsPermission.valueOf("-rwxrwx--x"));
   }
 
   private void verifyHDFSandMR(Statement stmt) throws Throwable {

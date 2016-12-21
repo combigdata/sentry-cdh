@@ -34,10 +34,4 @@ public class TestHDFSIntegrationWithHA extends TestHDFSIntegration {
   public void testMissingScheme() throws Throwable {
     ignoreCleanUp = true;
   }
-
-  @Override
-  @Test
-  public void testAuthzObjOnMultipleTables() throws Throwable {
-    ignoreCleanUp = true;
-  }
 }
