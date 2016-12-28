@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,8 +115,10 @@ public abstract class AbstractTestWithStaticConfiguration {
       .outerRule(new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          if (e.getMessage().contains("test timed out after")) {
-            LOGGER.error("Test method time out, but caught by rule, description = " + description + "ex = " + e);
+          if (e != null) {
+            if (e.getMessage().contains("test timed out after")) {
+              LOGGER.error("Test method time out, but caught by rule, description = " + description + "ex = " + e);
+            }
           }
         }
       })
