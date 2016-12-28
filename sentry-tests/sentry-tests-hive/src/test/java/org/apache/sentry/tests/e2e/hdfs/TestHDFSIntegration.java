@@ -1023,7 +1023,7 @@ public class TestHDFSIntegration {
       stmt.execute("create database " + dbName);
       stmt.execute("create table test(a string)");
       stmt.execute("create view testView as select * from test");
-      stmt.execute("create or replace view testView as select * from test");
+//      stmt.execute("create or replace view testView as select * from test");
       stmt.execute("drop view testView");
     } catch(Exception s) {
       throw s;
