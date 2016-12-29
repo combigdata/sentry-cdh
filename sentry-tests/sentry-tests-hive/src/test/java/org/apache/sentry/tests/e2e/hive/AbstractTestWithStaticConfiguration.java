@@ -100,11 +100,12 @@ public abstract class AbstractTestWithStaticConfiguration {
         protected void failed(Throwable e, Description description) {
           LOGGER.error("Time out = " + e);
           if (e != null) {
-            if (e.getMessage().contains("test timed out after")) {
+            String errorMessage = e.getMessage();
+            if (errorMessage != null & errorMessage.contains("test timed out after")) {
               LOGGER.error("Test class time out, but caught by rule, description = " + description + "ex = " + e);
-            } else {{
+            } else {
               LOGGER.error("Unexpected error: " + e + ", " +  e.getStackTrace() + ", " + e.getMessage());
-            }}
+            }
           }
         }
       })
@@ -115,7 +116,8 @@ public abstract class AbstractTestWithStaticConfiguration {
       .outerRule(new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          if (e != null) {
+          String errorMessage = e.getMessage();
+          if (errorMessage != null & errorMessage.contains("test timed out after")) {
             if (e.getMessage().contains("test timed out after")) {
               LOGGER.error("Test method time out, but caught by rule, description = " + description + "ex = " + e);
             }
@@ -719,12 +721,10 @@ public abstract class AbstractTestWithStaticConfiguration {
    */
   protected void validateReturnedResult(List<String> expected, List<String> returned) {
     for (String obj : expected) {
-      assertTrue("expected " + obj + " not found in the returned list: " + returned.toString(),
-              returned.contains(obj));
+      assertTrue("expected " + obj + " not found in the returned list: " + returned.toString(), returned.contains(obj));
     }
     for (String obj : returned) {
-      assertTrue("returned " + obj + " not found in the expected list: " + expected.toString(),
-              expected.contains(obj));
+      assertTrue("returned " + obj + " not found in the expected list: " + expected.toString(), expected.contains(obj));
     }
   }
 
