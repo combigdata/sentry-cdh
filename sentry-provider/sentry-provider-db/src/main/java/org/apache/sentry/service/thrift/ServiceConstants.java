@@ -161,6 +161,11 @@ public class ServiceConstants {
     public static final String SENTRY_REPORTER = "sentry.service.reporter";
     public static final String SENTRY_REPORTER_JMX = SentryMetrics.Reporting.JMX.name(); //case insensitive
     public static final String SENTRY_REPORTER_CONSOLE = SentryMetrics.Reporting.CONSOLE.name();//case insensitive
+    // for console reporter, reporting interval in seconds
+    public static final String SENTRY_REPORTER_INTERVAL_SEC =
+            "sentry.service.reporter.interval.sec";
+    // Report every 5 minutes by default
+    public static final int SENTRY_REPORTER_INTERVAL_DEFAULT = 300;
 
     // Web Security
     public static final String SENTRY_WEB_SECURITY_PREFIX = "sentry.service.web.authentication";
