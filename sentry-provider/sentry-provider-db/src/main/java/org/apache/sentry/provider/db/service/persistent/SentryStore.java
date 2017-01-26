@@ -89,7 +89,6 @@ import com.google.common.collect.Sets;
  * in addition to starting and ending whitespace.
  */
 public class SentryStore {
-  private static final UUID SERVER_UUID = UUID.randomUUID();
   private static final Logger LOGGER = LoggerFactory
           .getLogger(SentryStore.class);
 
@@ -107,14 +106,6 @@ public class SentryStore {
   private static final Set<String> PARTIAL_REVOKE_ACTIONS = Sets.newHashSet(AccessConstants.ALL,
       AccessConstants.ACTION_ALL.toLowerCase(), AccessConstants.SELECT, AccessConstants.INSERT);
 
-  /**
-   * Commit order sequence id. This is used by notification handlers
-   * to know the order in which events where committed to the database.
-   * This instance variable is incremented in incrementGetSequenceId
-   * and read in commitUpdateTransaction. Synchronization on this
-   * is required to read commitSequenceId.
-   */
-  private long commitSequenceId;
   private final PersistenceManagerFactory pmf;
   private Configuration conf;
   private PrivCleaner privCleaner = null;
@@ -122,7 +113,6 @@ public class SentryStore {
   private final TransactionManager tm;
 
   public SentryStore(Configuration conf) throws Exception {
-    commitSequenceId = 0;
     this.conf = conf;
     Properties prop = new Properties();
     prop.putAll(ServerConfig.SENTRY_STORE_DEFAULTS);
@@ -244,16 +234,6 @@ public class SentryStore {
     }
   }
 
-  /**
-   * Increments commitSequenceId which should not be modified outside
-   * this method.
-   *
-   * @return sequence id
-   */
-  private synchronized long incrementGetSequenceId() {
-    return ++commitSequenceId;
-  }
-
   public void rollbackTransaction(PersistenceManager pm) {
     if (pm == null || pm.isClosed()) {
       return;
@@ -276,8 +256,7 @@ public class SentryStore {
     query.setFilter("this.roleName == t");
     query.declareParameters("java.lang.String t");
     query.setUnique(true);
-    MSentryRole sentryRole = (MSentryRole) query.execute(roleName);
-    return sentryRole;
+    return (MSentryRole) query.execute(roleName);
   }
 
   /**
@@ -289,18 +268,16 @@ public class SentryStore {
   /**
    * Create a sentry role and persist it.
    * @param roleName: Name of the role being persisted
-   * @returns commit context used for notification handlers
    * @throws Exception
    */
-  public CommitContext createSentryRole(final String roleName)
-      throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
-      new TransactionBlock() {
-        public Object execute(PersistenceManager pm) throws Exception {
-          createSentryRoleCore(pm, roleName);
-          return new CommitContext(SERVER_UUID, incrementGetSequenceId());
-        }
-      });
+  public void createSentryRole(final String roleName) throws Exception {
+    tm.executeTransactionWithRetry(
+        new TransactionBlock() {
+          public Object execute(PersistenceManager pm) throws Exception {
+            createSentryRoleCore(pm, roleName);
+            return null;
+            }
+        });
   }
 
   private void createSentryRoleCore(PersistenceManager pm, String roleName)
@@ -349,6 +326,7 @@ public class SentryStore {
       }
     };
   }
+
   public Gauge<Long> getGroupCountGauge() {
     return new Gauge< Long >() {
       @Override
@@ -386,17 +364,15 @@ public class SentryStore {
     }
   }
 
-  public CommitContext alterSentryRoleGrantPrivilege(String grantorPrincipal,
-      String roleName, TSentryPrivilege privilege)
-      throws Exception {
-    return alterSentryRoleGrantPrivileges(grantorPrincipal,
-        roleName, Sets.newHashSet(privilege));
+  public void alterSentryRoleGrantPrivilege(String grantorPrincipal,
+      String roleName, TSentryPrivilege privilege) throws Exception {
+    alterSentryRoleGrantPrivileges(grantorPrincipal, roleName,
+            Sets.newHashSet(privilege));
   }
 
-  public CommitContext alterSentryRoleGrantPrivileges(final String grantorPrincipal,
-      final String roleName, final Set<TSentryPrivilege> privileges)
-      throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
+  public void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
+      final String roleName, final Set<TSentryPrivilege> privileges) throws Exception {
+    tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
             String trimmedRoleName = trimAndLower(roleName);
@@ -409,7 +385,7 @@ public class SentryStore {
                 convertToTSentryPrivilege(mPrivilege, privilege);
               }
             }
-            return new CommitContext(SERVER_UUID, incrementGetSequenceId());
+            return null;
           }
         });
   }
@@ -466,15 +442,15 @@ public class SentryStore {
     return mPrivilege;
   }
 
-  public CommitContext alterSentryRoleRevokePrivilege(String grantorPrincipal,
+  public void alterSentryRoleRevokePrivilege(String grantorPrincipal,
       String roleName, TSentryPrivilege tPrivilege) throws Exception {
-    return alterSentryRoleRevokePrivileges(grantorPrincipal,
-        roleName, Sets.newHashSet(tPrivilege));
+    alterSentryRoleRevokePrivileges(grantorPrincipal, roleName,
+            Sets.newHashSet(tPrivilege));
   }
 
-  public CommitContext alterSentryRoleRevokePrivileges(final String grantorPrincipal,
+  public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
       final String roleName, final Set<TSentryPrivilege> tPrivileges) throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
+    tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
             String trimmedRoleName = safeTrimLower(roleName);
@@ -484,7 +460,7 @@ public class SentryStore {
 
               alterSentryRoleRevokePrivilegeCore(pm, trimmedRoleName, tPrivilege);
             }
-            return new CommitContext(SERVER_UUID, incrementGetSequenceId());
+            return null;
           }
         });
   }
@@ -708,8 +684,7 @@ public class SentryStore {
     filters.append("&& this.action == \"" + toNULLCol(safeTrimLower(tPriv.getAction())) + "\"");
 
     query.setFilter(filters.toString());
-    List<MSentryPrivilege> privileges = (List<MSentryPrivilege>) query.execute();
-    return privileges;
+    return (List<MSentryPrivilege>) query.execute();
   }
 
   private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm) {
@@ -730,17 +705,18 @@ public class SentryStore {
       grantOption = false;
     }
     Object obj = query.execute(grantOption);
-    if (obj != null)
+    if (obj != null) {
       return (MSentryPrivilege) obj;
+    }
     return null;
   }
 
-  public CommitContext dropSentryRole(final String roleName) throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
+  public void dropSentryRole(final String roleName) throws Exception {
+    tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
             dropSentryRoleCore(pm, roleName);
-            return new CommitContext(SERVER_UUID, incrementGetSequenceId());
+            return null;
           }
         });
   }
@@ -766,13 +742,13 @@ public class SentryStore {
     }
   }
 
-  public CommitContext alterSentryRoleAddGroups(final String grantorPrincipal,
+  public void alterSentryRoleAddGroups(final String grantorPrincipal,
       final String roleName, final Set<TSentryGroup> groupNames) throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
+    tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
             alterSentryRoleAddGroupsCore(pm, roleName, groupNames);
-            return new CommitContext(SERVER_UUID, incrementGetSequenceId());
+            return null;
           }
         });
   }
@@ -806,9 +782,9 @@ public class SentryStore {
     pm.makePersistentAll(groups);
   }
 
-  public CommitContext alterSentryRoleDeleteGroups(final String roleName,
+  public void alterSentryRoleDeleteGroups(final String roleName,
       final Set<TSentryGroup> groupNames) throws Exception {
-    return (CommitContext)tm.executeTransactionWithRetry(
+    tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
             String trimmedRoleName = trimAndLower(roleName);
@@ -834,8 +810,8 @@ public class SentryStore {
                 }
               }
               pm.makePersistentAll(groups);
-              return new CommitContext(SERVER_UUID, incrementGetSequenceId());
             }
+            return null;
           }
         });
   }
@@ -933,7 +909,7 @@ public class SentryStore {
                 }
               }
               query.setFilter(filters.toString());
-              return query.execute();
+              return (List<MSentryPrivilege>) query.execute();
             }
           });
     } catch (Exception e) {

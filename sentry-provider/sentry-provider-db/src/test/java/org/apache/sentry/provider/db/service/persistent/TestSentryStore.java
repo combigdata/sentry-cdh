@@ -24,11 +24,7 @@ import static junit.framework.Assert.assertTrue;
 import static junit.framework.Assert.fail;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -142,11 +138,11 @@ public class TestSentryStore {
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
 
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleAddGroups(grantor, roleName, groups).getSequenceId());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleDeleteGroups(roleName, groups).getSequenceId());
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege).getSequenceId());
-    assertEquals(seqId + 4, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege).getSequenceId());
+    sentryStore.createSentryRole(roleName);
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName, groups);
+    sentryStore.alterSentryRoleDeleteGroups(roleName, groups);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
   }
   @Test
   public void testURI() throws Exception {
@@ -196,16 +192,16 @@ public class TestSentryStore {
   public void testCaseSensitiveScope() throws Exception {
     String roleName = "role1";
     String grantor = "g1";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege sentryPrivilege = new TSentryPrivilege("Database", "server1", "all");
     sentryPrivilege.setDbName("db1");
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, sentryPrivilege).getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, sentryPrivilege);
   }
   @Test
   public void testCreateDropRole() throws Exception {
     String roleName = "test-drop-role";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
-    assertEquals(seqId + 1, sentryStore.dropSentryRole(roleName).getSequenceId());
+    sentryStore.createSentryRole(roleName);
+    sentryStore.dropSentryRole(roleName);
   }
 
   @Test(expected = SentryNoSuchObjectException.class)
@@ -221,7 +217,7 @@ public class TestSentryStore {
   public void testAddDeleteGroups() throws Exception {
     String roleName = "test-groups";
     String grantor = "g1";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     Set<TSentryGroup> groups = Sets.newHashSet();
     TSentryGroup group = new TSentryGroup();
     group.setGroupName("test-groups-g1");
@@ -229,10 +225,8 @@ public class TestSentryStore {
     group = new TSentryGroup();
     group.setGroupName("test-groups-g2");
     groups.add(group);
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleAddGroups(grantor,
-        roleName, groups).getSequenceId());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleDeleteGroups(roleName, groups)
-        .getSequenceId());
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName, groups);
+    sentryStore.alterSentryRoleDeleteGroups(roleName, groups);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     assertEquals(Collections.emptySet(), role.getGroups());
   }
@@ -287,7 +281,7 @@ public class TestSentryStore {
     String server = "server1";
     String db = "db1";
     String table = "tbl1";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilege = new TSentryPrivilege();
     privilege.setPrivilegeScope("TABLE");
     privilege.setServerName(server);
@@ -295,14 +289,12 @@ public class TestSentryStore {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
     privilege.setAction(AccessConstants.SELECT);
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
     // after having ALL and revoking SELECT, we should have INSERT
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -426,7 +418,7 @@ public class TestSentryStore {
     String db = "db1";
     String table = "tbl1";
     String[] columns = {"c1","c2","c3","c4"};
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     Set<TSentryPrivilege> tPrivileges = Sets.newHashSet();
     for (String column : columns) {
       TSentryPrivilege privilege = new TSentryPrivilege();
@@ -439,8 +431,7 @@ public class TestSentryStore {
       privilege.setCreateTime(System.currentTimeMillis());
       tPrivileges.add(privilege);
     }
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivileges(grantor, roleName, tPrivileges)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivileges(grantor, roleName, tPrivileges);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 4, privileges.size());
@@ -457,8 +448,7 @@ public class TestSentryStore {
       privilege.setCreateTime(System.currentTimeMillis());
       tPrivileges.add(privilege);
     }
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleRevokePrivileges(grantor, roleName, tPrivileges)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivileges(grantor, roleName, tPrivileges);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
@@ -470,8 +460,7 @@ public class TestSentryStore {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.SELECT);
     privilege.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
     // After revoking table scope, we will have 0 privileges
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -490,7 +479,7 @@ public class TestSentryStore {
     String table = "tbl1";
     String column1 = "c1";
     String column2 = "c2";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilege = new TSentryPrivilege();
     privilege.setPrivilegeScope("COLUMN");
     privilege.setServerName(server);
@@ -501,19 +490,16 @@ public class TestSentryStore {
     privilege.setCreateTime(System.currentTimeMillis());
 
     // Grant ALL on c1 and c2
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     privilege.setColumnName(column2);
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on c2
     privilege.setAction(AccessConstants.SELECT);
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
 
     // At this point c1 has ALL privileges and c2 should have INSERT after revoking SELECT
     role = sentryStore.getMSentryRoleByName(roleName);
@@ -542,8 +528,7 @@ public class TestSentryStore {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.INSERT);
     privilege.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 4, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
@@ -553,8 +538,7 @@ public class TestSentryStore {
     // Revoke ALL from the table should now remove all the column privileges.
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 5, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 0, privileges.size());
@@ -571,7 +555,7 @@ public class TestSentryStore {
     String db = "db1";
     String table1 = "tbl1";
     String table2 = "tbl2";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilegeTable1 = new TSentryPrivilege();
     privilegeTable1.setPrivilegeScope("TABLE");
     privilegeTable1.setServerName(server);
@@ -583,18 +567,15 @@ public class TestSentryStore {
     privilegeTable2.setTableName(table2);
 
     // Grant ALL on table1 and table2
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeTable1)
-        .getSequenceId());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeTable2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeTable1);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeTable2);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on table2
     privilegeTable2.setAction(AccessConstants.SELECT);
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeTable2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeTable2);
     // after having ALL and revoking SELECT, we should have INSERT
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -621,8 +602,7 @@ public class TestSentryStore {
     privilegeTable2.setAction(AccessConstants.INSERT);
     privilegeTable2.setPrivilegeScope("DATABASE");
     privilegeTable2.unsetTableName();
-    assertEquals(seqId + 4, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeTable2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeTable2);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
 
@@ -649,7 +629,7 @@ public class TestSentryStore {
     String table = "tbl1";
     String column1 = "c1";
     String column2 = "c2";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilegeCol1 = new TSentryPrivilege();
     privilegeCol1.setPrivilegeScope("COLUMN");
     privilegeCol1.setServerName(server);
@@ -662,18 +642,15 @@ public class TestSentryStore {
     privilegeCol2.setColumnName(column2);
 
     // Grant ALL on column1 and column2
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeCol1)
-        .getSequenceId());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeCol2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeCol1);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilegeCol2);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on column2
     privilegeCol2.setAction(AccessConstants.SELECT);
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeCol2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeCol2);
     // after having ALL and revoking SELECT, we should have INSERT
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -702,8 +679,7 @@ public class TestSentryStore {
     privilegeCol2.setPrivilegeScope("DATABASE");
     privilegeCol2.unsetTableName();
     privilegeCol2.unsetColumnName();
-    assertEquals(seqId + 4, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeCol2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilegeCol2);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
 
@@ -727,7 +703,7 @@ public class TestSentryStore {
     String db = "db1";
     String table = "tbl1";
     TSentryGrantOption grantOption = TSentryGrantOption.TRUE;
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilege = new TSentryPrivilege();
     privilege.setPrivilegeScope("TABLE");
     privilege.setServerName(server);
@@ -736,14 +712,12 @@ public class TestSentryStore {
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
     privilege.setGrantOption(grantOption);
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
     assertEquals(Boolean.valueOf(privilege.getGrantOption().toString()), Iterables.get(privileges, 0).getGrantOption());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(0, privileges.size());
@@ -1113,7 +1087,7 @@ public class TestSentryStore {
     String server = "server1";
     String db = "db1";
     String table = "tbl1";
-    long seqId = sentryStore.createSentryRole(roleName).getSequenceId();
+    sentryStore.createSentryRole(roleName);
     TSentryPrivilege privilege = new TSentryPrivilege();
     privilege.setPrivilegeScope("TABLE");
     privilege.setServerName(server);
@@ -1121,15 +1095,12 @@ public class TestSentryStore {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 1, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     privilege.setServerName("Server1");
     privilege.setDbName("DB1");
     privilege.setTableName("TBL1");
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
@@ -1140,8 +1111,8 @@ public class TestSentryStore {
     String roleName1 = "list-privs-r1", roleName2 = "list-privs-r2";
     String groupName1 = "list-privs-g1", groupName2 = "list-privs-g2";
     String grantor = "g1";
-    long seqId = sentryStore.createSentryRole(roleName1).getSequenceId();
-    assertEquals(seqId + 1, sentryStore.createSentryRole(roleName2).getSequenceId());
+    sentryStore.createSentryRole(roleName1);
+    sentryStore.createSentryRole(roleName2);
     TSentryPrivilege privilege1 = new TSentryPrivilege();
     privilege1.setPrivilegeScope("TABLE");
     privilege1.setServerName("server1");
@@ -1149,31 +1120,25 @@ public class TestSentryStore {
     privilege1.setTableName("tbl1");
     privilege1.setAction("SELECT");
     privilege1.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 2, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1)
-        .getSequenceId());
-    assertEquals(seqId + 3, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege1)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege1);
     TSentryPrivilege privilege2 = new TSentryPrivilege();
     privilege2.setPrivilegeScope("SERVER");
     privilege2.setServerName("server1");
     privilege2.setCreateTime(System.currentTimeMillis());
-    assertEquals(seqId + 4, sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege2)
-        .getSequenceId());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege2);
     Set<TSentryGroup> groups = Sets.newHashSet();
     TSentryGroup group = new TSentryGroup();
     group.setGroupName(groupName1);
     groups.add(group);
-    assertEquals(seqId + 5, sentryStore.alterSentryRoleAddGroups(grantor,
-        roleName1, groups).getSequenceId());
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName1, groups);
     groups.clear();
     group = new TSentryGroup();
     group.setGroupName(groupName2);
     groups.add(group);
     // group 2 has both roles 1 and 2
-    assertEquals(seqId + 6, sentryStore.alterSentryRoleAddGroups(grantor,
-        roleName1, groups).getSequenceId());
-    assertEquals(seqId + 7, sentryStore.alterSentryRoleAddGroups(grantor,
-        roleName2, groups).getSequenceId());
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName1, groups);
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName2, groups);
     // group1 all roles
     assertEquals(Sets.newHashSet("server=server1->db=db1->table=tbl1->action=select"),
         SentryStore.toTrimedLower(sentryStore.listAllSentryPrivilegesForProvider(Sets.newHashSet(groupName1),
