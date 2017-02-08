@@ -860,7 +860,7 @@ public class SentryStore {
   }
 
   @VisibleForTesting
-  MSentryRole getMSentryRoleByName(final String roleName) throws Exception {
+  public MSentryRole getMSentryRoleByName(final String roleName) throws Exception {
     return tm.executeTransaction(
         new TransactionBlock<MSentryRole>() {
           public MSentryRole execute(PersistenceManager pm) throws Exception {
