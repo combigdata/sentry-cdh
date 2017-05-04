@@ -526,6 +526,10 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
         + "newName : " + newNameLC + ", "
         + "newPath : " + newPath   + "]");
 
+    if ((oldPath == null) && (newPath == null)) {
+      return;
+    }
+
     List<String> newPathTree = null;
     try {
       newPathTree = PathsUpdate.parsePath(newPath);
