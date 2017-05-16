@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.ql.hooks.Hook;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.metadata.AuthorizationException;
+import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.AbstractSemanticAnalyzerHook;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
@@ -70,6 +71,7 @@ import org.apache.sentry.core.model.db.Table;
 import org.apache.sentry.provider.cache.PrivilegeCache;
 import org.apache.sentry.provider.cache.SimplePrivilegeCache;
 import org.apache.sentry.provider.common.AuthorizationProvider;
+import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,6 +100,10 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
   // require table-level privileges.
   public boolean isDescTableBasic = false;
 
+  protected AccessURI serdeURI;
+  protected boolean serdeURIPrivilegesEnabled;
+  protected final List<String> serdeWhiteList;
+
   public HiveAuthzBindingHook() throws Exception {
     SessionState session = SessionState.get();
     if(session == null) {
@@ -115,6 +121,14 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     hiveAuthzBinding = new HiveAuthzBinding(hiveConf, authzConf);
 
     FunctionRegistry.setupPermissionsForBuiltinUDFs("", HiveAuthzConf.HIVE_UDF_BLACK_LIST);
+
+    String serdeWhiteLists =
+        authzConf.get(HiveAuthzConf.HIVE_SENTRY_SERDE_WHITELIST,
+            HiveAuthzConf.HIVE_SENTRY_SERDE_WHITELIST_DEFAULT);
+    serdeWhiteList = Arrays.asList(serdeWhiteLists.split(","));
+    serdeURIPrivilegesEnabled =
+        authzConf.getBoolean(HiveAuthzConf.HIVE_SENTRY_SERDE_URI_PRIVILIEGES_ENABLED,
+            HiveAuthzConf.HIVE_SENTRY_SERDE_URI_PRIVILIEGES_ENABLED_DEFAULT);
   }
 
   public static HiveAuthzConf loadAuthzConf(HiveConf hiveConf) {
@@ -302,11 +316,69 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
           extractDbTableNameFromTOKTABLE(tableTok);
         }
         break;
-      default:
-        currDB = getCanonicalDb();
-        break;
+    case HiveParser.TOK_ALTERTABLE:
+
+      for (Node childNode : ast.getChildren()) {
+        ASTNode childASTNode = (ASTNode) childNode;
+        if ("TOK_ALTERTABLE_SERIALIZER".equals(childASTNode.getText())) {
+          ASTNode serdeNode = (ASTNode) childASTNode.getChild(0);
+          String serdeClassName = BaseSemanticAnalyzer.unescapeSQLString(serdeNode.getText());
+          setSerdeURI(serdeClassName);
+          currDB = getCanonicalDb();
+        }
+      }
+      break;
+    default:
+      currDB = getCanonicalDb();
+      break;
     }
     return ast;
+  }
+
+  /**
+   * Set the Serde URI privileges. If the URI privileges are not set, which serdeURI will be null,
+   * the URI authorization checks will be skipped.
+   */
+  protected void setSerdeURI(String serdeClassName) throws SemanticException {
+    if (!serdeURIPrivilegesEnabled) {
+      return;
+    }
+
+    // WhiteList Serde Jar can be used by any users. WhiteList checking is
+    // done by comparing the Java package name. The assumption is cluster
+    // admin will ensure there is no Java namespace collision.
+    // e.g org.apache.hadoop.hive.serde2 is used by hive and cluster admin should
+    // ensure no custom Serde class is introduced under the same namespace.
+    if (!hasPrefixMatch(serdeWhiteList, serdeClassName)) {
+      try {
+        CodeSource serdeSrc =
+            Class.forName(serdeClassName, true, Utilities.getSessionSpecifiedClassLoader())
+                .getProtectionDomain().getCodeSource();
+        if (serdeSrc == null) {
+          throw new SemanticException("Could not resolve the jar for Serde class " + serdeClassName);
+        }
+
+        String serdeJar = serdeSrc.getLocation().getPath();
+        if (serdeJar == null || serdeJar.isEmpty()) {
+          throw new SemanticException("Could not find the jar for Serde class " + serdeClassName
+              + "to validate privileges");
+        }
+
+        serdeURI = parseURI(serdeSrc.getLocation().toString(), true);
+      } catch (ClassNotFoundException e) {
+        throw new SemanticException("Error retrieving Serde class:" + e.getMessage(), e);
+      }
+    }
+  }
+
+  private static boolean hasPrefixMatch(List<String> prefixList, final String str) {
+    for (String prefix : prefixList) {
+      if (str.startsWith(prefix)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
