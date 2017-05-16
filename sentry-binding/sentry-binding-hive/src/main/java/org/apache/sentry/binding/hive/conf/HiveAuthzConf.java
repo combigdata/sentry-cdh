@@ -52,6 +52,16 @@ public class HiveAuthzConf extends Configuration {
   public static final String HIVE_SENTRY_SECURITY_COMMAND_WHITELIST_DEFAULT =
       "set,reset,reload";
 
+  /**
+   * Adding serdeURI properties
+   */
+  public static final String HIVE_SENTRY_SERDE_WHITELIST = "hive.sentry.serde.whitelist";
+  public static final String HIVE_SENTRY_SERDE_WHITELIST_DEFAULT = "org.apache.hadoop.hive.serde2";
+
+  // Disable the serde Uri privileges by default for backward compatibilities.
+  public static final String HIVE_SENTRY_SERDE_URI_PRIVILIEGES_ENABLED = "hive.sentry.turn.on.serde.uri.privileges";
+  public static final boolean HIVE_SENTRY_SERDE_URI_PRIVILIEGES_ENABLED_DEFAULT = false;
+
   public static final String HIVE_UDF_WHITE_LIST =
       "concat,substr,substring,space,repeat,ascii,lpad,rpad,size,round,floor,sqrt,ceil," +
           "ceiling,rand,abs,pmod,ln,log2,sin,asin,cos,acos,log10,log,exp,power,pow,sign,pi," +
