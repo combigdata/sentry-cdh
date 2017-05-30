@@ -149,6 +149,29 @@ public class SentryStore {
     prop.setProperty(ServerConfig.JAVAX_JDO_USER, user);
     prop.setProperty(ServerConfig.JAVAX_JDO_PASS, pass);
     prop.setProperty(ServerConfig.JAVAX_JDO_DRIVER_NAME, driverName);
+
+    /*
+     * Oracle doesn't support "repeatable-read" isolation level and testing
+     * showed issues with "serializable" isolation level for Oracle 12,
+     * so we use "read-committed" instead.
+     *
+     * JDBC URL always looks like jdbc:oracle:<drivertype>:@<database>
+     *  we look at the second component.
+     *
+     * The isolation property can be overwritten via configuration property.
+     */
+    final String oracleDb = "oracle";
+    if (prop.getProperty(ServerConfig.DATANUCLEUS_ISOLATION_LEVEL, "").
+            equals(ServerConfig.DATANUCLEUS_REPEATABLE_READ) &&
+                    jdbcUrl.contains(oracleDb)) {
+      String parts[] = jdbcUrl.split(":");
+      if (parts.length > 1 && parts[1].equals(oracleDb)) {
+        // For Oracle JDBC driver, replace "repeatable-read" with "read-committed"
+        prop.setProperty(ServerConfig.DATANUCLEUS_ISOLATION_LEVEL,
+                "read-committed");
+      }
+    }
+
     for (Map.Entry<String, String> entry : conf) {
       String key = entry.getKey();
       if (key.startsWith(ServerConfig.SENTRY_JAVAX_JDO_PROPERTY_PREFIX) ||
