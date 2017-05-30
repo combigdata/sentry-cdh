@@ -18,7 +18,6 @@
 
 package org.apache.sentry.binding.hive;
 
-import java.util.List;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -40,14 +39,14 @@ public class SentryOnFailureHookContextImpl implements SentryOnFailureHookContex
   private final String ipAddress;
   private final Database database;
   private final Table table;
-  private final List<AccessURI> udfURIs;
+  private final AccessURI udfURI;
   private final AccessURI partitionURI;
   private final AuthorizationException authException;
   private final Configuration conf;
 
   public SentryOnFailureHookContextImpl(String command,
       Set<ReadEntity> inputs, Set<WriteEntity> outputs, HiveOperation hiveOp,
-      Database db, Table tab, List<AccessURI> udfURIs, AccessURI partitionURI,
+      Database db, Table tab, AccessURI udfURI, AccessURI partitionURI,
       String userName, String ipAddress, AuthorizationException e,
       Configuration conf) {
     this.command = command;
@@ -58,7 +57,7 @@ public class SentryOnFailureHookContextImpl implements SentryOnFailureHookContex
     this.ipAddress = ipAddress;
     this.database = db;
     this.table = tab;
-    this.udfURIs = udfURIs;
+    this.udfURI = udfURI;
     this.partitionURI = partitionURI;
     this.authException = e;
     this.conf = conf;
@@ -105,8 +104,8 @@ public class SentryOnFailureHookContextImpl implements SentryOnFailureHookContex
   }
 
   @Override
-  public List<AccessURI> getUdfURIs() {
-    return udfURIs;
+  public AccessURI getUdfURI() {
+    return udfURI;
   }
 
   @Override
