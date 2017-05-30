@@ -519,12 +519,24 @@ public class MetastorePlugin extends SentryMetastoreListenerPlugin {
     // validate / parse inputs
     String oldNameLC = oldName != null ? oldName.toLowerCase() : null;
     String newNameLC = newName != null ? newName.toLowerCase() : null;
+
     LOGGER.debug("#### HMS Path Update ["
         + "OP : renameAuthzObject, "
         + "oldName : " + oldNameLC + ", "
         + "oldPath : " + oldPath   + ", "
         + "newName : " + newNameLC + ", "
         + "newPath : " + newPath   + "]");
+
+    /* There is at least one known legitimate case when both oldPath and newPath
+     * can be passed as null - when running "create or replace view" query for
+     * the views that exist. Arguably, Hive code shall never call this method
+     * with two null paths, but it does, and prior to SENTRY-1605 this code
+     * would quietly return. Reverting to the old functionality for now.
+     */
+    
+    if ((oldPath == null) && (newPath == null)) {
+      return;
+    }
 
     List<String> newPathTree = null;
     try {
