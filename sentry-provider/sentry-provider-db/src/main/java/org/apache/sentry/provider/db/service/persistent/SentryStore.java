@@ -1207,12 +1207,10 @@ public class SentryStore {
     try {
       pm = openTransaction();
       Query query = pm.newQuery(MSentryGroup.class);
-      query.setFilter("this.groupName == t");
-      query.declareParameters("java.lang.String t");
-      query.setUnique(true);
-      for (String group : groups) {
-        MSentryGroup sentryGroup = (MSentryGroup) query.execute(group.trim());
-        if (sentryGroup != null) {
+      query.setFilter(":p1.contains(this.groupName)");
+      List<MSentryGroup> sentryGroups = (List) query.execute(groups.toArray());
+      if (sentryGroups != null) {
+        for (MSentryGroup sentryGroup : sentryGroups) {
           for (MSentryRole role : sentryGroup.getRoles()) {
             result.add(role.getRoleName());
           }
@@ -1231,12 +1229,10 @@ public class SentryStore {
   public Set<MSentryRole> getRolesForGroups(PersistenceManager pm, Set<String> groups) {
     Set<MSentryRole> result = new HashSet<MSentryRole>();
     Query query = pm.newQuery(MSentryGroup.class);
-    query.setFilter("this.groupName == t");
-    query.declareParameters("java.lang.String t");
-    query.setUnique(true);
-    for (String group : groups) {
-      MSentryGroup sentryGroup = (MSentryGroup) query.execute(group.trim());
-      if (sentryGroup != null) {
+    query.setFilter(":p1.contains(this.groupName)");
+    List<MSentryGroup> sentryGroups = (List) query.execute(groups.toArray());
+    if (sentryGroups != null) {
+      for (MSentryGroup sentryGroup : sentryGroups) {
         result.addAll(sentryGroup.getRoles());
       }
     }
