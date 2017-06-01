@@ -63,13 +63,13 @@ public class TransactionManager {
    * @return Object with the result of tb.execute()
    * @throws Exception
    */
-  public Object executeTransaction(TransactionBlock tb) throws Exception {
+  public <T> T executeTransaction(TransactionBlock<T> tb) throws Exception {
     try (CloseablePersistenceManager cpm =
         new CloseablePersistenceManager(pmf.getPersistenceManager())) {
       Transaction transaction = cpm.pm.currentTransaction();
       transaction.begin();
       try {
-        Object result = tb.execute(cpm.pm);
+        T result = tb.execute(cpm.pm);
         transaction.commit();
         return result;
       } finally {
@@ -86,7 +86,8 @@ public class TransactionManager {
    * @return Object with the result of tb.execute()
    * @throws Exception
    */
-  public Object executeTransactionWithRetry(TransactionBlock tb) throws Exception {
+  public <T> T executeTransactionWithRetry(TransactionBlock<T> tb)
+          throws Exception {
     int retryNum = 0;
     while (retryNum < transactionRetryMax) {
       try {
