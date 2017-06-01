@@ -47,8 +47,8 @@ public class TestDelegateSentryStore extends SentryStoreIntegrationBase{
   public void testCreateDropRole() throws Exception {
     String roleName = "test-drop-role";
     String grantor = "grantor";
-    sentryStore.createRole(SEARCH, roleName, grantor).getSequenceId();
-    sentryStore.dropRole(SEARCH, roleName, grantor).getSequenceId();
+    sentryStore.createRole(SEARCH, roleName, grantor);
+    sentryStore.dropRole(SEARCH, roleName, grantor);
   }
 
   @Test
