@@ -31,8 +31,11 @@ import static org.junit.Assume.assumeThat;
 import static org.hamcrest.Matchers.is;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
+// This tests are flaky, and it will be ignored until we identify the issue
+@Ignore
 public class TestDbConnections extends AbstractTestWithStaticConfiguration {
   private PolicyFile policyFile;
 
