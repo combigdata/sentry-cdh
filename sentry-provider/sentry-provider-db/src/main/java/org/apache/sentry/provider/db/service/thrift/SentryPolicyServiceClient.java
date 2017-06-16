@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 
@@ -181,4 +181,13 @@ public interface SentryPolicyServiceClient {
   public String getConfigValue(String propertyName, String defaultValue) throws SentryUserException;
 
   public void close();
+
+  /**
+   * Requests the sentry server to synchronize all HMS notification events up to the specified id.
+   * The sentry server will return once it have processed the id specified..
+   *
+   * @param id Requested HMS notification ID.
+   * @return The most recent processed notification ID.
+   */
+  public long syncNotifications(long id) throws SentryUserException;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,14 +28,12 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 
 import javax.security.auth.Subject;
 
+import com.codahale.metrics.Gauge;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -47,6 +45,8 @@ import org.apache.hadoop.security.SaslRpcServer;
 import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.sentry.Command;
+import org.apache.sentry.core.common.utils.SigUtils;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.SentryHealthCheckServletContextListener;
 import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
 import org.apache.sentry.provider.db.service.thrift.SentryMetricsServletContextListener;
@@ -68,32 +68,47 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-public class SentryService implements Callable {
+import static org.apache.sentry.core.common.utils.SigUtils.registerSigListener;
 
-  private static final Logger LOGGER = LoggerFactory
-      .getLogger(SentryService.class);
+// Enable signal handler for HA leader/follower status if configured
+public class SentryService implements Callable, SigUtils.SigListener {
 
-  private static enum Status {
-    NOT_STARTED(), STARTED();
+  private static final Logger LOGGER = LoggerFactory.getLogger(SentryService.class);
+
+  private enum Status {
+    NOT_STARTED,
+    STARTED,
   }
 
   private final Configuration conf;
   private final InetSocketAddress address;
   private final int maxThreads;
   private final int minThreads;
-  private boolean kerberos;
+  private final boolean kerberos;
   private final String principal;
   private final String[] principalParts;
   private final String keytab;
   private final ExecutorService serviceExecutor;
+  private ScheduledExecutorService hmsFollowerExecutor = null;
+  private HMSFollower hmsFollower = null;
   private Future serviceStatus;
   private TServer thriftServer;
   private Status status;
-  private int webServerPort;
+  private final int webServerPort;
   private SentryWebServer sentryWebServer;
-  private long maxMessageSize;
+  private final long maxMessageSize;
+  /*
+    sentryStore provides the data access for sentry data. It is the singleton instance shared
+    between various {@link SentryPolicyService}, i.e., {@link SentryPolicyStoreProcessor} and
+    {@link HMSFollower}.
+   */
+  private final SentryStore sentryStore;
+  private ScheduledExecutorService sentryStoreCleanService;
+  private final LeaderStatusMonitor leaderMonitor;
+  private final boolean notificationLogEnabled;
+  private final boolean hdfsSyncEnabled;
 
-  public SentryService(Configuration conf) {
+  public SentryService(Configuration conf) throws Exception {
     this.conf = conf;
     int port = conf
         .getInt(ServerConfig.RPC_PORT, ServerConfig.RPC_PORT_DEFAULT);
@@ -145,8 +160,26 @@ public class SentryService implements Callable {
             + (count++));
       }
     });
+    this.sentryStore = new SentryStore(conf);
+    this.leaderMonitor = LeaderStatusMonitor.getLeaderStatusMonitor(conf);
     webServerPort = conf.getInt(ServerConfig.SENTRY_WEB_PORT, ServerConfig.SENTRY_WEB_PORT_DEFAULT);
+    notificationLogEnabled = conf.getBoolean(ServerConfig.SENTRY_NOTIFICATION_LOG_ENABLED,
+        ServerConfig.SENTRY_NOTIFICATION_LOG_ENABLED_DEFAULT);
+
+    hdfsSyncEnabled = SentryServiceUtil.isHDFSSyncEnabled(conf);
+
     status = Status.NOT_STARTED;
+
+    // Enable signal handler for HA leader/follower status if configured
+    String sigName = conf.get(ServerConfig.SERVER_HA_STANDBY_SIG);
+    if ((sigName != null) && !sigName.isEmpty()) {
+      LOGGER.info("Registering signal handler " + sigName + " for HA");
+      try {
+        registerSigListener(sigName, this);
+      } catch (Exception e) {
+        LOGGER.error("Failed to register signal", e);
+      }
+    }
   }
 
   @Override
@@ -155,8 +188,7 @@ public class SentryService implements Callable {
     try {
       status = Status.STARTED;
       if (kerberos) {
-        Boolean autoRenewTicket = conf.getBoolean(ServerConfig.SENTRY_KERBEROS_TGT_AUTORENEW, ServerConfig.SENTRY_KERBEROS_TGT_AUTORENEW_DEFAULT);
-        kerberosContext = new SentryKerberosContext(principal, keytab, autoRenewTicket);
+        kerberosContext = new SentryKerberosContext(principal, keytab, true);
         Subject.doAs(kerberosContext.getSubject(), new PrivilegedExceptionAction<Void>() {
           @Override
           public Void run() throws Exception {
@@ -180,6 +212,10 @@ public class SentryService implements Callable {
   }
 
   private void runServer() throws Exception {
+
+    startSentryStoreCleaner(conf);
+    startHMSFollower(conf);
+
     Iterable<String> processorFactories = ConfUtilties.CLASS_SPLITTER
         .split(conf.get(ServerConfig.PROCESSOR_FACTORIES,
             ServerConfig.PROCESSOR_FACTORIES_DEFAULT).trim());
@@ -198,11 +234,11 @@ public class SentryService implements Callable {
         LOGGER.info("ProcessorFactory being used: " + clazz.getCanonicalName());
         ProcessorFactory factory = (ProcessorFactory) constructor
             .newInstance(conf);
-        boolean status = factory.register(processor);
-        if(!status) {
+        boolean registerStatus = factory.register(processor, sentryStore);
+        if (!registerStatus) {
           LOGGER.error("Failed to register " + clazz.getCanonicalName());
         }
-        registeredProcessor = status || registeredProcessor;
+        registeredProcessor = registerStatus || registeredProcessor;
       } catch (Exception e) {
         throw new IllegalStateException("Could not create "
             + processorFactory, e);
@@ -212,13 +248,14 @@ public class SentryService implements Callable {
       throw new IllegalStateException(
           "Failed to register any processors from " + processorFactories);
     }
+    addSentryServiceGauge();
     TServerTransport serverTransport = new TServerSocket(address);
     TTransportFactory transportFactory = null;
     if (kerberos) {
       TSaslServerTransport.Factory saslTransportFactory = new TSaslServerTransport.Factory();
       saslTransportFactory.addServerDefinition(AuthMethod.KERBEROS
           .getMechanismName(), principalParts[0], principalParts[1],
-          ServerConfig.SASL_PROPERTIES, new GSSCallback(conf));
+              ServerConfig.SASL_PROPERTIES, new GSSCallback(conf));
       transportFactory = saslTransportFactory;
     } else {
       transportFactory = new TTransportFactory();
@@ -231,7 +268,140 @@ public class SentryService implements Callable {
     thriftServer = new TThreadPoolServer(args);
     LOGGER.info("Serving on " + address);
     startSentryWebServer();
+
+    // thriftServer.serve() does not return until thriftServer is stopped. Need to log before
+    // calling thriftServer.serve()
+    LOGGER.info("Sentry service is ready to serve client requests");
     thriftServer.serve();
+  }
+
+  private void startHMSFollower(Configuration conf) throws Exception{
+    if (!hdfsSyncEnabled) {
+      LOGGER.info("HMS follower is not started because HDFS sync is disabled.");
+      return;
+    }
+
+    if (!notificationLogEnabled) {
+      return;
+    }
+
+    String metastoreURI = SentryServiceUtil.getHiveMetastoreURI();
+    if (metastoreURI == null) {
+      LOGGER.info("Metastore uri is not configured. Do not start HMSFollower");
+      return;
+    }
+
+    LOGGER.info("Starting HMSFollower to HMS {}", metastoreURI);
+
+    Preconditions.checkState(hmsFollower == null);
+    Preconditions.checkState(hmsFollowerExecutor == null);
+
+    try {
+      hmsFollower = new HMSFollower(conf, sentryStore, leaderMonitor);
+    } catch (Exception ex) {
+      LOGGER.error("Could not create HMSFollower", ex);
+      throw ex;
+    }
+
+    long initDelay = conf.getLong(ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS,
+            ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS_DEFAULT);
+    long period = conf.getLong(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS,
+            ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT);
+    try {
+      hmsFollowerExecutor = Executors.newScheduledThreadPool(1);
+      hmsFollowerExecutor.scheduleAtFixedRate(hmsFollower,
+              initDelay, period, TimeUnit.MILLISECONDS);
+    } catch (IllegalArgumentException e) {
+      LOGGER.error(String.format("Could not start HMSFollower due to illegal argument. period is %s ms", period), e);
+      throw e;
+    }
+  }
+
+  private void stopHMSFollower(Configuration conf) {
+    if (!notificationLogEnabled || !hdfsSyncEnabled) {
+      return;
+    }
+
+    if ((hmsFollowerExecutor == null) || (hmsFollower == null)) {
+        Preconditions.checkState(hmsFollower == null);
+        Preconditions.checkState(hmsFollowerExecutor == null);
+
+        LOGGER.debug("Skip shuting down hmsFollowerExecutor and closing hmsFollower because they are not created");
+        return;
+    }
+
+    Preconditions.checkNotNull(hmsFollowerExecutor);
+    Preconditions.checkNotNull(hmsFollower);
+
+    // use follower scheduling interval as timeout for shutting down its executor as
+    // such scheduling interval should be an upper bound of how long the task normally takes to finish
+    long timeoutValue = conf.getLong(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS,
+            ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT);
+    try {
+      SentryServiceUtil.shutdownAndAwaitTermination(hmsFollowerExecutor, "hmsFollowerExecutor",
+              timeoutValue, TimeUnit.MILLISECONDS, LOGGER);
+    } finally {
+      hmsFollowerExecutor = null;
+      try {
+        // close connections
+        hmsFollower.close();
+      } catch (RuntimeException ex) {
+        LOGGER.error("HMSFollower.close() failed", ex);
+      } finally {
+        hmsFollower = null;
+      }
+    }
+  }
+
+  private void startSentryStoreCleaner(Configuration conf) {
+    Preconditions.checkState(sentryStoreCleanService == null);
+
+    // If SENTRY_STORE_CLEAN_PERIOD_SECONDS is set to positive, the background SentryStore cleaning
+    // thread is enabled. Currently, it only purges the delta changes {@link MSentryChange} in
+    // the sentry store.
+    long storeCleanPeriodSecs = conf.getLong(
+            ServerConfig.SENTRY_STORE_CLEAN_PERIOD_SECONDS,
+            ServerConfig.SENTRY_STORE_CLEAN_PERIOD_SECONDS_DEFAULT);
+    if (storeCleanPeriodSecs <= 0) {
+      return;
+    }
+
+    try {
+      Runnable storeCleaner = new Runnable() {
+        @Override
+        public void run() {
+          if (leaderMonitor.isLeader()) {
+            sentryStore.purgeDeltaChangeTables();
+          }
+        }
+      };
+
+      sentryStoreCleanService = Executors.newSingleThreadScheduledExecutor();
+      sentryStoreCleanService.scheduleWithFixedDelay(
+              storeCleaner, 0, storeCleanPeriodSecs, TimeUnit.SECONDS);
+
+      LOGGER.info("sentry store cleaner is scheduled with interval %d seconds", storeCleanPeriodSecs);
+    }
+    catch(IllegalArgumentException e){
+      LOGGER.error("Could not start SentryStoreCleaner due to illegal argument", e);
+      sentryStoreCleanService = null;
+    }
+  }
+
+  private void stopSentryStoreCleaner() {
+    Preconditions.checkNotNull(sentryStoreCleanService);
+
+    try {
+      SentryServiceUtil.shutdownAndAwaitTermination(sentryStoreCleanService, "sentryStoreCleanService",
+              10, TimeUnit.SECONDS, LOGGER);
+    }
+    finally {
+      sentryStoreCleanService = null;
+    }
+  }
+
+  private void addSentryServiceGauge() {
+    SentryMetrics.getInstance().addSentryServiceGauges(this);
   }
 
   private void startSentryWebServer() throws Exception{
@@ -244,7 +414,6 @@ public class SentryService implements Callable {
       sentryWebServer = new SentryWebServer(listenerList, webServerPort, conf);
       sentryWebServer.start();
     }
-
   }
 
   private void stopSentryWebServer() throws Exception{
@@ -274,6 +443,7 @@ public class SentryService implements Callable {
   public synchronized void stop() throws Exception{
     MultiException exception = null;
     LOGGER.info("Attempting to stop...");
+    leaderMonitor.close();
     if (isRunning()) {
       LOGGER.info("Attempting to stop sentry thrift service...");
       try {
@@ -300,10 +470,24 @@ public class SentryService implements Callable {
     } else {
       LOGGER.info("Sentry web service is already stopped...");
     }
+
+    stopHMSFollower(conf);
+    stopSentryStoreCleaner();
+
     if (exception != null) {
       exception.ifExceptionThrow();
     }
     LOGGER.info("Stopped...");
+  }
+
+  /**
+   * If the current daemon is active, make it standby.
+   * Here 'active' means it is the only daemon that can fetch snapshots from HMA and write
+   * to the backend DB.
+   */
+  @VisibleForTesting
+  public synchronized void becomeStandby() {
+    leaderMonitor.deactivate();
   }
 
   private MultiException addMultiException(MultiException exception, Exception e) {
@@ -418,5 +602,29 @@ public class SentryService implements Callable {
       throw new IllegalStateException("Server is not initialized or stopped");
     }
     return thriftServer.getEventHandler();
+  }
+
+  public Gauge<Boolean> getIsActiveGauge() {
+    return new Gauge<Boolean>() {
+      @Override
+      public Boolean getValue() {
+        return leaderMonitor.isLeader();
+      }
+    };
+  }
+
+  public Gauge<Long> getBecomeActiveCount() {
+    return new Gauge<Long>() {
+      @Override
+      public Long getValue() {
+        return leaderMonitor.getLeaderCount();
+      }
+    };
+  }
+
+  @Override
+  public void onSignal(String signalName) {
+    // Become follower
+    leaderMonitor.deactivate();
   }
 }

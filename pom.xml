@@ -76,7 +76,7 @@ limitations under the License.
     <guava.version>11.0.2</guava.version>
     <junit.version>4.9</junit.version>
     <libthrift.version>${cdh.thrift.version}</libthrift.version>
-    <curator.version>2.7.1</curator.version>
+    <curator.version>2.11.1</curator.version>
     <junit.version>4.10</junit.version>
     <log4j.version>1.2.16</log4j.version>
     <mockito.version>1.8.5</mockito.version>
@@ -847,6 +847,8 @@ limitations under the License.
                   <!-- Exclude SSL .crtand .jks files -->
                   <exclude>**/*.crt</exclude>
                   <exclude>**/*.jks</exclude>
+                  <!-- Exclude Apache reviewboard config-->
+                  <exclude>**/.reviewboardrc</exclude>
                 </excludes>
               </configuration>
             </execution>

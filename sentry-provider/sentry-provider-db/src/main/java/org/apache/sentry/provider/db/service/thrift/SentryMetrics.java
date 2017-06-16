@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,6 +49,7 @@ public final class SentryMetrics {
   private static SentryMetrics sentryMetrics = null;
   private final AtomicBoolean reportingInitialized = new AtomicBoolean();
   private boolean gaugesAdded = false;
+  private boolean sentryServiceGaugesAdded = false;
 
   final Timer createRoleTimer = METRIC_REGISTRY.timer(
       name(SentryPolicyStoreProcessor.class, "create-role"));
@@ -120,10 +121,19 @@ public final class SentryMetrics {
       addGauge(SentryStore.class, "privilege_count",
               sentryStore.getPrivilegeCountGauge());
       addGauge(SentryStore.class, "group_count", sentryStore.getGroupCountGauge());
+      addGauge(SentryStore.class, "hms.waiters", sentryStore.getHMSWaitersCountGauge());
+      addGauge(SentryStore.class, "hms.notification.id", sentryStore.getLastNotificationIdGauge());
       gaugesAdded = true;
     }
   }
 
+  public void addSentryServiceGauges(SentryService sentryservice) {
+    if(!sentryServiceGaugesAdded) {
+      addGauge(SentryService.class, "is_active", sentryservice.getIsActiveGauge());
+      addGauge(SentryService.class, "activated", sentryservice.getBecomeActiveCount());
+      sentryServiceGaugesAdded = true;
+    }
+  }
 
   /**
    * Initialize reporters. Only initializes once.
@@ -142,7 +152,7 @@ public final class SentryMetrics {
    */
   void initReporting(Configuration conf) {
     final String reporter = conf.get(ServerConfig.SENTRY_REPORTER);
-    if (reporter == null || reporter.isEmpty() || reportingInitialized.getAndSet(true)) {
+    if ((reporter == null) || reporter.isEmpty() || reportingInitialized.getAndSet(true)) {
       // Nothing to do, just return
       return;
     }

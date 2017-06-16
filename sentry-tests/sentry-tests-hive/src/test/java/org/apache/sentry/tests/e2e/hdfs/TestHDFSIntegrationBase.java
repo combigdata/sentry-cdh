@@ -148,8 +148,27 @@ public abstract class TestHDFSIntegrationBase {
   protected static boolean testSentryHA = false;
   protected boolean ignoreCleanUp = false;
   protected static final long STALE_THRESHOLD = 5000;
-  protected static final long CACHE_REFRESH = 100; //Default is 500, but we want it to be low
-  // in our tests so that changes reflect soon
+
+  // It is the interval in milliseconds that hdfs uses to get acl from sentry. Default is 500, but
+  // we want it to be low in our tests so that changes reflect soon
+  protected static final long CACHE_REFRESH = 100;
+
+  // It is Used to wait before verifying result in test.
+  // We want to make sure the cache is updated in our tests so that changes reflect soon. The unit is milliseconds
+  // It takes at most (ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS_DEFAULT + ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT)
+  // for sentry to get the path configured in Hive, adding ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT to be safe.
+  // And then it takes at most CACHE_REFRESH for HDFS to get this from sentry, adding CACHE_REFRESH to be sure
+  protected static final long WAIT_BEFORE_TESTVERIFY =
+          ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS_DEFAULT +
+              ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT * 2 + CACHE_REFRESH * 2;
+
+  // Time to wait before running next tests. The unit is milliseconds.
+  // Deleting HDFS may finish, but HDFS may not be ready for creating the same file again.
+  // We need to to make sure that creating the same file in the next test will succeed
+  // If we don't wait, next test may get exception similar to
+  // "org.apache.hadoop.security.AccessControlException Permission denied: user=hive, access=EXECUTE,
+  // inode="/tmp/external/p1":hdfs:hdfs:drwxrwx---"
+  protected static final long WAIT_BEFORE_NEXTTEST = 50;
 
   protected static String fsURI;
   protected static int hmsPort;
@@ -425,19 +444,33 @@ public abstract class TestHDFSIntegrationBase {
     hiveUgi = UserGroupInformation.createUserForTesting(
         "hive", new String[] { "hive" });
 
-    // Start Sentry
+    // Create SentryService and its internal objects.
+    // Set Sentry port
+    createSentry();
+
+    // Create hive-site.xml that contains the metastore uri
+    // it is used by HMSFollower
+    configureHiveAndMetastoreForSentry();
+
+    // Start SentryService after Hive configuration hive-site.xml is available
+    // So HMSFollower can contact metastore using its URI
     startSentry();
 
-    // Start HDFS and MR
+    // Start HDFS and MR with Sentry Port. Set fsURI
     startDFSandYARN();
 
-    // Start HiveServer2 and Metastore
-    startHiveAndMetastore();
+    // Configure Hive and Metastore with Sentry Port and fsURI
+    // Read src/test/resources/sentry-site.xml.
+    // Create hive-site.xml and sentry-site.xml used by Hive.
+    HiveConf hiveConf = configureHiveAndMetastore();
 
+    // Start Hive and Metastore after SentryService is started
+    startHiveAndMetastore(hiveConf);
   }
 
   @Before
   public void setUpTempDir() throws IOException {
+    LOGGER.debug("setUpTempDir starts");
     tmpHDFSDirStr = "/tmp/external";
     tmpHDFSPartitionStr = tmpHDFSDirStr + "/p1";
     tmpHDFSDir = new Path(tmpHDFSDirStr);
@@ -452,17 +485,50 @@ public abstract class TestHDFSIntegrationBase {
       miniDFS.getFileSystem().delete(partitionDir, true);
     }
     Assert.assertTrue(miniDFS.getFileSystem().mkdirs(partitionDir));
+    LOGGER.debug("setUpTempDir ends");
   }
 
-  private static void startHiveAndMetastore() throws IOException, InterruptedException {
-    startHiveAndMetastore(NUM_RETRIES);
-  }
-
-  private static void startHiveAndMetastore(final int retries) throws IOException, InterruptedException {
+  private static HiveConf configureHiveAndMetastoreForSentry() throws IOException, InterruptedException {
+    final HiveConf hiveConfiguration = new HiveConf();
     hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws Exception {
-        HiveConf hiveConf = new HiveConf();
+        HiveConf hiveConf = hiveConfiguration;
+        hmsPort = findPort();
+        LOGGER.info("\n\n HMS port : " + hmsPort + "\n\n");
+
+        // Sets hive.metastore.authorization.storage.checks to true, so that
+        // disallow the operations such as drop-partition if the user in question
+        // doesn't have permissions to delete the corresponding directory
+        // on the storage.
+        hiveConf.set("hive.metastore.authorization.storage.checks", "true");
+        hiveConf.set("hive.metastore.uris", "thrift://localhost:" + hmsPort);
+        hiveConf.set("sentry.metastore.service.users", "hive");// queries made by hive user (beeline) skip meta store check
+
+        File confDir = assertCreateDir(new File(baseDir, "etc"));
+        File hiveSite = new File(confDir, "hive-site.xml");
+        hiveConf.set("hive.server2.enable.doAs", "false");
+        OutputStream out = new FileOutputStream(hiveSite);
+        hiveConf.writeXml(out);
+        out.close();
+
+        Reflection.staticField("hiveSiteURL")
+                .ofType(URL.class)
+                .in(HiveConf.class)
+                .set(hiveSite.toURI().toURL());
+        return null;
+      }
+    });
+
+    return hiveConfiguration;
+  }
+
+  private static HiveConf configureHiveAndMetastore() throws IOException, InterruptedException {
+    final HiveConf hiveConfiguration = new HiveConf();
+    hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
+      public Void run() throws Exception {
+        HiveConf hiveConf = hiveConfiguration;
         hiveConf.set("sentry.metastore.plugins", "org.apache.sentry.hdfs.MetastorePlugin");
         hiveConf.set("sentry.service.client.server.rpc-address", "localhost");
         hiveConf.set("sentry.hdfs.service.client.server.rpc-address", "localhost");
@@ -493,8 +559,6 @@ public abstract class TestHDFSIntegrationBase {
         hiveConf.set("datanucleus.autoCreateSchema", "true");
         hiveConf.set("datanucleus.fixedDatastore", "false");
         hiveConf.set("datanucleus.autoStartMechanism", "SchemaTable");
-        hmsPort = findPort();
-        LOGGER.info("\n\n HMS port : " + hmsPort + "\n\n");
 
         // Sets hive.metastore.authorization.storage.checks to true, so that
         // disallow the operations such as drop-partition if the user in question
@@ -503,7 +567,9 @@ public abstract class TestHDFSIntegrationBase {
         hiveConf.set("hive.metastore.authorization.storage.checks", "true");
         hiveConf.set("hive.metastore.uris", "thrift://localhost:" + hmsPort);
         hiveConf.set("hive.metastore.pre.event.listeners", "org.apache.sentry.binding.metastore.MetastoreAuthzBinding");
-        hiveConf.set("hive.metastore.event.listeners", "org.apache.sentry.binding.metastore.SentryMetastorePostEventListener");
+        hiveConf.set("hcatalog.message.factory.impl.json",
+            "org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory");
+        hiveConf.set("hive.metastore.transactional.event.listeners", "org.apache.hive.hcatalog.listener.DbNotificationListener");
         hiveConf.set("hive.security.authorization.task.factory", "org.apache.sentry.binding.hive.SentryHiveAuthorizationTaskFactoryImpl");
         hiveConf.set("hive.server2.session.hook", "org.apache.sentry.binding.hive.HiveAuthzBindingSessionHook");
         hiveConf.set("sentry.metastore.service.users", "hive");// queries made by hive user (beeline) skip meta store check
@@ -532,7 +598,21 @@ public abstract class TestHDFSIntegrationBase {
             .ofType(URL.class)
             .in(HiveConf.class)
             .set(hiveSite.toURI().toURL());
+        return null;
+      }
+    });
 
+    return hiveConfiguration;
+  }
+
+  private static void startHiveAndMetastore(HiveConf hiveConfig) throws IOException, InterruptedException {
+    startHiveAndMetastore(hiveConfig, NUM_RETRIES);
+  }
+
+  private static void startHiveAndMetastore(final HiveConf hiveConf, final int retries) throws IOException, InterruptedException {
+    hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
+      public Void run() throws Exception {
         metastore = new InternalMetastoreServer(hiveConf);
         try {
           metastore.start();
@@ -663,6 +743,22 @@ public abstract class TestHDFSIntegrationBase {
 
   private static void startSentry() throws Exception {
     try {
+      hiveUgi.doAs(new PrivilegedExceptionAction() {
+        @Override
+        public Void run() throws Exception {
+          sentryServer.startAll();
+          LOGGER.info("\n\n Sentry service started \n\n");
+          return null;
+        }
+      });
+    } catch (Exception ex) {
+      //An exception happening in above block will result in a wrapped UndeclaredThrowableException.
+      throw new Exception(ex.getCause());
+    }
+  }
+
+  private static void createSentry() throws Exception {
+    try {
 
       hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
         @Override
@@ -675,7 +771,6 @@ public abstract class TestHDFSIntegrationBase {
               SentryHiveAuthorizationTaskFactoryImpl.class.getName());
           properties
               .put(ConfVars.HIVE_SERVER2_THRIFT_MIN_WORKER_THREADS.varname, "2");
-          properties.put("hive.metastore.uris", "thrift://localhost:" + hmsPort);
           properties.put("hive.exec.local.scratchdir", Files.createTempDir().getAbsolutePath());
           properties.put(ServerConfig.SECURITY_MODE, ServerConfig.SECURITY_MODE_NONE);
 //        properties.put("sentry.service.server.compact.transport", "true");
@@ -694,7 +789,10 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.SENTRY_STORE_JDBC_PASS, "dummy");
           properties.put("sentry.service.processor.factories",
               "org.apache.sentry.provider.db.service.thrift.SentryPolicyStoreProcessorFactory,org.apache.sentry.hdfs.SentryHDFSServiceProcessorFactory");
+          properties.put(ServerConfig.SENTRY_NOTIFICATION_LOG_ENABLED,"true");
           properties.put("sentry.policy.store.plugins", "org.apache.sentry.hdfs.SentryPlugin");
+          properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS, "10000");
+          properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS, "50");
           properties.put(ServerConfig.RPC_MIN_THREADS, "3");
           for (Map.Entry<String, String> entry : properties.entrySet()) {
             sentryConf.set(entry.getKey(), entry.getValue());
@@ -702,8 +800,7 @@ public abstract class TestHDFSIntegrationBase {
           sentryServer = SentrySrvFactory.create(SentrySrvFactory.SentrySrvType.INTERNAL_SERVER,
               sentryConf, testSentryHA ? 2 : 1);
           sentryPort = sentryServer.get(0).getAddress().getPort();
-          sentryServer.startAll();
-          LOGGER.info("\n\n Sentry service started \n\n");
+          LOGGER.info("Sentry service is created on port {}", sentryPort);
           return null;
         }
       });
@@ -749,6 +846,7 @@ public abstract class TestHDFSIntegrationBase {
     dbNames = null;
     roles = null;
     admin = null;
+    Thread.sleep(WAIT_BEFORE_NEXTTEST); // make sure the clean up is done before next test starts. otherwise, the next test may fail
   }
 
   @AfterClass

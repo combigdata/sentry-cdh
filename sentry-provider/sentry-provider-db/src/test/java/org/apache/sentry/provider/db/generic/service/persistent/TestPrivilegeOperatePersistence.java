@@ -38,6 +38,7 @@ import org.apache.sentry.provider.db.generic.service.persistent.PrivilegeObject.
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Sets;

@@ -58,6 +58,8 @@ public class TestSentryServiceFailureCase extends SentryServiceIntegrationBase {
   public void testClientServerConnectionFailure()  throws Exception {
     try {
       connectToSentryService();
+      String requestorUserName = ADMIN_USER;
+      client.listRoles(requestorUserName);
       Assert.fail("Failed to receive Exception");
     } catch(Exception e) {
       LOGGER.info("Excepted exception", e);

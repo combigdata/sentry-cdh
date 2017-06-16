@@ -35,7 +35,7 @@ import org.apache.hadoop.hive.metastore.events.DropDatabaseEvent;
 import org.apache.hadoop.hive.metastore.events.DropPartitionEvent;
 import org.apache.hadoop.hive.metastore.events.DropTableEvent;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
 import org.apache.sentry.core.common.Authorizable;
@@ -50,6 +50,14 @@ import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+/**
+ * SentryMetastorePostEventListener class is HMS plugin for listening to
+ * all DDL events and deliver those events to Sentry server. This class
+ * sends all DDL events to the Sentry server through thrift API.
+ *
+ * In case any actual event fails, skipping deliver the event to Sentry server.
+ */
 public class SentryMetastorePostEventListener extends MetaStoreEventListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SentryMetastoreListenerPlugin.class);
@@ -61,18 +69,23 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
   public SentryMetastorePostEventListener(Configuration config) {
     super(config);
 
+    if (!(config instanceof HiveConf)) {
+        String error = "Could not initialize Plugin - Configuration is not an instanceof HiveConf";
+        LOGGER.error(error);
+        throw new RuntimeException(error);
+    }
+
     authzConf = HiveAuthzConf.getAuthzConf((HiveConf)config);
     server = new Server(authzConf.get(AuthzConfVars.AUTHZ_SERVER_NAME.getVar()));
     Iterable<String> pluginClasses = ConfUtilties.CLASS_SPLITTER
-        .split(config.get(ServerConfig.SENTRY_METASTORE_PLUGINS,
-            ServerConfig.SENTRY_METASTORE_PLUGINS_DEFAULT).trim());
+        .split(config.get(ServerConfig.SENTRY_METASTORE_PLUGINS, ServerConfig.SENTRY_METASTORE_PLUGINS_DEFAULT).trim());
 
     try {
       for (String pluginClassStr : pluginClasses) {
         Class<?> clazz = config.getClassByName(pluginClassStr);
         if (!SentryMetastoreListenerPlugin.class.isAssignableFrom(clazz)) {
-          throw new IllegalArgumentException("Class ["
-              + pluginClassStr + "] is not a "
+          throw new IllegalArgumentException("Class \\"
+              + pluginClassStr + "\\ is not a "
               + SentryMetastoreListenerPlugin.class.getName());
         }
         SentryMetastoreListenerPlugin plugin = (SentryMetastoreListenerPlugin) clazz
@@ -81,7 +94,7 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
         sentryPlugins.add(plugin);
       }
     } catch (Exception e) {
-      LOGGER.error("Could not initialize Plugin !!", e);
+      LOGGER.error("Could not initialize HMS Plugin: SentryMetastorePostEventListener !!", e);
       throw new RuntimeException(e);
     }
   }
@@ -182,8 +195,7 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
 
     // don't sync paths/privileges if the operation has failed
     if (!dbEvent.getStatus()) {
-      LOGGER.debug("Skip syncing paths/privileges with Sentry server for onDropDatabase event," +
-        " since the operation failed. \n");
+      LOGGER.debug("Skip syncing paths/privileges with Sentry server for onDropDatabase event," + " since the operation failed. \n");
       return;
     }
 
@@ -204,7 +216,6 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
    */
   @Override
   public void onAlterTable (AlterTableEvent tableEvent) throws MetaException {
-    String oldTableName = null, newTableName = null;
 
     // don't sync privileges if the operation has failed
     if (!tableEvent.getStatus()) {
@@ -213,18 +224,24 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
       return;
     }
 
-    if (tableEvent.getOldTable() != null) {
-      oldTableName = tableEvent.getOldTable().getTableName();
-    }
+    String oldLoc = null, newLoc = null;
 
-    if (tableEvent.getNewTable() != null) {
-      newTableName = tableEvent.getNewTable().getTableName();
-    }
+    org.apache.hadoop.hive.metastore.api.Table oldTal = tableEvent.getOldTable();
+    org.apache.hadoop.hive.metastore.api.Table newTal = tableEvent.getNewTable();
 
-    renameSentryTablePrivilege(tableEvent.getOldTable().getDbName(),
-        oldTableName, tableEvent.getOldTable().getSd().getLocation(),
-        tableEvent.getNewTable().getDbName(), newTableName,
-        tableEvent.getNewTable().getSd().getLocation());
+    if(oldTal != null && oldTal.getSd() !=null) {
+      oldLoc = oldTal.getSd().getLocation();
+    }
+    if (newTal != null && newTal.getSd() != null) {
+      newLoc = newTal.getSd().getLocation();
+    }
+    if(oldLoc != null && newLoc != null && !oldLoc.equals(newLoc)) {
+      String oldDbName = tableEvent.getOldTable().getDbName();
+      String oldTbName = tableEvent.getOldTable().getTableName();
+      String newTbName = tableEvent.getNewTable().getTableName();
+      String newDbName = tableEvent.getNewTable().getDbName();
+      renameSentryTablePrivilege(oldDbName, oldTbName, oldLoc, newDbName, newTbName, newLoc);
+    }
   }
 
   @Override
@@ -246,7 +263,7 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
       newLoc = partitionEvent.getNewPartition().getSd().getLocation();
     }
 
-    if ((oldLoc != null) && (newLoc != null) && (!oldLoc.equals(newLoc))) {
+    if (oldLoc != null && newLoc != null && !oldLoc.equals(newLoc)) {
       String authzObj =
           partitionEvent.getOldPartition().getDbName() + "."
               + partitionEvent.getOldPartition().getTableName();
@@ -263,13 +280,12 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
 
     // don't sync path if the operation has failed
     if (!partitionEvent.getStatus()) {
-      LOGGER.debug("Skip syncing path with Sentry server for onAddPartition event," +
-        " since the operation failed. \n");
+      LOGGER.debug("Skip syncing path with Sentry server for onAddPartition event," + " since the operation failed. \n");
       return;
     }
 
     for (Partition part : partitionEvent.getPartitions()) {
-      if ((part.getSd() != null) && (part.getSd().getLocation() != null)) {
+      if (part.getSd() != null && part.getSd().getLocation() != null) {
         String authzObj = part.getDbName() + "." + part.getTableName();
         String path = part.getSd().getLocation();
         for (SentryMetastoreListenerPlugin plugin : sentryPlugins) {
@@ -398,8 +414,6 @@ public class SentryMetastorePostEventListener extends MetaStoreEventListener {
   }
 
   private boolean syncWithPolicyStore(AuthzConfVars syncConfVar) {
-    return "true"
-        .equalsIgnoreCase((authzConf.get(syncConfVar.getVar(), "true")));
+    return Boolean.parseBoolean(authzConf.get(syncConfVar.getVar(), "true"));
   }
-
 }

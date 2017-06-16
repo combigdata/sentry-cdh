@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 
 public class SentryStoreSchemaInfo {
   private static String SQL_FILE_EXTENSION = ".sql";
@@ -37,8 +37,7 @@ public class SentryStoreSchemaInfo {
   private final String sentrySchemaVersions[];
   private final String sentryScriptDir;
 
-  private static final String SENTRY_VERSION = "1.5.0";
-
+  private static final String SENTRY_VERSION = "1.5.0-cdh5";
   public SentryStoreSchemaInfo(String sentryScriptDir, String dbType)
       throws SentryUserException {
     this.sentryScriptDir = sentryScriptDir;

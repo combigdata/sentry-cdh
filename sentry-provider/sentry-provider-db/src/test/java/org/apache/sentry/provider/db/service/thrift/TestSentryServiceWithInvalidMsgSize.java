@@ -19,7 +19,7 @@ package org.apache.sentry.provider.db.service.thrift;
 
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.service.thrift.SentryServiceClientFactory;
 import org.apache.sentry.service.thrift.SentryServiceFactory;
 import org.apache.sentry.service.thrift.SentryServiceIntegrationBase;
@@ -104,7 +104,7 @@ public class TestSentryServiceWithInvalidMsgSize extends SentryServiceIntegratio
           client.grantServerPrivilege(ADMIN_USER, ROLE_NAME, "server", false);
         } catch (SentryUserException e) {
           exceptionThrown = true;
-          Assert.assertTrue(e.getMessage().contains("org.apache.thrift.transport.TTransportException"));
+          Assert.assertTrue(e.getCause().getMessage().contains("org.apache.thrift.transport.TTransportException"));
         } finally {
           Assert.assertEquals(true, exceptionThrown);
         }

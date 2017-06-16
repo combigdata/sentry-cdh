@@ -21,7 +21,8 @@ package org.apache.sentry.hdfs;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.hdfs.service.thrift.SentryHDFSService;
 import org.apache.sentry.hdfs.service.thrift.SentryHDFSService.Iface;
-import org.apache.sentry.provider.db.service.thrift.ThriftUtil;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.core.common.utils.ThriftUtil;
 import org.apache.sentry.service.thrift.ProcessorFactory;
 import org.apache.thrift.TException;
 import org.apache.thrift.TMultiplexedProcessor;
@@ -52,7 +53,8 @@ public class SentryHDFSServiceProcessorFactory extends ProcessorFactory{
   }
 
   @Override
-  public boolean register(TMultiplexedProcessor multiplexedProcessor) throws Exception {
+  public boolean register(TMultiplexedProcessor multiplexedProcessor,
+                          SentryStore _) throws Exception {
     SentryHDFSServiceProcessor sentryServiceHandler =
         new SentryHDFSServiceProcessor();
     LOGGER.info("Calling registerProcessor from SentryHDFSServiceProcessorFactory");

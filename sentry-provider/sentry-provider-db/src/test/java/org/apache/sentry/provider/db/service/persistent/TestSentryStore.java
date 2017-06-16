@@ -25,12 +25,21 @@ import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.fail;
 
 import java.io.File;
+import java.util.*;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.List;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
@@ -41,6 +50,12 @@ import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.db.SentryAlreadyExistsException;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
+import org.apache.sentry.hdfs.PathsUpdate;
+import org.apache.sentry.hdfs.PermissionsUpdate;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
+import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
+import org.apache.sentry.provider.db.service.model.MSentryPermChange;
+import org.apache.sentry.provider.db.service.model.MSentryPathChange;
 import org.apache.sentry.provider.db.service.model.MSentryPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
 import org.apache.sentry.provider.db.service.thrift.TSentryActiveRoleSet;
@@ -49,6 +64,7 @@ import org.apache.sentry.provider.db.service.thrift.TSentryGrantOption;
 import org.apache.sentry.provider.db.service.thrift.TSentryGroup;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.apache.sentry.provider.file.PolicyFile;
+import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -62,8 +78,14 @@ import org.junit.Test;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class TestSentryStore {
+import static org.apache.sentry.hdfs.Updateable.Update;
+import javax.jdo.JDODataStoreException;
+
+public class TestSentryStore extends org.junit.Assert {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TestSentryStore.class);
 
   private static File dataDir;
   private static SentryStore sentryStore;
@@ -79,10 +101,18 @@ public class TestSentryStore {
     conf = new Configuration(false);
     final String ourUrl = UserProvider.SCHEME_NAME + ":///";
     conf.set(CredentialProviderFactory.CREDENTIAL_PROVIDER_PATH, ourUrl);
+
+    // THis should be a UserGroupInformation provider
     CredentialProvider provider = CredentialProviderFactory.getProviders(conf).get(0);
-    provider.createCredentialEntry(ServerConfig.
-        SENTRY_STORE_JDBC_PASS, passwd);
-    provider.flush();
+
+
+    // The user credentials are stored as a static variable by UserGrouoInformation provider.
+    // We need to only set the password the first time, an attempt to set it for the second
+    // time fails with an exception.
+    if(provider.getCredentialEntry(ServerConfig.SENTRY_STORE_JDBC_PASS) == null) {
+      provider.createCredentialEntry(ServerConfig.SENTRY_STORE_JDBC_PASS, passwd);
+      provider.flush();
+    }
 
     dataDir = new File(Files.createTempDir(), "sentry_policy_db");
     conf.set(ServerConfig.SENTRY_VERIFY_SCHEM_VERSION, "false");
@@ -95,6 +125,7 @@ public class TestSentryStore {
     policyFilePath = new File(dataDir, "local_policy_file.ini");
     conf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING_RESOURCE,
         policyFilePath.getPath());
+    conf.setInt(ServerConfig.SENTRY_STORE_TRANSACTION_RETRY, 10);
     sentryStore = new SentryStore(conf);
   }
 
@@ -147,6 +178,7 @@ public class TestSentryStore {
 
   /**
    * Create a role with the given name and verify that it is created
+   *
    * @param roleName
    * @throws Exception
    */
@@ -159,7 +191,7 @@ public class TestSentryStore {
   @Test
   public void testCredentialProvider() throws Exception {
     assertArrayEquals(passwd, conf.getPassword(ServerConfig.
-        SENTRY_STORE_JDBC_PASS));
+    SENTRY_STORE_JDBC_PASS));
   }
 
   @Test
@@ -185,6 +217,7 @@ public class TestSentryStore {
     sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName, privilege);
     sentryStore.alterSentryRoleRevokePrivilege(grantor, roleName, privilege);
   }
+
   @Test
   public void testURI() throws Exception {
     String roleName = "test-dup-role";
@@ -211,7 +244,8 @@ public class TestSentryStore {
     TSentryActiveRoleSet thriftRoleSet = new TSentryActiveRoleSet(true, new HashSet<String>(Arrays.asList(roleName)));
 
     Set<String> privs =
-        sentryStore.listSentryPrivilegesForProvider(new HashSet<String>(Arrays.asList("group1")), thriftRoleSet, tSentryAuthorizable);
+        sentryStore.listSentryPrivilegesForProvider(
+        new HashSet<String>(Arrays.asList("group1")), thriftRoleSet, tSentryAuthorizable);
 
     assertTrue(privs.size()==1);
     assertTrue(privs.contains("server=server1->uri=" + uri + "->action=all"));
@@ -224,7 +258,7 @@ public class TestSentryStore {
     try {
       sentryStore.createSentryRole(roleName);
       fail("Expected SentryAlreadyExistsException");
-    } catch(SentryAlreadyExistsException e) {
+    } catch (SentryAlreadyExistsException e) {
       // expected
     }
   }
@@ -775,7 +809,7 @@ public class TestSentryStore {
     privilegeTable1.setTableName(table1);
     privilegeTable1.setAction(AccessConstants.ALL);
     privilegeTable1.setCreateTime(System.currentTimeMillis());
-    TSentryPrivilege privilegeTable2 = privilegeTable1.deepCopy();;
+    TSentryPrivilege privilegeTable2 = privilegeTable1.deepCopy();
     privilegeTable2.setTableName(table2);
 
     // Grant ALL on table1 and table2
@@ -850,7 +884,7 @@ public class TestSentryStore {
     privilegeCol1.setColumnName(column1);
     privilegeCol1.setAction(AccessConstants.ALL);
     privilegeCol1.setCreateTime(System.currentTimeMillis());
-    TSentryPrivilege privilegeCol2 = privilegeCol1.deepCopy();;
+    TSentryPrivilege privilegeCol2 = privilegeCol1.deepCopy();
     privilegeCol2.setColumnName(column2);
 
     // Grant ALL on column1 and column2
@@ -1906,6 +1940,229 @@ public class TestSentryStore {
   }
 
   @Test
+  public void testRetrieveFullPermssionsImage() throws Exception {
+
+    // Create roles
+    String roleName1 = "privs-r1", roleName2 = "privs-r2";
+    String groupName1 = "privs-g1";
+    String grantor = "g1";
+    sentryStore.createSentryRole(roleName1);
+    sentryStore.createSentryRole(roleName2);
+
+    // Grant Privileges to the roles
+    TSentryPrivilege privilege1 = new TSentryPrivilege();
+    privilege1.setPrivilegeScope("TABLE");
+    privilege1.setServerName("server1");
+    privilege1.setDbName("db1");
+    privilege1.setTableName("tbl1");
+    privilege1.setAction("SELECT");
+    privilege1.setCreateTime(System.currentTimeMillis());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege1);
+
+    TSentryPrivilege privilege2 = new TSentryPrivilege();
+    privilege2.setPrivilegeScope("SERVER");
+    privilege2.setServerName("server1");
+    privilege1.setDbName("db2");
+    privilege1.setAction("ALL");
+    privilege2.setCreateTime(System.currentTimeMillis());
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName2, privilege2);
+
+    // Grant roles to the groups
+    Set<TSentryGroup> groups = Sets.newHashSet();
+    TSentryGroup group = new TSentryGroup();
+    group.setGroupName(groupName1);
+    groups.add(group);
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName1, groups);
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName2, groups);
+
+    PermissionsImage permImage = sentryStore.retrieveFullPermssionsImage();
+    Map<String, Map<String, String>> privs = permImage.getPrivilegeImage();
+    Map<String, List<String>> roles = permImage.getRoleImage();
+    assertEquals(2, privs.get("db1.tbl1").size());
+    assertEquals(2, roles.size());
+  }
+
+  /**
+   * Verifies complete snapshot of HMS Paths can be persisted and retrieved properly.
+   */
+  @Test
+  public void testPersistFullPathsImage() throws Exception {
+    Map<String, Set<String>> authzPaths = new HashMap<>();
+    // Makes sure that authorizable object could be associated
+    // with different paths and can be properly persisted into database.
+    authzPaths.put("db1.table1", Sets.newHashSet("/user/hive/warehouse/db2.db/table1.1",
+                                                "/user/hive/warehouse/db2.db/table1.2"));
+    // Makes sure that the same MPaths object could be associated
+    // with multiple authorizable and can be properly persisted into database.
+    authzPaths.put("db1.table2", Sets.newHashSet("/user/hive/warehouse/db2.db/table2.1",
+                                                "/user/hive/warehouse/db2.db/table2.2"));
+    authzPaths.put("db2.table2", Sets.newHashSet("/user/hive/warehouse/db2.db/table2.1",
+                                                "/user/hive/warehouse/db2.db/table2.3"));
+    sentryStore.persistFullPathsImage(authzPaths);
+    PathsImage pathsImage = sentryStore.retrieveFullPathsImage();
+    Map<String, Set<String>> pathImage = pathsImage.getPathImage();
+    assertEquals(3, pathImage.size());
+    for (Map.Entry<String, Set<String>> entry : pathImage.entrySet()) {
+      assertEquals(2, entry.getValue().size());
+    }
+    assertEquals(2, pathImage.get("db2.table2").size());
+    assertEquals(Sets.newHashSet("/user/hive/warehouse/db2.db/table1.1",
+                                "/user/hive/warehouse/db2.db/table1.2"),
+                                pathImage.get("db1.table1"));
+    assertEquals(Sets.newHashSet("/user/hive/warehouse/db2.db/table2.1",
+                                "/user/hive/warehouse/db2.db/table2.2"),
+                                pathImage.get("db1.table2"));
+    assertEquals(Sets.newHashSet("/user/hive/warehouse/db2.db/table2.1",
+                                "/user/hive/warehouse/db2.db/table2.3"),
+                                pathImage.get("db2.table2"));
+    assertEquals(6, sentryStore.getMPaths().size());
+  }
+
+  @Test
+  public void testAddDeleteAuthzPathsMapping() throws Exception {
+    // Add "db1.table1" authzObj
+    Long lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    PathsUpdate addUpdate = new PathsUpdate(1, false);
+    addUpdate.newPathChange("db1.table").
+          addToAddPaths(Arrays.asList("db1", "tbl1"));
+    addUpdate.newPathChange("db1.table").
+          addToAddPaths(Arrays.asList("db1", "tbl2"));
+
+    sentryStore.addAuthzPathsMapping("db1.table",
+          Sets.newHashSet("db1/tbl1", "db1/tbl2"), addUpdate);
+    PathsImage pathsImage = sentryStore.retrieveFullPathsImage();
+    Map<String, Set<String>> pathImage = pathsImage.getPathImage();
+    assertEquals(1, pathImage.size());
+    assertEquals(2, pathImage.get("db1.table").size());
+    assertEquals(2, sentryStore.getMPaths().size());
+
+    // Query the persisted path change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange addPathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(addUpdate.JSONSerialize(), addPathChange.getPathChange());
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(1, lastNotificationId.longValue());
+
+    // Delete path 'db1.db/tbl1' from "db1.table1" authzObj.
+    PathsUpdate delUpdate = new PathsUpdate(2, false);
+    delUpdate.newPathChange("db1.table")
+          .addToDelPaths(Arrays.asList("db1", "tbl1"));
+    sentryStore.deleteAuthzPathsMapping("db1.table", Sets.newHashSet("db1/tbl1"), delUpdate);
+    pathImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(1, pathImage.size());
+    assertEquals(1, pathImage.get("db1.table").size());
+    assertEquals(1, sentryStore.getMPaths().size());
+
+    // Query the persisted path change and ensure it equals to the original one
+    lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange delPathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(delUpdate.JSONSerialize(), delPathChange.getPathChange());
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(2, lastNotificationId.longValue());
+
+    // Delete "db1.table" authzObj from the authzObj -> [Paths] mapping.
+    PathsUpdate delAllupdate = new PathsUpdate(3, false);
+    delAllupdate.newPathChange("db1.table")
+        .addToDelPaths(Lists.newArrayList(PathsUpdate.ALL_PATHS));
+    sentryStore.deleteAllAuthzPathsMapping("db1.table", delAllupdate);
+    pathImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(0, pathImage.size());
+    assertEquals(0, sentryStore.getMPaths().size());
+
+    // Query the persisted path change and ensure it equals to the original one
+    lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange delAllPathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(delAllupdate.JSONSerialize(), delAllPathChange.getPathChange());
+
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(3, lastNotificationId.longValue());
+
+  }
+
+  @Test
+  public void testRenameUpdateAuthzPathsMapping() throws Exception {
+    Map<String, Set<String>> authzPaths = new HashMap<>();
+    Long lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    authzPaths.put("db1.table1", Sets.newHashSet("user/hive/warehouse/db1.db/table1",
+                                                "user/hive/warehouse/db1.db/table1/p1"));
+    authzPaths.put("db1.table2", Sets.newHashSet("user/hive/warehouse/db1.db/table2"));
+    sentryStore.persistFullPathsImage(authzPaths);
+    Map<String, Set<String>> pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+
+
+    // Rename path of 'db1.table1' from 'db1.table1' to 'db1.newTable1'
+    PathsUpdate renameUpdate = new PathsUpdate(1, false);
+    renameUpdate.newPathChange("db1.table1")
+        .addToDelPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "table1"));
+    renameUpdate.newPathChange("db1.newTable1")
+        .addToAddPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable1"));
+    sentryStore.renameAuthzPathsMapping("db1.table1", "db1.newTable1",
+    "user/hive/warehouse/db1.db/table1", "user/hive/warehouse/db1.db/newTable1", renameUpdate);
+    pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+    assertEquals(3, sentryStore.getMPaths().size());
+    assertTrue(pathsImage.containsKey("db1.newTable1"));
+    assertEquals(Sets.newHashSet("user/hive/warehouse/db1.db/table1/p1",
+                                "user/hive/warehouse/db1.db/newTable1"),
+                  pathsImage.get("db1.newTable1"));
+
+    // Query the persisted path change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange renamePathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(renameUpdate.JSONSerialize(), renamePathChange.getPathChange());
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(1, lastNotificationId.longValue());
+    // Rename 'db1.table1' to "db1.table2" but did not change its location.
+    renameUpdate = new PathsUpdate(2, false);
+    renameUpdate.newPathChange("db1.newTable1")
+        .addToDelPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable1"));
+    renameUpdate.newPathChange("db1.newTable2")
+        .addToAddPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable1"));
+    sentryStore.renameAuthzObj("db1.newTable1", "db1.newTable2", renameUpdate);
+    pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+    assertEquals(3, sentryStore.getMPaths().size());
+    assertTrue(pathsImage.containsKey("db1.newTable2"));
+    assertEquals(Sets.newHashSet("user/hive/warehouse/db1.db/table1/p1",
+                                "user/hive/warehouse/db1.db/newTable1"),
+                  pathsImage.get("db1.newTable2"));
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(2, lastNotificationId.longValue());
+
+    // Query the persisted path change and ensure it equals to the original one
+    lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    renamePathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(renameUpdate.JSONSerialize(), renamePathChange.getPathChange());
+
+    // Update path of 'db1.newTable2' from 'db1.newTable1' to 'db1.newTable2'
+    PathsUpdate update = new PathsUpdate(3, false);
+    update.newPathChange("db1.newTable1")
+        .addToDelPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable1"));
+    update.newPathChange("db1.newTable1")
+        .addToAddPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable2"));
+    sentryStore.updateAuthzPathsMapping("db1.newTable2",
+            "user/hive/warehouse/db1.db/newTable1",
+            "user/hive/warehouse/db1.db/newTable2",
+            update);
+    pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+    assertEquals(3, sentryStore.getMPaths().size());
+    assertTrue(pathsImage.containsKey("db1.newTable2"));
+    assertEquals(Sets.newHashSet("user/hive/warehouse/db1.db/table1/p1",
+                                "user/hive/warehouse/db1.db/newTable2"),
+                  pathsImage.get("db1.newTable2"));
+
+    // Query the persisted path change and ensure it equals to the original one
+    lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange updatePathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(update.JSONSerialize(), updatePathChange.getPathChange());
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(3, lastNotificationId.longValue());
+  }
+
+  @Test
   public void testQueryParamBuilder() {
     QueryParamBuilder paramBuilder;
     paramBuilder = newQueryParamBuilder();
@@ -1975,6 +2232,213 @@ public class TestSentryStore {
     assertTrue(names.containsAll(result));
   }
 
+  @Test
+  public void testPrivilegesWithPermUpdate() throws Exception {
+    String roleName = "test-privilege";
+    String grantor = "g1";
+    String server = "server1";
+    String db = "db1";
+    String table = "tbl1";
+    String authzObj = "db1.tbl1";
+    createRole(roleName);
+
+    TSentryPrivilege privilege = new TSentryPrivilege();
+    privilege.setPrivilegeScope("Column");
+    privilege.setServerName(server);
+    privilege.setDbName(db);
+    privilege.setTableName(table);
+    privilege.setAction(AccessConstants.SELECT);
+    privilege.setCreateTime(System.currentTimeMillis());
+
+    // Generate the permission add update authzObj "db1.tbl1"
+    PermissionsUpdate addUpdate = new PermissionsUpdate(0, false);
+    addUpdate.addPrivilegeUpdate(authzObj).putToAddPrivileges(roleName, privilege.getAction().toUpperCase());
+
+    // Grant the privilege to role test-privilege and verify it has been persisted.
+    Map<TSentryPrivilege, Update> addPrivilegesUpdateMap = Maps.newHashMap();
+    addPrivilegesUpdateMap.put(privilege, addUpdate);
+    sentryStore.alterSentryRoleGrantPrivileges(grantor, roleName, Sets.newHashSet(privilege), addPrivilegesUpdateMap);
+    MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
+    Set<MSentryPrivilege> privileges = role.getPrivileges();
+    assertEquals(privileges.toString(), 1, privileges.size());
+
+    // Query the persisted perm change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    long initialID = lastChangeID;
+    MSentryPermChange addPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(addUpdate.JSONSerialize(), addPermChange.getPermChange());
+
+    // Generate the permission delete update authzObj "db1.tbl1"
+    PermissionsUpdate delUpdate = new PermissionsUpdate(0, false);
+    delUpdate.addPrivilegeUpdate(authzObj).putToDelPrivileges(roleName, privilege.getAction().toUpperCase());
+
+    // Revoke the same privilege and verify it has been removed.
+    Map<TSentryPrivilege, Update> delPrivilegesUpdateMap = Maps.newHashMap();
+    delPrivilegesUpdateMap.put(privilege, delUpdate);
+    sentryStore.alterSentryRoleRevokePrivileges(grantor, roleName, Sets.newHashSet(privilege), delPrivilegesUpdateMap);
+    role = sentryStore.getMSentryRoleByName(roleName);
+    privileges = role.getPrivileges();
+    assertEquals(0, privileges.size());
+
+    // Query the persisted perm change and ensure it equals to the original one
+    lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    MSentryPermChange delPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(delUpdate.JSONSerialize(), delPermChange.getPermChange());
+
+    // Verify getMSentryPermChanges will return all MSentryPermChanges up
+    // to the given changeID.
+    List<MSentryPermChange> mSentryPermChanges = sentryStore.getMSentryPermChanges(initialID);
+    assertEquals(lastChangeID - initialID + 1, mSentryPermChanges.size());
+
+    // Verify ifPermChangeExists will return true for persisted MSentryPermChange.
+    assertTrue(sentryStore.permChangeExists(1));
+  }
+
+  @Test
+  public void testAddDeleteGroupsWithPermUpdate() throws Exception {
+    String roleName = "test-groups";
+    String grantor = "g1";
+    createRole(roleName);
+
+    Set<TSentryGroup> groups = Sets.newHashSet();
+    TSentryGroup group = new TSentryGroup();
+    group.setGroupName("test-groups-g1");
+    groups.add(group);
+    group = new TSentryGroup();
+    group.setGroupName("test-groups-g2");
+    groups.add(group);
+
+    // Generate the permission add update for role "test-groups"
+    PermissionsUpdate addUpdate = new PermissionsUpdate(0, false);
+    TRoleChanges addrUpdate = addUpdate.addRoleUpdate(roleName);
+    for (TSentryGroup g : groups) {
+      addrUpdate.addToAddGroups(g.getGroupName());
+    }
+
+    // Assign the role "test-groups" to the groups and verify.
+    sentryStore.alterSentryRoleAddGroups(grantor, roleName, groups, addUpdate);
+    MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
+    assertEquals(2, role.getGroups().size());
+
+    // Query the persisted perm change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    MSentryPermChange addPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(addUpdate.JSONSerialize(), addPermChange.getPermChange());
+
+    // Generate the permission add update for role "test-groups"
+    PermissionsUpdate delUpdate = new PermissionsUpdate(0, false);
+    TRoleChanges delrUpdate = delUpdate.addRoleUpdate(roleName);
+    for (TSentryGroup g : groups) {
+      delrUpdate.addToDelGroups(g.getGroupName());
+    }
+
+    // Revoke the role "test-groups" to the groups and verify.
+    sentryStore.alterSentryRoleDeleteGroups(roleName, groups, delUpdate);
+    role = sentryStore.getMSentryRoleByName(roleName);
+    assertEquals(Collections.emptySet(), role.getGroups());
+
+    // Query the persisted perm change and ensure it equals to the original one
+    MSentryPermChange delPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID + 1);
+    assertEquals(delUpdate.JSONSerialize(), delPermChange.getPermChange());
+  }
+
+  @Test
+  public void testCreateDropRoleWithPermUpdate() throws Exception {
+    String roleName = "test-drop-role";
+    createRole(roleName);
+
+    // Generate the permission del update for dropping role "test-drop-role"
+    PermissionsUpdate delUpdate = new PermissionsUpdate(0, false);
+    delUpdate.addPrivilegeUpdate(PermissionsUpdate.ALL_AUTHZ_OBJ).putToDelPrivileges(roleName, PermissionsUpdate.ALL_AUTHZ_OBJ);
+    delUpdate.addRoleUpdate(roleName).addToDelGroups(PermissionsUpdate.ALL_GROUPS);
+
+    // Drop the role and verify.
+    sentryStore.dropSentryRole(roleName, delUpdate);
+    checkRoleDoesNotExist(roleName);
+
+    // Query the persisted perm change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    MSentryPermChange delPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(delUpdate.JSONSerialize(), delPermChange.getPermChange());
+  }
+
+  @Test
+  public void testDropObjWithPermUpdate() throws Exception {
+    String roleName1 = "list-privs-r1", roleName2 = "list-privs-r2";
+    String grantor = "g1";
+    sentryStore.createSentryRole(roleName1);
+    sentryStore.createSentryRole(roleName2);
+
+    String authzObj = "db1.tbl1";
+    TSentryPrivilege privilege_tbl1 = new TSentryPrivilege();
+    privilege_tbl1.setPrivilegeScope("TABLE");
+    privilege_tbl1.setServerName("server1");
+    privilege_tbl1.setDbName("db1");
+    privilege_tbl1.setTableName("tbl1");
+    privilege_tbl1.setCreateTime(System.currentTimeMillis());
+    privilege_tbl1.setAction("SELECT");
+
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_tbl1);
+
+    // Generate the permission drop update for dropping privilege for "db1.tbl1"
+    PermissionsUpdate dropUpdate = new PermissionsUpdate(0, false);
+    dropUpdate.addPrivilegeUpdate(authzObj).putToDelPrivileges(PermissionsUpdate.ALL_ROLES, PermissionsUpdate.ALL_ROLES);
+
+    // Drop the privilege and verify.
+    sentryStore.dropPrivilege(toTSentryAuthorizable(privilege_tbl1), dropUpdate);
+    assertEquals(0, sentryStore.getAllTSentryPrivilegesByRoleName(roleName1).size());
+    assertEquals(0, sentryStore.getAllTSentryPrivilegesByRoleName(roleName2).size());
+
+    // Query the persisted perm change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    MSentryPermChange dropPermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(dropUpdate.JSONSerialize(), dropPermChange.getPermChange());
+  }
+
+  @Test
+  public void testRenameObjWithPermUpdate() throws Exception {
+    String roleName1 = "role1";
+    String grantor = "g1";
+    String table1 = "tbl1", table2 = "tbl2";
+
+    sentryStore.createSentryRole(roleName1);
+
+    TSentryPrivilege privilege_tbl1 = new TSentryPrivilege();
+    privilege_tbl1.setPrivilegeScope("TABLE");
+    privilege_tbl1.setServerName("server1");
+    privilege_tbl1.setDbName("db1");
+    privilege_tbl1.setTableName(table1);
+    privilege_tbl1.setCreateTime(System.currentTimeMillis());
+    privilege_tbl1.setAction(AccessConstants.ALL);
+
+    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_tbl1);
+
+    // Generate the permission rename update for renaming privilege for "db1.tbl1"
+    String oldAuthz = "db1.tbl1";
+    String newAuthz = "db1.tbl2";
+    PermissionsUpdate renameUpdate = new PermissionsUpdate(0, false);
+    TPrivilegeChanges privUpdate = renameUpdate.addPrivilegeUpdate(PermissionsUpdate.RENAME_PRIVS);
+    privUpdate.putToAddPrivileges(newAuthz, newAuthz);
+    privUpdate.putToDelPrivileges(oldAuthz, oldAuthz);
+
+    // Rename the privilege and verify.
+    TSentryAuthorizable oldTable = toTSentryAuthorizable(privilege_tbl1);
+    TSentryAuthorizable newTable = toTSentryAuthorizable(privilege_tbl1);
+    newTable.setTable(table2);
+    sentryStore.renamePrivilege(oldTable, newTable, renameUpdate);
+
+    Set<TSentryPrivilege> privilegeSet = sentryStore.getAllTSentryPrivilegesByRoleName(roleName1);
+    assertEquals(1, privilegeSet.size());
+    for (TSentryPrivilege privilege : privilegeSet) {
+      assertTrue(table2.equalsIgnoreCase(privilege.getTableName()));
+    }
+
+    // Query the persisted perm change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPermChangeID();
+    MSentryPermChange renamePermChange = sentryStore.getMSentryPermChangeByID(lastChangeID);
+    assertEquals(renameUpdate.JSONSerialize(), renamePermChange.getPermChange());
+  }
+
   protected static void addGroupsToUser(String user, String... groupNames) {
     policyFile.addGroupsToUser(user, groupNames);
   }
@@ -1983,4 +2447,170 @@ public class TestSentryStore {
     policyFile.write(policyFilePath);
   }
 
+  @Test
+  public void testPurgeDeltaChanges() throws Exception {
+    String role = "purgeRole";
+    String grantor = "g1";
+    String table = "purgeTable";
+
+    assertEquals(0, sentryStore.getMSentryPermChanges().size());
+    assertEquals(0, sentryStore.getMSentryPathChanges().size());
+
+    sentryStore.createSentryRole(role);
+    int privCleanCount = ServerConfig.SENTRY_DELTA_KEEP_COUNT_DEFAULT;
+    int extraPrivs = 5;
+
+    final int numPermChanges = extraPrivs + privCleanCount;
+    for (int i = 0; i < numPermChanges; i++) {
+      TSentryPrivilege privilege = new TSentryPrivilege();
+      privilege.setPrivilegeScope("Column");
+      privilege.setServerName("server");
+      privilege.setDbName("db");
+      privilege.setTableName(table);
+      privilege.setColumnName("column");
+      privilege.setAction(AccessConstants.SELECT);
+      privilege.setCreateTime(System.currentTimeMillis());
+
+      PermissionsUpdate update = new PermissionsUpdate(i + 1, false);
+      sentryStore.alterSentryRoleGrantPrivilege(grantor, role, privilege, update);
+    }
+    assertEquals(numPermChanges, sentryStore.getMSentryPermChanges().size());
+
+    sentryStore.purgeDeltaChangeTables();
+    assertEquals(privCleanCount, sentryStore.getMSentryPermChanges().size());
+
+    // TODO: verify MSentryPathChange being purged.
+    // assertEquals(1, sentryStore.getMSentryPathChanges().size());
+  }
+
+  /**
+   * This test verifies that in the case of concurrently updating delta change tables, no gap
+   * between change ID was made. All the change IDs must be consecutive ({@see SENTRY-1643}).
+   *
+   * @throws Exception
+   */
+  @Test(timeout = 60000)
+  public void testConcurrentUpdateChanges() throws Exception {
+    final int numThreads = 20;
+    final int numChangesPerThread = 100;
+    final TransactionManager tm = sentryStore.getTransactionManager();
+    final AtomicLong seqNumGenerator = new AtomicLong(0);
+    final CyclicBarrier barrier = new CyclicBarrier(numThreads);
+
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    for (int i = 0; i < numThreads; i++) {
+      executor.submit(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            barrier.await();
+          } catch (Exception e) {
+            LOGGER.error("Barrier failed to await", e);
+            return;
+          }
+          for (int j = 0; j < numChangesPerThread; j++) {
+            List<TransactionBlock<Object>> tbs = new ArrayList<>();
+            PermissionsUpdate update =
+                new PermissionsUpdate(seqNumGenerator.getAndIncrement(), false);
+            tbs.add(new DeltaTransactionBlock(update));
+            try {
+              tm.executeTransactionBlocksWithRetry(tbs);
+            } catch (Exception e) {
+              LOGGER.error("Failed to execute permission update transaction", e);
+              fail(String.format("Transaction failed: %s", e.getMessage()));
+            }
+          }
+        }
+      });
+    }
+    executor.shutdown();
+    executor.awaitTermination(60, TimeUnit.SECONDS);
+
+    List<MSentryPermChange> changes = sentryStore.getMSentryPermChanges();
+    assertEquals(numThreads * numChangesPerThread, changes.size());
+    TreeSet<Long> changeIDs = new TreeSet<>();
+    for (MSentryPermChange change : changes) {
+      changeIDs.add(change.getChangeID());
+    }
+    assertEquals("duplicated change ID", numThreads * numChangesPerThread, changeIDs.size());
+    long prevId = changeIDs.first() - 1;
+    for (Long changeId : changeIDs) {
+      assertTrue(String.format("Found non-consecutive number: prev=%d cur=%d", prevId, changeId),
+          changeId - prevId == 1);
+      prevId = changeId;
+    }
+  }
+
+  @Test
+  public void testDuplicateNotification() throws Exception {
+    Map<String, Set<String>> authzPaths = new HashMap<>();
+    Long lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    authzPaths.put("db1.table1", Sets.newHashSet("user/hive/warehouse/db1.db/table1",
+      "user/hive/warehouse/db1.db/table1/p1"));
+    authzPaths.put("db1.table2", Sets.newHashSet("user/hive/warehouse/db1.db/table2"));
+    sentryStore.persistFullPathsImage(authzPaths);
+    Map<String, Set<String>> pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+
+    if (lastNotificationId == null) {
+      lastNotificationId = SentryStore.EMPTY_NOTIFICATION_ID;
+    }
+
+    // Rename path of 'db1.table1' from 'db1.table1' to 'db1.newTable1'
+    PathsUpdate renameUpdate = new PathsUpdate(1, false);
+    renameUpdate.newPathChange("db1.table1")
+      .addToDelPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "table1"));
+    renameUpdate.newPathChange("db1.newTable1")
+      .addToAddPaths(Arrays.asList("user", "hive", "warehouse", "db1.db", "newTable1"));
+    sentryStore.renameAuthzPathsMapping("db1.table1", "db1.newTable1",
+      "user/hive/warehouse/db1.db/table1", "user/hive/warehouse/db1.db/newTable1", renameUpdate);
+    pathsImage = sentryStore.retrieveFullPathsImage().getPathImage();
+    assertEquals(2, pathsImage.size());
+    assertEquals(3, sentryStore.getMPaths().size());
+    assertTrue(pathsImage.containsKey("db1.newTable1"));
+    assertEquals(Sets.newHashSet("user/hive/warehouse/db1.db/table1/p1",
+      "user/hive/warehouse/db1.db/newTable1"),
+      pathsImage.get("db1.newTable1"));
+
+    // Query the persisted path change and ensure it equals to the original one
+    long lastChangeID = sentryStore.getLastProcessedPathChangeID();
+    MSentryPathChange renamePathChange = sentryStore.getMSentryPathChangeByID(lastChangeID);
+    assertEquals(renameUpdate.JSONSerialize(), renamePathChange.getPathChange());
+    lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    assertEquals(1, lastNotificationId.longValue());
+
+
+    // Process the notificaiton second time
+    try {
+      sentryStore.renameAuthzPathsMapping("db1.table1", "db1.newTable1",
+        "user/hive/warehouse/db1.db/table1", "user/hive/warehouse/db1.db/newTable1", renameUpdate);
+    } catch (Exception e) {
+      if (!(e.getCause() instanceof JDODataStoreException)) {
+        fail("Unexpected failure occured while processing duplicate notification");
+      }
+    }
+  }
+
+  @Test
+  public void testIsAuthzPathsMappingEmpty() throws Exception {
+    // Add "db1.table1" authzObj
+    Long lastNotificationId = sentryStore.getLastProcessedNotificationID();
+    PathsUpdate addUpdate = new PathsUpdate(1, false);
+    addUpdate.newPathChange("db1.table").
+      addToAddPaths(Arrays.asList("db1", "tbl1"));
+    addUpdate.newPathChange("db1.table").
+      addToAddPaths(Arrays.asList("db1", "tbl2"));
+
+    assertEquals(sentryStore.isAuthzPathsMappingEmpty(), true);
+    sentryStore.addAuthzPathsMapping("db1.table",
+      Sets.newHashSet("db1/tbl1", "db1/tbl2"), addUpdate);
+    PathsImage pathsImage = sentryStore.retrieveFullPathsImage();
+    Map<String, Set<String>> pathImage = pathsImage.getPathImage();
+    assertEquals(1, pathImage.size());
+    assertEquals(2, pathImage.get("db1.table").size());
+    assertEquals(2, sentryStore.getMPaths().size());
+    assertEquals(sentryStore.isAuthzPathsMappingEmpty(), false);
+    sentryStore.clearAllTables();
+    assertEquals(sentryStore.isAuthzPathsMappingEmpty(), true);
+  }
 }

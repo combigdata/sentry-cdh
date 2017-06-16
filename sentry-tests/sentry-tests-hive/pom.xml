@@ -95,6 +95,12 @@ limitations under the License.
     </dependency>
     <dependency>
       <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-server-extensions</artifactId>
+      <version>${hive.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hive.hcatalog</groupId>
       <artifactId>hive-hcatalog-core</artifactId>
       <scope>test</scope>
     </dependency>
@@ -376,28 +382,28 @@ limitations under the License.
           <systemPropertyVariables>
             <buildDirectory>${project.build.directory}</buildDirectory>
           </systemPropertyVariables>
-        <additionalClasspathElements>
-          <additionalClasspathElement>${HIVE_CONF_DIR}</additionalClasspathElement>
-          <additionalClasspathElement>${HADOOP_CONF_DIR}</additionalClasspathElement>
-        </additionalClasspathElements>
-        <includes>
-          <include>**/TestCrossDbOps.java</include>
-          <include>**/TestEndToEnd.java</include>
-          <include>**/TestMetadataObjectRetrieval.java</include>
-          <include>**/TestMetadataPermissions.java</include>
-          <include>**/TestMovingToProduction.java</include>
-          <include>**/TestPerDatabasePolicyFile.java</include>
-          <include>**/TestPrivilegeAtTransform.java</include>
-          <include>**/TestPrivilegesAtDatabaseScope.java</include>
-          <include>**/TestPrivilegesAtTableScope.java</include>
-          <include>**/TestSandboxOps.java</include>
-          <include>**/TestExportImportPrivileges.java</include>
-          <include>**/TestUriPermissions.java</include>
-          <include>**/TestRuntimeMetadataRetrieval.java</include>
-          <include>**/TestOperations.java</include>
-          <include>**/TestPrivilegesAtColumnScope.java</include>
-        </includes>
-        <argLine>-Dsentry.e2etest.hiveServer2Type=UnmanagedHiveServer2 -Dsentry.e2etest.DFSType=ClusterDFS</argLine>
+          <additionalClasspathElements>
+            <additionalClasspathElement>${HIVE_CONF_DIR}</additionalClasspathElement>
+            <additionalClasspathElement>${HADOOP_CONF_DIR}</additionalClasspathElement>
+          </additionalClasspathElements>
+          <includes>
+            <include>**/TestCrossDbOps.java</include>
+            <include>**/TestEndToEnd.java</include>
+            <include>**/TestMetadataObjectRetrieval.java</include>
+            <include>**/TestMetadataPermissions.java</include>
+            <include>**/TestMovingToProduction.java</include>
+            <include>**/TestPerDatabasePolicyFile.java</include>
+            <include>**/TestPrivilegeAtTransform.java</include>
+            <include>**/TestPrivilegesAtDatabaseScope.java</include>
+            <include>**/TestPrivilegesAtTableScope.java</include>
+            <include>**/TestSandboxOps.java</include>
+            <include>**/TestExportImportPrivileges.java</include>
+            <include>**/TestUriPermissions.java</include>
+            <include>**/TestRuntimeMetadataRetrieval.java</include>
+            <include>**/TestOperations.java</include>
+            <include>**/TestPrivilegesAtColumnScope.java</include>
+          </includes>
+          <argLine>-Dsentry.e2etest.hiveServer2Type=UnmanagedHiveServer2 -Dsentry.e2etest.DFSType=ClusterDFS</argLine>
        </configuration>
       </plugin>
       </plugins>
@@ -440,40 +446,40 @@ limitations under the License.
           <systemPropertyVariables>
             <buildDirectory>${project.build.directory}</buildDirectory>
           </systemPropertyVariables>
-        <additionalClasspathElements>
-          <additionalClasspathElement>${HIVE_CONF_DIR}</additionalClasspathElement>
-          <additionalClasspathElement>${HADOOP_CONF_DIR}</additionalClasspathElement>
-        </additionalClasspathElements>
-        <includes>
-          <include>**/TestDbCrossDbOps.java</include>
-          <include>**/TestDbEndToEnd.java</include>
-          <include>**/TestDbMetadataObjectRetrieval.java</include>
-          <include>**/TestDbMetadataPermissions.java</include>
-          <include>**/TestDbMovingToProduction.java</include>
-          <include>**/TestDbPerDatabasePolicyFile.java</include>
-          <include>**/TestDbPrivilegeAtTransform.java</include>
-          <include>**/TestDbPrivilegesAtDatabaseScope.java</include>
-          <include>**/TestDbPrivilegesAtTableScopePart1.java</include>
-          <include>**/TestDbPrivilegesAtTableScopePart2.java</include>
-          <include>**/TestDbSandboxOps.java</include>
-          <include>**/TestDbExportImportPrivileges.java</include>
-          <include>**/TestDbUriPermissions.java</include>
-          <include>**/TestDbRuntimeMetadataRetrieval.java</include>
-          <include>**/TestDatabaseProvider.java</include>
-          <include>**/TestDbOperationsPart1.java</include>
-          <include>**/TestDbOperationsPart2.java</include>
-          <include>**/TestPrivilegeWithGrantOption.java</include>
-          <include>**/TestDbPrivilegesAtColumnScope.java</include>
-          <include>**/TestColumnEndToEnd.java</include>
-          <include>**/TestDbComplexView.java</include>
-          <include>**/TestConcurrentClients.java</include>
-          <include>**/TestDbHdfsMaxGroups.java</include>
-          <include>**/TestDbHdfsExtMaxGroups.java</include>
-          <include>**/TestHiveWarehouseOnExtFs.java</include>
-          <include>**/TestTableOnExtFS.java</include>
-          <include>**/TestDbCrossOperations.java</include>
-        </includes>
-        <argLine>-Dsentry.e2etest.hiveServer2Type=UnmanagedHiveServer2 -Dsentry.e2etest.DFSType=ClusterDFS -Dsentry.e2etest.external.sentry=true</argLine>
+          <additionalClasspathElements>
+            <additionalClasspathElement>${HIVE_CONF_DIR}</additionalClasspathElement>
+            <additionalClasspathElement>${HADOOP_CONF_DIR}</additionalClasspathElement>
+          </additionalClasspathElements>
+          <includes>
+            <include>**/TestDbCrossDbOps.java</include>
+            <include>**/TestDbEndToEnd.java</include>
+            <include>**/TestDbMetadataObjectRetrieval.java</include>
+            <include>**/TestDbMetadataPermissions.java</include>
+            <include>**/TestDbMovingToProduction.java</include>
+            <include>**/TestDbPerDatabasePolicyFile.java</include>
+            <include>**/TestDbPrivilegeAtTransform.java</include>
+            <include>**/TestDbPrivilegesAtDatabaseScope.java</include>
+            <include>**/TestDbPrivilegesAtTableScopePart1.java</include>
+            <include>**/TestDbPrivilegesAtTableScopePart2.java</include>
+            <include>**/TestDbSandboxOps.java</include>
+            <include>**/TestDbExportImportPrivileges.java</include>
+            <include>**/TestDbUriPermissions.java</include>
+            <include>**/TestDbRuntimeMetadataRetrieval.java</include>
+            <include>**/TestDatabaseProvider.java</include>
+            <include>**/TestDbOperationsPart1.java</include>
+            <include>**/TestDbOperationsPart2.java</include>
+            <include>**/TestPrivilegeWithGrantOption.java</include>
+            <include>**/TestDbPrivilegesAtColumnScope.java</include>
+            <include>**/TestColumnEndToEnd.java</include>
+            <include>**/TestDbComplexView.java</include>
+            <include>**/TestConcurrentClients.java</include>
+            <include>**/TestDbHdfsMaxGroups.java</include>
+            <include>**/TestDbHdfsExtMaxGroups.java</include>
+            <include>**/TestHiveWarehouseOnExtFs.java</include>
+            <include>**/TestTableOnExtFS.java</include>
+            <include>**/TestDbCrossOperations.java</include>
+          </includes>
+          <argLine>-Dsentry.e2etest.hiveServer2Type=UnmanagedHiveServer2 -Dsentry.e2etest.DFSType=ClusterDFS -Dsentry.e2etest.external.sentry=true</argLine>
        </configuration>
       </plugin>
       </plugins>

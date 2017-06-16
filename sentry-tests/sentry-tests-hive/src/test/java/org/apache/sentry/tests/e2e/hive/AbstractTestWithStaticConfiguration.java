@@ -20,9 +20,12 @@ import static org.apache.sentry.provider.common.ProviderConstants.AUTHORIZABLE_S
 import static org.apache.sentry.provider.common.ProviderConstants.PRIVILEGE_PREFIX;
 import static org.apache.sentry.provider.common.ProviderConstants.ROLE_SPLITTER;
 import static org.junit.Assert.assertTrue;
-
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.URL;
 import java.security.PrivilegedExceptionAction;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -37,6 +40,7 @@ import java.util.HashSet;
 import com.google.common.collect.Sets;
 
 import org.apache.sentry.tests.e2e.hive.fs.TestFSContants;
+import org.fest.reflect.core.Reflection;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -52,6 +56,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.sentry.binding.hive.SentryHiveAuthorizationTaskFactoryImpl;
+import org.apache.sentry.binding.metastore.SentryMetastorePostEventListenerNotificationLog;
 import org.apache.sentry.binding.metastore.SentryMetastorePostEventListener;
 import org.apache.sentry.core.model.db.DBModelAction;
 import org.apache.sentry.core.model.db.DBModelAuthorizable;
@@ -63,6 +68,7 @@ import org.apache.sentry.service.thrift.KerberosConfiguration;
 import org.apache.sentry.service.thrift.SentryServiceClientFactory;
 import org.apache.sentry.service.thrift.ServiceConstants.ClientConfig;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
+
 import org.apache.sentry.tests.e2e.hive.fs.DFS;
 import org.apache.sentry.tests.e2e.hive.fs.DFSFactory;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServer;
@@ -123,10 +129,13 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
   private static final String EXTERNAL_SENTRY_SERVICE = "sentry.e2etest.external.sentry";
   protected static final String EXTERNAL_HIVE_LIB = "sentry.e2etest.hive.lib";
   private static final String ENABLE_SENTRY_HA = "sentry.e2etest.enable.service.ha";
+  private static final String ENABLE_NOTIFICATION_LOG = "sentry.e2etest.enable.notification.log";
 
   protected static boolean policyOnHdfs = false;
   protected static boolean useSentryService = false;
   protected static boolean setMetastoreListener = true;
+  protected static boolean useDbNotificationListener = false;
+  protected static boolean useDefaultMessageFactory = false;
   protected static String testServerType = null;
   protected static boolean enableHiveConcurrency = false;
   // indicate if the database need to be clear for every test case in one test class
@@ -145,6 +154,7 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
   protected static SentrySrv sentryServer;
   protected static Configuration sentryConf;
   protected static boolean enableSentryHA = false;
+  protected static boolean enableNotificationLog = false;
   protected static Context context;
   protected final String semanticException = "SemanticException No valid privileges";
 
@@ -277,8 +287,9 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
     if ("true".equalsIgnoreCase(System.getProperty(ENABLE_SENTRY_HA, "false"))) {
       enableSentryHA = true;
     }
-    if (useSentryService && (!startSentry)) {
-      setupSentryService();
+
+    if ("true".equalsIgnoreCase(System.getProperty(ENABLE_NOTIFICATION_LOG, "false"))) {
+      enableNotificationLog = true;
     }
 
     if (enableHiveConcurrency) {
@@ -288,12 +299,17 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
       properties.put(HiveConf.ConfVars.HIVE_LOCK_MANAGER.varname,
           "org.apache.hadoop.hive.ql.lockmgr.EmbeddedLockManager");
     }
+    if (useSentryService && (!startSentry)) {
+      configureHiveAndMetastoreForSentry();
+      setupSentryService();
+    }
 
     properties.put(ConfVars.HIVE_SERVER2_WEBUI_PORT.varname, "0");
 
     HiveConf hiveConf = new HiveConf();
     hiveServer = create(properties, baseDir, confDir, logDir, policyURI, fileSystem);
     hiveServer.start();
+
     createContext();
 
     // Create tmp as scratch dir if it doesn't exist
@@ -432,6 +448,41 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
     }
   }
 
+  private static int findPort() throws IOException {
+    ServerSocket socket = new ServerSocket(0);
+    int port = socket.getLocalPort();
+    socket.close();
+    return port;
+  }
+
+  private static HiveConf configureHiveAndMetastoreForSentry() throws IOException, InterruptedException {
+    HiveConf hiveConf = new HiveConf();
+    int hmsPort = findPort();
+    LOGGER.info("\n\n HMS port : " + hmsPort + "\n\n");
+
+    // Sets hive.metastore.authorization.storage.checks to true, so that
+    // disallow the operations such as drop-partition if the user in question
+    // doesn't have permissions to delete the corresponding directory
+    // on the storage.
+    hiveConf.set("hive.metastore.authorization.storage.checks", "true");
+    hiveConf.set("hive.metastore.uris", "thrift://localhost:" + hmsPort);
+    hiveConf.set("sentry.metastore.service.users", "hive");// queries made by hive user (beeline) skip meta store check
+
+    File confDir = assertCreateDir(new File(baseDir, "etc"));
+    File hiveSite = new File(confDir, "hive-site.xml");
+    hiveConf.set("hive.server2.enable.doAs", "false");
+    OutputStream out = new FileOutputStream(hiveSite);
+    hiveConf.writeXml(out);
+    out.close();
+
+    Reflection.staticField("hiveSiteURL")
+            .ofType(URL.class)
+            .in(HiveConf.class)
+            .set(hiveSite.toURI().toURL());
+
+    return hiveConf;
+  }
+
   private static void setupSentryService() throws Exception {
 
     sentryConf = new Configuration(false);
@@ -471,17 +522,30 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
     sentryConf.set(ClientConfig.SERVER_RPC_PORT,
         String.valueOf(sentryServer.get(0).getAddress().getPort()));
     if (enableSentryHA) {
-      properties.put(ClientConfig.SERVER_HA_ENABLED, "true");
+      properties.put(ClientConfig.SENTRY_HA_ENABLED, "true");
       properties.put(ClientConfig.SENTRY_HA_ZOOKEEPER_QUORUM,
           sentryServer.getZKQuorum());
     }
     startSentryService();
     if (setMetastoreListener) {
+      if (useDbNotificationListener) {
+        properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
+                "org.apache.hive.hcatalog.listener.DbNotificationListener");
+      } else {
+        if (enableNotificationLog) {
+          properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
+              SentryMetastorePostEventListenerNotificationLog.class.getName());
+        } else {
+          properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
+              SentryMetastorePostEventListener.class.getName());
+        }
+      }
       LOGGER.info("setMetastoreListener is enabled");
-      properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
-          SentryMetastorePostEventListener.class.getName());
+      if (!useDefaultMessageFactory) {
+        properties.put("hcatalog.message.factory.impl.json",
+            "org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory");
+      }
     }
-
   }
 
   private static void startSentryService() throws Exception {

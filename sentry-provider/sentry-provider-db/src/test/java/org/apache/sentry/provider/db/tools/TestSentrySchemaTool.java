@@ -21,7 +21,7 @@ package org.apache.sentry.provider.db.tools;
 import java.io.File;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.provider.db.service.persistent.SentryStoreSchemaInfo;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.junit.Before;
@@ -33,7 +33,7 @@ public class TestSentrySchemaTool {
   private Configuration sentryConf;
   private SentrySchemaTool schemaTool;
 
-  private static final String OLDEST_INIT_VERSION = "1.4.0";
+  private static final String OLDEST_INIT_VERSION = "1.5.0";
 
   @Before
   public void defaultSetup() throws Exception {

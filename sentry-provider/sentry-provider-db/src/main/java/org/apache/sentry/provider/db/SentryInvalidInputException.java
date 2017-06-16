@@ -17,7 +17,7 @@
  */
 package org.apache.sentry.provider.db;
 
-import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.exception.SentryUserException;
 
 public class SentryInvalidInputException extends SentryUserException {
   private static final long serialVersionUID = 2962080655835L;
@@ -26,5 +26,8 @@ public class SentryInvalidInputException extends SentryUserException {
   }
   public SentryInvalidInputException(String msg, String reason) {
     super(msg, reason);
+  }
+  public SentryInvalidInputException(String msg, Throwable cause) {
+    super(msg, cause);
   }
 }

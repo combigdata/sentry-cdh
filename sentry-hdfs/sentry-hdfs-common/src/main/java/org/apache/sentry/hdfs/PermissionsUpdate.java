@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import org.apache.sentry.hdfs.service.thrift.TPermissionsUpdate;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
+import org.apache.thrift.TException;
 
 public class PermissionsUpdate implements Updateable.Update {
 
@@ -106,4 +107,41 @@ public class PermissionsUpdate implements Updateable.Update {
   public void deserialize(byte[] data) throws IOException {
     ThriftSerializer.deserialize(tPermUpdate, data);
   }
+
+  @Override
+  public void JSONDeserialize(String update) throws TException {
+    ThriftSerializer.deserializeFromJSON(tPermUpdate, update);
+  }
+
+  @Override
+  public String JSONSerialize() throws TException {
+    return ThriftSerializer.serializeToJSON(tPermUpdate);
+  }
+
+  @Override
+  public int hashCode() {
+    return (tPermUpdate == null) ? 0 : tPermUpdate.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    }
+
+    if (this == obj) {
+      return true;
+    }
+
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+
+    PermissionsUpdate other = (PermissionsUpdate) obj;
+    if (tPermUpdate == null) {
+      return other.tPermUpdate == null;
+    }
+    return tPermUpdate.equals(other.tPermUpdate);
+  }
+
 }

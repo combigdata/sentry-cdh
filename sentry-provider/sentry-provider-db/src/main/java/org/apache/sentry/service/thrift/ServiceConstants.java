@@ -22,10 +22,9 @@ import java.util.Map;
 
 import javax.security.sasl.Sasl;
 
-import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
-
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
 
 public class ServiceConstants {
 
@@ -118,6 +117,9 @@ public class ServiceConstants {
     public static final String SENTRY_STORE_HADOOP_GROUP_MAPPING = "org.apache.sentry.provider.common.HadoopGroupMappingService";
     public static final String SENTRY_STORE_LOCAL_GROUP_MAPPING = "org.apache.sentry.provider.file.LocalGroupMappingService";
     public static final String SENTRY_STORE_GROUP_MAPPING_DEFAULT = SENTRY_STORE_HADOOP_GROUP_MAPPING;
+
+    public static final String SENTRY_STORE_ORPHANED_PRIVILEGE_REMOVAL = "sentry.store.orphaned.privilege.removal";
+    public static final String SENTRY_STORE_ORPHANED_PRIVILEGE_REMOVAL_DEFAULT = "false";
     public static final String SENTRY_STORE_CLEAN_PERIOD_SECONDS =
         "sentry.store.clean.period.seconds";
     public static final long SENTRY_STORE_CLEAN_PERIOD_SECONDS_DEFAULT = 43200; // 12 hours.
@@ -127,7 +129,6 @@ public class ServiceConstants {
     public static final String SENTRY_HA_ZOOKEEPER_SECURITY = SENTRY_HA_ZK_PROPERTY_PREFIX + "security";
     public static final boolean SENTRY_HA_ZOOKEEPER_SECURITY_DEFAULT = false;
     public static final String SENTRY_HA_ZOOKEEPER_QUORUM = SENTRY_HA_ZK_PROPERTY_PREFIX + "quorum";
-    public static final String SENTRY_HA_ZOOKEEPER_QUORUM_DEFAULT = "localhost:2181";
     public static final String SENTRY_HA_ZOOKEEPER_RETRIES_MAX_COUNT = SENTRY_HA_ZK_PROPERTY_PREFIX + "session.retries.max.count";
     public static final int SENTRY_HA_ZOOKEEPER_RETRIES_MAX_COUNT_DEFAULT = 3;
     public static final String SENTRY_HA_ZOOKEEPER_SLEEP_BETWEEN_RETRIES_MS = SENTRY_HA_ZK_PROPERTY_PREFIX + "session.sleep.between.retries.ms";
@@ -139,6 +140,7 @@ public class ServiceConstants {
     public static final String SERVER_HA_ZOOKEEPER_CLIENT_KEYTAB = "sentry.zookeeper.client.keytab";
     public static final String SERVER_HA_ZOOKEEPER_CLIENT_TICKET_CACHE = "sentry.zookeeper.client.ticketcache";
     public static final String SERVER_HA_ZOOKEEPER_CLIENT_TICKET_CACHE_DEFAULT = "false";
+    public static final String SERVER_HA_STANDBY_SIG = "sentry.ha.standby.signal";
     public static final ImmutableMap<String, String> SENTRY_STORE_DEFAULTS =
         ImmutableMap.<String, String>builder()
         .put("datanucleus.connectionPoolingType", "BoneCP")
@@ -149,9 +151,10 @@ public class ServiceConstants {
         .put("datanucleus.autoCreateSchema", "false")
         .put("datanucleus.fixedDatastore", "true")
         .put("datanucleus.autoStartMechanismMode", "checked")
-        .put("datanucleus.transactionIsolation", ServerConfig.DATANUCLEUS_REPEATABLE_READ)
+        .put(DATANUCLEUS_ISOLATION_LEVEL, DATANUCLEUS_REPEATABLE_READ)
         .put("datanucleus.cache.level2", "false")
         .put("datanucleus.cache.level2.type", "none")
+        .put("datanucleus.query.sql.allowAll", "true")
         .put("datanucleus.identifierFactory", "datanucleus1")
         .put("datanucleus.rdbms.useLegacyNativeValueStrategy", "true")
         .put("datanucleus.plugin.pluginRegistryBundleCheck", "LOG")
@@ -163,10 +166,19 @@ public class ServiceConstants {
             .put("javax.jdo.option.Multithreaded", "true")
             .build();
 
+    // InitialDelay and period time for HMSFollower thread.
+    public static final String SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS = "sentry.hmsfollower.init.delay.mills";
+    public static final long SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS_DEFAULT = 0;
+    public static final String SENTRY_HMSFOLLOWER_INTERVAL_MILLS = "sentry.hmsfollower.interval.mills";
+    public static final long SENTRY_HMSFOLLOWER_INTERVAL_MILLS_DEFAULT = 500;
+
+    public static final String SENTRY_NOTIFICATION_LOG_ENABLED = "sentry.notification.log.enabled";
+    public static final boolean SENTRY_NOTIFICATION_LOG_ENABLED_DEFAULT = true;
     public static final String SENTRY_WEB_ENABLE = "sentry.service.web.enable";
     public static final Boolean SENTRY_WEB_ENABLE_DEFAULT = false;
     public static final String SENTRY_WEB_PORT = "sentry.service.web.port";
     public static final int SENTRY_WEB_PORT_DEFAULT = 51000;
+    // Reporter is either "console" or "jmx"
     public static final String SENTRY_REPORTER = "sentry.service.reporter";
     public static final String SENTRY_REPORTER_JMX = SentryMetrics.Reporting.JMX.name(); //case insensitive
     public static final String SENTRY_REPORTER_CONSOLE = SentryMetrics.Reporting.CONSOLE.name();//case insensitive
@@ -175,6 +187,7 @@ public class ServiceConstants {
             "sentry.service.reporter.interval.sec";
     // Report every 5 minutes by default
     public static final int SENTRY_REPORTER_INTERVAL_DEFAULT = 300;
+
 
     // Web Security
     public static final String SENTRY_WEB_SECURITY_PREFIX = "sentry.service.web.authentication";
@@ -193,6 +206,11 @@ public class ServiceConstants {
 
     // Blacklist SSL protocols that are not secure (e.g., POODLE vulnerability)
     public static final String[] SENTRY_SSL_PROTOCOL_BLACKLIST_DEFAULT = {"SSLv2", "SSLv2Hello", "SSLv3"};
+
+    // Flag to enable admin servlet
+    public static final String SENTRY_WEB_ADMIN_SERVLET_ENABLED = "sentry.web.admin.servlet.enabled";
+    public static final boolean SENTRY_WEB_ADMIN_SERVLET_ENABLED_DEFAULT = false;
+
     // max message size for thrift messages
     public static String SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE = "sentry.policy.server.thrift.max.message.size";
     public static long SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE_DEFAULT = 100 * 1024 * 1024;
@@ -205,21 +223,25 @@ public class ServiceConstants {
     public static final String SENTRY_KERBEROS_TGT_AUTORENEW = "sentry.service.kerberos.tgt.autorenew";
     @Deprecated
     public static final Boolean SENTRY_KERBEROS_TGT_AUTORENEW_DEFAULT = false;
+
+    /**
+     * Number of path/priv deltas to keep around during cleaning
+     * The value which is too small may cause unnecessary full snapshots sent to the Name Node
+     * A value which is too large may cause slowdown due to too many deltas lying around in the DB.
+     */
+    public static final String SENTRY_DELTA_KEEP_COUNT = "sentry.server.delta.keep.count";
+    public static final int SENTRY_DELTA_KEEP_COUNT_DEFAULT = 200;
   }
 
   public static class ClientConfig {
-    public static final ImmutableMap<String, String> SASL_PROPERTIES = ServiceConstants.SASL_PROPERTIES;
     public static final String SERVER_RPC_PORT = "sentry.service.client.server.rpc-port";
     public static final int SERVER_RPC_PORT_DEFAULT = ServerConfig.RPC_PORT_DEFAULT;
     public static final String SERVER_RPC_ADDRESS = "sentry.service.client.server.rpc-address";
     public static final String SERVER_RPC_CONN_TIMEOUT = "sentry.service.client.server.rpc-connection-timeout";
-    public static final int SERVER_RPC_CONN_TIMEOUT_DEFAULT = 200000;
 
     // HA configuration
-    public static final String SERVER_HA_ENABLED = "sentry.ha.enabled";
-    public static final boolean SERVER_HA_ENABLED_DEFAULT = ServerConfig.SENTRY_HA_ENABLED_DEFAULT;
+    public static final String SENTRY_HA_ENABLED = "sentry.ha.enabled";
     public static final String SENTRY_HA_ZOOKEEPER_QUORUM = ServerConfig.SENTRY_HA_ZOOKEEPER_QUORUM;
-    public static final String SERVER_HA_ZOOKEEPER_QUORUM_DEFAULT = ServerConfig.SENTRY_HA_ZOOKEEPER_QUORUM_DEFAULT;
     public static final String SENTRY_HA_ZOOKEEPER_NAMESPACE = ServerConfig.SENTRY_HA_ZOOKEEPER_NAMESPACE;
     public static final String SERVER_HA_ZOOKEEPER_NAMESPACE_DEFAULT = ServerConfig.SENTRY_HA_ZOOKEEPER_NAMESPACE_DEFAULT;
 
@@ -274,4 +296,7 @@ public class ServiceConstants {
     TABLE,
     COLUMN
   }
+
+  public static final String SENTRY_ZK_JAAS_NAME = "Sentry";
+  public static final String CURRENT_INCARNATION_ID_KEY = "current.incarnation.key";
 }

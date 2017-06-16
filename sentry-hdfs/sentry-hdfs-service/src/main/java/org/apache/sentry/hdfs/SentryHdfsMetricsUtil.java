@@ -27,20 +27,20 @@ import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
 /**
  * Util class to support metrics.
  */
-public class SentryHdfsMetricsUtil {
+final class SentryHdfsMetricsUtil {
   // SentryMetrics
   private static final SentryMetrics sentryMetrics = SentryMetrics.getInstance();
 
   // Metrics for get_all_authz_updates_from in SentryHDFSServiceProcessor
   // The time used for each get_all_authz_updates_from
-  public static final Timer getAllAuthzUpdatesTimer = sentryMetrics.getTimer(
+  static final Timer getAllAuthzUpdatesTimer = sentryMetrics.getTimer(
       MetricRegistry.name(SentryHDFSServiceProcessor.class,
           "get-all-authz-updates-from"));
   // The size of perm updates for each get_all_authz_updates_from
-  public static final Histogram getPermUpdateHistogram = sentryMetrics.getHistogram(
+  static final Histogram getPermUpdateHistogram = sentryMetrics.getHistogram(
       MetricRegistry.name(SentryHDFSServiceProcessor.class, "perm-updates-size"));
   // The size of path updates for each get_all_authz_updates_from
-  public static final Histogram getPathUpdateHistogram = sentryMetrics.getHistogram(
+  static final Histogram getPathUpdateHistogram = sentryMetrics.getHistogram(
       MetricRegistry.name(SentryHDFSServiceProcessor.class, "paths-updates-size"));
 
   // Metrics for handle_hms_notification in SentryHDFSServiceProcessor
@@ -60,42 +60,49 @@ public class SentryHdfsMetricsUtil {
       MetricRegistry.name(SentryHDFSServiceProcessor.class, "handle-hms-notification",
           "path-changes-size"));
 
-  // Metrics for retrieveFullImage in SentryPlugin.PermImageRetriever
-  // The time used for each retrieveFullImage
-  public static final Timer getRetrieveFullImageTimer = sentryMetrics.getTimer(
-      MetricRegistry.name(SentryPlugin.PermImageRetriever.class, "retrieve-full-image"));
-  // The size of privilege changes for each retrieveFullImage
-  public static final Histogram getPrivilegeChangesHistogram = sentryMetrics.getHistogram(
-      MetricRegistry.name(SentryPlugin.PermImageRetriever.class, "retrieve-full-image",
+  // Metrics for retrievePermFullImage in PermImageRetriever
+  // The time used for each retrievePermFullImage
+  static final Timer getRetrievePermFullImageTimer = sentryMetrics.getTimer(
+      MetricRegistry.name(PermImageRetriever.class, "retrieve-perm-full-image"));
+  // The size of privilege changes for each retrievePermFullImage
+  static final Histogram getPrivilegeChangesHistogram = sentryMetrics.getHistogram(
+      MetricRegistry.name(PermImageRetriever.class, "retrieve-perm-full-image",
           "privilege-changes-size"));
-  // The size of role changes for each retrieveFullImage call
-  public static final Histogram getRoleChangesHistogram = sentryMetrics.getHistogram(
-      MetricRegistry.name(SentryPlugin.PermImageRetriever.class, "retrieve-full-image",
+  // The size of role changes for each retrievePermFullImage call
+  static final Histogram getRoleChangesHistogram = sentryMetrics.getHistogram(
+      MetricRegistry.name(PermImageRetriever.class, "retrieve-perm-full-image",
           "role-changes-size"));
 
-  // Metrics for notifySentry HMS update in MetaStorePlugin
-  // The timer used for each notifySentry
-  public static final Timer getNotifyHMSUpdateTimer = sentryMetrics.getTimer(
-      MetricRegistry.name(MetastorePlugin.class, "notify-sentry-HMS-update"));
-  // The number of failed notifySentry
-  public static final Counter getFailedNotifyHMSUpdateCounter = sentryMetrics.getCounter(
-      MetricRegistry.name(MetastorePlugin.class, "notify-sentry-HMS-update",
-          "failed-num"));
+  // Metrics for retrievePathFullImage in PathImageRetriever
+  // The time used for each retrievePathFullImage
+  static final Timer getRetrievePathFullImageTimer = sentryMetrics.getTimer(
+      MetricRegistry.name(PathImageRetriever.class, "retrieve-path-full-image"));
 
-  // Metrics for applyLocal update in MetastorePlugin
-  // The time used for each applyLocal
-  public static final Timer getApplyLocalUpdateTimer = sentryMetrics.getTimer(
-      MetricRegistry.name(MetastorePlugin.class, "apply-local-update"));
-  // The size of path changes for each applyLocal
-  public static final Histogram getApplyLocalUpdateHistogram = sentryMetrics.getHistogram(
-      MetricRegistry.name(MetastorePlugin.class, "apply-local-update",
-          "path-change-size"));
+  // The size of path changes for each retrievePathFullImage
+  static final Histogram getPathChangesHistogram = sentryMetrics.getHistogram(
+      MetricRegistry.name(PathImageRetriever.class, "retrieve-path-full-image",
+          "path-changes-size"));
 
-  // Metrics for handleCacheUpdate to ZK in PluginCacheSyncUtil
-  // The time used for each handleCacheUpdate
-  public static final Timer getCacheSyncToZKTimer = sentryMetrics.getTimer(
-      MetricRegistry.name(PluginCacheSyncUtil.class, "cache-sync-to-zk"));
-  // The number of failed handleCacheUpdate
-  public static final Counter getFailedCacheSyncToZK = sentryMetrics.getCounter(
-      MetricRegistry.name(PluginCacheSyncUtil.class, "cache-sync-to-zk", "failed-num"));
+  // Timer for getting path changes deltas
+  static final Timer getDeltaPathChangesTimer = sentryMetrics.getTimer(
+    MetricRegistry.name(PathDeltaRetriever.class, "path", "delta", "time")
+  );
+
+  // Histogram for the number of path changes processed for deltas
+  static final Histogram getDeltaPathChangesHistogram = sentryMetrics.getHistogram(
+          MetricRegistry.name(PathDeltaRetriever.class, "path", "delta", "size"));
+
+
+  // Timer for getting permission changes deltas
+  static final Timer getDeltaPermChangesTimer = sentryMetrics.getTimer(
+          MetricRegistry.name(PathDeltaRetriever.class, "perm", "delta", "time")
+  );
+
+  // Histogram for the number of permissions changes processed for deltas
+  static final Histogram getDeltaPermChangesHistogram = sentryMetrics.getHistogram(
+          MetricRegistry.name(PathDeltaRetriever.class, "perm", "delta", "size"));
+
+  private SentryHdfsMetricsUtil() {
+    // Make constructor private to avoid instantiation
+  }
 }
