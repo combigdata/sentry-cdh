@@ -17,7 +17,7 @@
  */
 package org.apache.sentry.hdfs;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,13 +35,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<PermissionsUpdate> {
-  public static final ImmutableMap<String, FsAction> ACTION_MAPPING = ImmutableMap.<String, FsAction>builder()
+  private static final ImmutableMap<String, FsAction> ACTION_MAPPING = ImmutableMap.<String, FsAction>builder()
           .put("ALL", FsAction.ALL)
           .put("*", FsAction.ALL)
           .put("SELECT", FsAction.READ_EXECUTE)
-          .put("select", FsAction.READ_EXECUTE)
           .put("INSERT", FsAction.WRITE_EXECUTE)
-          .put("insert", FsAction.WRITE_EXECUTE)
           .build();
   
   private static final int MAX_UPDATES_PER_LOCK_USE = 99;
@@ -175,7 +173,7 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
             perms.removeParentChildMappings(pUpdate.getAuthzObj());
             break;
           }
-          List<PrivilegeInfo> parentAndChild = new LinkedList<PrivilegeInfo>();
+          List<PrivilegeInfo> parentAndChild = new ArrayList<>();
           parentAndChild.add(pInfo);
           Set<String> children = perms.getChildren(pInfo.getAuthzObj());
           if (children != null) {
@@ -200,11 +198,17 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
     }
   }
 
-  static FsAction getFAction(String sentryPriv) {
+  private static FsAction getFAction(String sentryPriv) {
     String[] strPrivs = sentryPriv.trim().split(",");
     FsAction retVal = FsAction.NONE;
     for (String strPriv : strPrivs) {
-      retVal = retVal.or(ACTION_MAPPING.get(strPriv.toUpperCase()));
+      FsAction action = ACTION_MAPPING.get(strPriv.toUpperCase());
+      if (action == null) {
+        // Encountered a privilege that is not supported. Since we do not know what
+        // to do with it we just drop all access.
+        action = FsAction.NONE;
+      }
+      retVal = retVal.or(action);
     }
     return retVal;
   }
