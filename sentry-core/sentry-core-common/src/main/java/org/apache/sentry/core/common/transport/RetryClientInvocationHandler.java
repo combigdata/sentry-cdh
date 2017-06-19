@@ -19,7 +19,7 @@ package org.apache.sentry.core.common.transport;
 
 import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.core.common.exception.SentryUserException;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.exception.SentryHdfsServiceException;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;

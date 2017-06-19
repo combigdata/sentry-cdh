@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.sentry.core.common.exception.SentryUserException;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 
@@ -192,4 +192,6 @@ public interface SentryGenericServiceClient extends AutoCloseable {
       String serviceName, String requestorUserName, Set<String> authorizablesSet,
       Set<String> groups, ActiveRoleSet roleSet) throws SentryUserException;
 
+  @Override
+  public void close();
 }

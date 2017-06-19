@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.sentry.core.common.exception.SentryUserException;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 
@@ -188,4 +188,7 @@ public interface SentryPolicyServiceClient extends AutoCloseable {
    * @return The most recent processed notification ID.
    */
   public long syncNotifications(long id) throws SentryUserException;
+
+  @Override
+  public void close();
 }

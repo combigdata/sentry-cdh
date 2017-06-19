@@ -26,7 +26,7 @@ import java.util.Set;
 import javax.jdo.PersistenceManager;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.core.common.exception.SentryUserException;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;

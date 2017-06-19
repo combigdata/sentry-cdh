@@ -17,6 +17,8 @@
  */
 package org.apache.sentry.core.common.exception;
 
+import org.apache.sentry.SentryUserException;
+
 /**
  * An exception which indicates that the current server is standby.
  */

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.sentry.core.common.exception;
+package org.apache.sentry;
 
 public class SentryUserException extends Exception{
   private static final long serialVersionUID = 2329620558380655835L;

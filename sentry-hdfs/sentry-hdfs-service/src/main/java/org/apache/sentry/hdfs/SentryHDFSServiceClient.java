@@ -21,5 +21,8 @@ public interface SentryHDFSServiceClient extends AutoCloseable {
   String SENTRY_HDFS_SERVICE_NAME = "SentryHDFSService";
 
   SentryAuthzUpdate getAllUpdatesFrom(long permSeqNum, long pathSeqNum);
+
+  @Override
+  public void close();
 }
 

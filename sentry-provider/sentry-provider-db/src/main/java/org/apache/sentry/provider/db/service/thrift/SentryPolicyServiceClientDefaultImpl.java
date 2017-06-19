@@ -26,7 +26,7 @@ import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
-import org.apache.sentry.core.common.exception.SentryUserException;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.transport.SentryConnection;
 import org.apache.sentry.core.common.transport.SentryTransportPool;
 import org.apache.sentry.core.common.transport.TTransportWrapper;
