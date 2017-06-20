@@ -315,13 +315,31 @@ limitations under the License.
             <configuration>
               <artifactSet>
                 <includes>
+                  <!-- This is needed to support projects running on different versions of thrift -->
                   <include>org.apache.thrift:libthrift</include>
+                  <!--
+                  sentry-core-common also needs to be shaded as most of the thrift logic now resides in the
+                  sentry-core-common module and even these references must be replaced with shaded thrift classes.
+                  Violating this could result in runtime failures like NoSuchMethodException (Example: IMPALA-5540)
+                  as the users of this shaded jar tries to access thrift resources with shaded references.
+                  -->
+                  <include>org.apache.sentry:sentry-core-common</include>
                 </includes>
               </artifactSet>
               <relocations>
+                <!-- Adding prefix to the package to make it unique -->
                 <relocation>
                   <pattern>org.apache.thrift</pattern>
                   <shadedPattern>sentry.org.apache.thrift</shadedPattern>
+                </relocation>
+                <!--
+                sentry-core-common also needs to be bundled with a unique prefix to make sure this shaded jar specifically
+                refers to the shaded sentry-core-common classes even if users have pristine sentry-core-common jar on the
+                runtime classpath.
+                -->
+                <relocation>
+                  <pattern>org.apache.sentry.core.common</pattern>
+                  <shadedPattern>sentry.org.apache.sentry.core.common</shadedPattern>
                 </relocation>
               </relocations>
               <shadedArtifactAttached>true</shadedArtifactAttached>
