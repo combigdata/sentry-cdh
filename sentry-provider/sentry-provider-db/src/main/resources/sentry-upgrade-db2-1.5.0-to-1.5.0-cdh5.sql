@@ -1,6 +1,21 @@
+-- SENTRY-1805
+-- Table AUTHZ_PATHS_SNAPSHOT_ID for class [org.apache.sentry.provider.db.service.model.MAuthzPathsSnapshotId]
+CREATE TABLE AUTHZ_PATHS_SNAPSHOT_ID
+(
+    AUTHZ_SNAPSHOT_ID bigint NOT NULL
+);
+
+-- Constraints for table AUTHZ_PATHS_SNAPSHOT_ID for class [org.apache.sentry.provider.db.service.model.MAuthzPathsSnapshotId]
+ALTER TABLE AUTHZ_PATHS_SNAPSHOT_ID ADD CONSTRAINT AUTHZ_SNAPSHOT_ID_PK PRIMARY KEY (AUTHZ_SNAPSHOT_ID);
+
 -- SENTRY-872
 -- Table AUTHZ_PATHS_MAPPING for classes [org.apache.sentry.provider.db.service.model.MAuthzPathsMapping]
- CREATE TABLE AUTHZ_PATHS_MAPPING(AUTHZ_OBJ_ID BIGINT NOT NULL generated always as identity (start with 1),AUTHZ_OBJ_NAME VARCHAR(384),CREATE_TIME_MS BIGINT NOT NULL);
+ CREATE TABLE AUTHZ_PATHS_MAPPING(
+    AUTHZ_OBJ_ID BIGINT NOT NULL generated always as identity (start with 1),
+    AUTHZ_OBJ_NAME VARCHAR(384),
+    CREATE_TIME_MS BIGINT NOT NULL,
+    AUTHZ_SNAPSHOT_ID BIGINT NOT NULL
+);
 
  ALTER TABLE AUTHZ_PATHS_MAPPING ADD CONSTRAINT AUTHZ_PATHSCO7K_PK PRIMARY KEY (AUTHZ_OBJ_ID);
 
