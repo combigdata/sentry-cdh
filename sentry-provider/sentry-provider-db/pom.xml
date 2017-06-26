@@ -307,7 +307,35 @@ limitations under the License.
         <artifactId>maven-shade-plugin</artifactId>
         <version>2.3</version>
         <executions>
+          <!-- Workaround for CDH-55775: Shading the Curator version being used by Sentry -->
           <execution>
+            <id>curator-shade</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <!-- This is needed to support projects running on different versions of curator -->
+                  <include>org.apache.curator:curator-recipes</include>
+                  <include>org.apache.curator:curator-x-discovery</include>
+                  <include>org.apache.curator:curator-framework</include>
+                  <include>org.apache.curator:curator-client</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <!-- Adding prefix to the package to make it unique -->
+                <relocation>
+                  <pattern>org.apache.curator</pattern>
+                  <shadedPattern>sentry.org.apache.curator</shadedPattern>
+                </relocation>
+              </relocations>
+              <shadedArtifactAttached>false</shadedArtifactAttached>
+            </configuration>
+          </execution>
+          <execution>
+            <id>thrift-shade</id>
             <phase>package</phase>
             <goals>
               <goal>shade</goal>
