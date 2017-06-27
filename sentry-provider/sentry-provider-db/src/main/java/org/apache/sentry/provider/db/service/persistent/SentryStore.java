@@ -341,7 +341,7 @@ public class SentryStore {
             pm.setDetachAllOnCommit(false); // No need to detach objects
             String trimmedRoleName = trimAndLower(roleName);
             if (getRole(pm, trimmedRoleName) != null) {
-              throw new SentryAlreadyExistsException("Role: " + trimmedRoleName);
+              throw new SentryAlreadyExistsException("Role " + trimmedRoleName);
             }
             pm.makePersistent(new MSentryRole(trimmedRoleName));
             return null;
@@ -2434,7 +2434,7 @@ public class SentryStore {
           new MAuthzPathsMapping(EMPTY_AUTHZ_SNAPSHOT_ID, authzObj, paths);
       pm.makePersistent(mAuthzPathsMapping);
     } else {
-      throw new SentryAlreadyExistsException("AuthzObj: " + authzObj);
+      throw new SentryAlreadyExistsException("AuthzObj " + authzObj);
     }
   }
 

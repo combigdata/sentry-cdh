@@ -21,8 +21,9 @@ import org.apache.sentry.SentryUserException;
 
 public class SentryAlreadyExistsException extends SentryUserException {
   private static final long serialVersionUID = 1298632655835L;
+  private static final String ExceptionSpecificMsg = " already exists";
   public SentryAlreadyExistsException(String msg) {
-    super(msg);
+    super(msg+ExceptionSpecificMsg);
   }
   public SentryAlreadyExistsException(String msg, String reason) {
     super(msg, reason);

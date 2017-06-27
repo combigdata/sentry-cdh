@@ -21,8 +21,9 @@ import org.apache.sentry.SentryUserException;
 
 public class SentryNoSuchObjectException extends SentryUserException {
   private static final long serialVersionUID = 2962080655835L;
+  private static final String ExceptionSpecificMsg = " doesn't exist";
   public SentryNoSuchObjectException(String msg) {
-    super(msg);
+    super(msg+ExceptionSpecificMsg);
   }
   public SentryNoSuchObjectException(String msg, String reason) {
     super(msg, reason);

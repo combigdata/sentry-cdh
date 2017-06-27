@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.*;
 
-import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.model.search.Collection;
@@ -139,17 +138,21 @@ public class TestSentryGenericPolicyProcessor {
 
   @Test
   public void testOperationWithException() throws Exception {
-    when(mockStore.createRole(anyString(), anyString(), anyString()))
-    .thenThrow(new SentryAlreadyExistsException("role already exists"));
+    String roleName = anyString();
+    when(mockStore.createRole(anyString(), roleName, anyString()))
+      .thenThrow(new SentryAlreadyExistsException("Role: " + roleName));
 
-    when(mockStore.dropRole(anyString(), anyString(), anyString()))
-    .thenThrow(new SentryNoSuchObjectException("role isn't exist"));
+    roleName = anyString();
+    when(mockStore.dropRole(anyString(), roleName, anyString()))
+      .thenThrow(new SentryNoSuchObjectException("Role: " + roleName ));
 
-    when(mockStore.alterRoleAddGroups(anyString(), anyString(), anySetOf(String.class),anyString()))
-    .thenThrow(new SentryNoSuchObjectException("role isn't exist"));
+    roleName = anyString();
+    when(mockStore.alterRoleAddGroups(anyString(), roleName, anySetOf(String.class),anyString()))
+      .thenThrow(new SentryNoSuchObjectException("Role: " + roleName));
 
-    when(mockStore.alterRoleDeleteGroups(anyString(), anyString(),anySetOf(String.class), anyString()))
-    .thenThrow(new SentryNoSuchObjectException("role isn't exist"));
+    roleName = anyString();
+    when(mockStore.alterRoleDeleteGroups(anyString(), roleName, anySetOf(String.class), anyString()))
+      .thenThrow(new SentryNoSuchObjectException("Role: " + roleName));
 
     when(mockStore.alterRoleGrantPrivilege(anyString(), anyString(), any(PrivilegeObject.class), anyString()))
     .thenThrow(new SentryGrantDeniedException("has no grant"));
