@@ -185,6 +185,9 @@ public class ServiceConstants {
     // for console reporter, reporting interval in seconds
     public static final String SENTRY_REPORTER_INTERVAL_SEC =
             "sentry.service.reporter.interval.sec";
+    public static final String SENTRY_JSON_REPORTER_FILE = "sentry.service.reporter.file";
+    public static final String SENTRY_JSON_REPORTER_FILE_DEFAULT = "/tmp/sentry-metrics.json";
+
     // Report every 5 minutes by default
     public static final int SENTRY_REPORTER_INTERVAL_DEFAULT = 300;
 
