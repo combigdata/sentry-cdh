@@ -308,6 +308,10 @@ public class HMSFollower implements Runnable, AutoCloseable {
       // Log this message only once
       if (needLogHMSSupportReady && connectedToHMS) {
         LOGGER.info("Sentry HMS support is ready");
+
+        // allow CM to know that HMS support is ready
+        System.out.println("Sentry HMS support is ready");
+
         needLogHMSSupportReady = false;
       }
 

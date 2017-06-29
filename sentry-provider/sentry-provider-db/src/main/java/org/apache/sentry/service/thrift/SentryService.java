@@ -272,6 +272,9 @@ public class SentryService implements Callable, SigUtils.SigListener {
     // thriftServer.serve() does not return until thriftServer is stopped. Need to log before
     // calling thriftServer.serve()
     LOGGER.info("Sentry service is ready to serve client requests");
+
+    // allow CM to know that sentry service is ready
+    System.out.println("Sentry service is ready to serve client requests");
     thriftServer.serve();
   }
 
