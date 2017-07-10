@@ -35,10 +35,23 @@ public interface SentryHDFSServiceClient extends AutoCloseable {
    * @return List of permission and path changes which may include a full snapshot.
    * @throws SentryHdfsServiceException if a connection exception happens
    */
+  @Deprecated
   SentryAuthzUpdate getAllUpdatesFrom(long permSeqNum, long pathSeqNum)
           throws SentryHdfsServiceException;
 
   @Override
   public void close();
+
+  /**
+   * Get any permission and path updates accumulated since given sequence numbers.
+   * May return full update.
+   * @param permSeqNum Last sequence number for permissions update processed by the NameNode plugin
+   * @param pathSeqNum Last sequence number for paths update processed by the NameNode plugin
+   * @param pathImgNum Last image number for paths update processed by the NameNode plugin
+   * @return List of permission and path changes which may include a full snapshot.
+   * @throws SentryHdfsServiceException if a connection exception happens
+   */
+  SentryAuthzUpdate getAllUpdatesFrom(long permSeqNum, long pathSeqNum, long pathImgNum)
+      throws SentryHdfsServiceException;
 }
 
