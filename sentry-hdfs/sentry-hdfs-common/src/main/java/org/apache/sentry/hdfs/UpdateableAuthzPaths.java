@@ -148,7 +148,7 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
   @Override
   public PathsUpdate createFullImageUpdate(long currSeqNum) {
     PathsUpdate pathsUpdate = new PathsUpdate(currSeqNum, true);
-    pathsUpdate.toThrift().setPathsDump(getPathsDump().createPathsDump());
+    pathsUpdate.toThrift().setPathsDump(getPathsDump().createPathsDump(true));
     return pathsUpdate;
   }
 
@@ -157,8 +157,9 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
     return new AuthzPathsDumper<UpdateableAuthzPaths>() {
 
       @Override
-      public TPathsDump createPathsDump() {
-        return UpdateableAuthzPaths.this.paths.getPathsDump().createPathsDump();
+      public TPathsDump createPathsDump(boolean minimizeSize) {
+        return UpdateableAuthzPaths.this.paths.getPathsDump().
+            createPathsDump(minimizeSize);
       }
 
       @Override
