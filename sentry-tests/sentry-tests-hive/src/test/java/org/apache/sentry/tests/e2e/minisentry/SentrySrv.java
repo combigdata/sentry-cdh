@@ -58,24 +58,10 @@ public interface SentrySrv {
   public SentryService get(int serverNum);
 
   /**
-   * Get the ZK connection string
-   * @return
-   * @throws Exception
-   *           - If HA is not enabled
-   */
-  public String getZKQuorum() throws Exception;
-
-  /**
    * Stop all the nodes and ZK if started. The SentrySrv can't be reused once
    * closed.
    */
   public void close();
-
-  /**
-   * Check if the sentry server is created with HA enabled.
-   * @return True - HA is enabled False - HA is not enabled
-   */
-  public boolean isHaEnabled();
 
   /**
    * Get the number of active clients connections across servers
