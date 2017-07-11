@@ -8,7 +8,7 @@ CREATE TABLE AUTHZ_PATHS_SNAPSHOT_ID
 -- Constraints for table AUTHZ_PATHS_SNAPSHOT_ID for class [org.apache.sentry.provider.db.service.model.MAuthzPathsSnapshotId]
 ALTER TABLE AUTHZ_PATHS_SNAPSHOT_ID ADD CONSTRAINT AUTHZ_SNAPSHOT_ID_PK PRIMARY KEY (AUTHZ_SNAPSHOT_ID);
 
--- SENTRY-872
+-- SENTRY-1365
 -- Table AUTHZ_PATHS_MAPPING for classes [org.apache.sentry.provider.db.service.model.MAuthzPathsMapping]
  CREATE TABLE AUTHZ_PATHS_MAPPING(
     AUTHZ_OBJ_ID BIGINT NOT NULL generated always as identity (start with 1),

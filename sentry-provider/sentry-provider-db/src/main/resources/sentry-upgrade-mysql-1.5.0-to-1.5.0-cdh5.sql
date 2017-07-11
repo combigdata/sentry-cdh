@@ -1,5 +1,5 @@
 SELECT 'Upgrading Sentry store schema from 1.5.0 to 1.5.0-cdh5' AS ' ';
-SOURCE 007-SENTRY-872.mysql.sql;
+SOURCE 007-SENTRY-1365.mysql.sql;
 SOURCE 008-SENTRY-1569.mysql.sql;
 SOURCE 009-SENTRY-1805.mysql.sql;
 

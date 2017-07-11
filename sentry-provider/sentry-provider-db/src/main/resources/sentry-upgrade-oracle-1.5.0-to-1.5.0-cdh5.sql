@@ -1,5 +1,5 @@
 SELECT 'Upgrading Sentry store schema from 1.5.0 to 1.5.0-cdh5' AS Status from dual;
-@007-SENTRY-872.oracle.sql;
+@007-SENTRY-1365.oracle.sql;
 @008-SENTRY-1569.oracle.sql;
 @009-SENTRY-1805.oracle.sql;
 
