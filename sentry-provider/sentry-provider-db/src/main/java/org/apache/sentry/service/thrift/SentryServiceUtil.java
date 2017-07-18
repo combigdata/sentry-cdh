@@ -28,6 +28,9 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.sentry.provider.db.SentryInvalidInputException;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.slf4j.Logger;
 
 public final class SentryServiceUtil {
@@ -91,8 +94,38 @@ public final class SentryServiceUtil {
     return hiveConf.get(METASTOREURIS.varname);
   }
 
+  /**
+   * Derives object name from database and table names by concatenating them
+   *
+   * @param authorizable for which is name is to be derived
+   * @return authorizable name
+   * @throws SentryInvalidInputException if argument provided does not have all the
+   *                                     required fields set.
+   */
+  public static String getAuthzObj(TSentryAuthorizable authorizable)
+    throws SentryInvalidInputException {
+    return getAuthzObj(authorizable.getDb(), authorizable.getTable());
+  }
+
+  /**
+   * Derives object name from database and table names by concatenating them
+   *
+   * @param dbName
+   * @param tblName
+   * @return authorizable name
+   * @throws SentryInvalidInputException if argument provided does not have all the
+   *                                     required fields set.
+   */
+  public static String getAuthzObj(String dbName, String tblName)
+    throws SentryInvalidInputException {
+    if (SentryStore.isNULL(dbName)) {
+      throw new SentryInvalidInputException("Invalif input, DB name is missing");
+    }
+    return SentryStore.isNULL(tblName) ? dbName.toLowerCase() :
+      (dbName + "." + tblName).toLowerCase();
+  }
+
   private SentryServiceUtil() {
     // Make constructor private to avoid instantiation
   }
-
 }

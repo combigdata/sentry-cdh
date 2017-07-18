@@ -149,7 +149,7 @@ public class SentryStore {
   private static final long COUNT_VALUE_UNKNOWN = -1L;
 
   // Representation for unknown HMS notification ID
-  private static final long NOTIFICATION_UNKNOWN = -1L;
+  public static final long NOTIFICATION_UNKNOWN = -1L;
 
   private static final Set<String> ALL_ACTIONS = Sets.newHashSet(AccessConstants.ALL,
       AccessConstants.SELECT, AccessConstants.INSERT, AccessConstants.ALTER,
@@ -2527,7 +2527,7 @@ public class SentryStore {
   /**
    * Persist an up-to-date HMS snapshot into Sentry DB in a single transaction.
    *
-   * @param authzPaths Mapping of hiveObj to &lt Paths &lt
+   * @param authzPaths paths to be be persisted
    * @throws Exception
    */
   public void persistFullPathsImage(final Map<String, Set<String>> authzPaths) throws Exception {
@@ -2538,7 +2538,6 @@ public class SentryStore {
 
           long snapshotID = getCurrentAuthzPathsSnapshotID(pm);
           long nextSnapshotID = snapshotID + 1;
-
           pm.makePersistent(new MAuthzPathsSnapshotId(nextSnapshotID));
           for (Map.Entry<String, Set<String>> authzPath : authzPaths.entrySet()) {
             pm.makePersistent(new MAuthzPathsMapping(nextSnapshotID, authzPath.getKey(), authzPath.getValue()));

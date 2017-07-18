@@ -20,6 +20,7 @@ package org.apache.sentry.provider.db;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
+import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleAddGroupsRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleDeleteGroupsRequest;
@@ -68,7 +69,8 @@ public interface SentryPolicyStorePlugin {
 
   Update onDropSentryRole(TDropSentryRoleRequest tRequest) throws SentryPluginException;
 
-  Update onRenameSentryPrivilege(TRenamePrivilegesRequest request) throws SentryPluginException;
+  Update onRenameSentryPrivilege(TRenamePrivilegesRequest request)
+      throws SentryPluginException, SentryInvalidInputException;
 
   Update onDropSentryPrivilege(TDropPrivilegesRequest request) throws SentryPluginException;
 }
