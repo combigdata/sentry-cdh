@@ -31,7 +31,7 @@ public class SentryGenericPolicyProcessorFactory extends ProcessorFactory {
 
   @Override
   public boolean register(TMultiplexedProcessor multiplexedProcessor,
-                          SentryStore _) throws Exception {
+                          SentryStore store) throws Exception {
     SentryGenericPolicyProcessor processHandler = new SentryGenericPolicyProcessor(conf);
     TProcessor processor = new SentryGenericPolicyProcessorWrapper<SentryGenericPolicyService.Iface>(
         processHandler);
