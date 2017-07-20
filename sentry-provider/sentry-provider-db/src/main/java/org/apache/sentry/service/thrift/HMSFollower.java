@@ -48,6 +48,7 @@ public class HMSFollower implements Runnable, AutoCloseable {
   private final Configuration authzConf;
   private final SentryStore sentryStore;
   private final NotificationProcessor notificationProcessor;
+  private boolean readyToServe;
 
   private final LeaderStatusMonitor leaderMonitor;
 
@@ -75,6 +76,7 @@ public class HMSFollower implements Runnable, AutoCloseable {
   public HMSFollower(Configuration conf, SentryStore store, LeaderStatusMonitor leaderMonitor,
               HiveSimpleConnectionFactory hiveConnectionFactory, String authServerName) {
     LOGGER.info("HMSFollower is being initialized");
+    readyToServe = false;
     authzConf = conf;
     this.leaderMonitor = leaderMonitor;
     sentryStore = store;
@@ -176,6 +178,11 @@ public class HMSFollower implements Runnable, AutoCloseable {
         return;
       }
 
+      if (!readyToServe) {
+        // Allows CM to know that HMS support is ready
+        System.out.println("Sentry HMS support is ready");
+        readyToServe = true;
+      }
       // Continue with processing new notifications if no snapshots are done.
       processNotifications(notifications);
     } catch (TException e) {
