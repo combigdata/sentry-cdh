@@ -92,17 +92,8 @@ public interface Updateable<K extends Updateable.Update> {
    * @param currSeqNum
    * @return
    */
-  @Deprecated
   K createFullImageUpdate(long currSeqNum) throws Exception;
 
-  public String getUpdateableTypeName();
-
-  /**
-   * Create and Full image update of the local data structure
-   * @param currSeqNum
-   * @param currImgNum
-   * @return
-   */
-  K createFullImageUpdate(long currSeqNum, long currImgNum) throws Exception;
+  String getUpdateableTypeName();
 
 }
