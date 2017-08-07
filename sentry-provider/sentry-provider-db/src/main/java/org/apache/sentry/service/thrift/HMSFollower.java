@@ -49,6 +49,7 @@ public class HMSFollower implements Runnable, AutoCloseable {
   private final SentryStore sentryStore;
   private final NotificationProcessor notificationProcessor;
   private boolean readyToServe;
+  private final boolean hdfsSyncEnabled;
 
   private final LeaderStatusMonitor leaderMonitor;
 
@@ -88,6 +89,7 @@ public class HMSFollower implements Runnable, AutoCloseable {
 
     notificationProcessor = new NotificationProcessor(sentryStore, authServerName, authzConf);
     client = new SentryHMSClient(authzConf, hiveConnectionFactory);
+    hdfsSyncEnabled = SentryServiceUtil.isHDFSSyncEnabledNoCache(authzConf); // no cache to test different settings for hdfs sync
   }
 
   @VisibleForTesting
@@ -292,7 +294,12 @@ public class HMSFollower implements Runnable, AutoCloseable {
 
     try {
       LOGGER.debug("Persisting HMS path full snapshot");
-      sentryStore.persistFullPathsImage(snapshotInfo.getPathImage());
+
+      if (hdfsSyncEnabled) {
+        sentryStore.persistFullPathsImage(snapshotInfo.getPathImage());
+      }
+
+      // We need to persist latest notificationID for next poll
       sentryStore.persistLastProcessedNotificationID(snapshotInfo.getId());
     } catch (Exception failure) {
       LOGGER.error("Received exception while persisting HMS path full snapshot ");
