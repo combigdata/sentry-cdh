@@ -19,9 +19,16 @@
 package org.apache.sentry.binding.metastore.messaging.json;
 
 import org.apache.hive.hcatalog.messaging.*;
+import org.apache.hive.hcatalog.messaging.json.JSONAlterIndexMessage;
+import org.apache.hive.hcatalog.messaging.json.JSONCreateFunctionMessage;
+import org.apache.hive.hcatalog.messaging.json.JSONCreateIndexMessage;
+import org.apache.hive.hcatalog.messaging.json.JSONDropFunctionMessage;
+import org.apache.hive.hcatalog.messaging.json.JSONDropIndexMessage;
 import org.apache.hive.hcatalog.messaging.json.JSONInsertMessage;
 import org.codehaus.jackson.map.DeserializationConfig;
 import org.codehaus.jackson.map.ObjectMapper;
+
+import java.io.IOException;
 
 public class SentryJSONMessageDeserializer extends MessageDeserializer {
     private static ObjectMapper mapper = new ObjectMapper();
@@ -131,27 +138,52 @@ public class SentryJSONMessageDeserializer extends MessageDeserializer {
 
     @Override
     public CreateFunctionMessage getCreateFunctionMessage(String messageBody) {
-        return null;
+        try {
+            return mapper.readValue(messageBody, JSONCreateFunctionMessage.class);
+        } catch (IOException e) {
+            throw new IllegalArgumentException(
+                "Could not construct SentryJSONCreateFunctionMessage: ", e);
+        }
     }
 
     @Override
     public DropFunctionMessage getDropFunctionMessage(String messageBody) {
-        return null;
+        try {
+            return mapper.readValue(messageBody, JSONDropFunctionMessage.class);
+        } catch (IOException e) {
+            throw new
+                IllegalArgumentException("Could not construct SentryJSONDropFunctionMessage: ", e);
+        }
     }
 
     @Override
     public CreateIndexMessage getCreateIndexMessage(String messageBody) {
-        return null;
+        try {
+            return mapper.readValue(messageBody, JSONCreateIndexMessage.class);
+        } catch (IOException e) {
+            throw new
+                IllegalArgumentException("Could not construct SentryJSONCreateIndexMessage: ", e);
+        }
     }
 
     @Override
     public DropIndexMessage getDropIndexMessage(String messageBody) {
-        return null;
+        try {
+            return mapper.readValue(messageBody, JSONDropIndexMessage.class);
+        } catch (IOException e) {
+            throw new
+                IllegalArgumentException("Could not construct SentryJSONDropIndexMessage: ", e);
+        }
     }
 
     @Override
     public AlterIndexMessage getAlterIndexMessage(String messageBody) {
-        return null;
+        try {
+            return mapper.readValue(messageBody, JSONAlterIndexMessage.class);
+        } catch (IOException e) {
+            throw new
+                IllegalArgumentException("Could not construct SentryJSONAlterIndexMessage: ", e);
+        }
     }
 
     @Override
