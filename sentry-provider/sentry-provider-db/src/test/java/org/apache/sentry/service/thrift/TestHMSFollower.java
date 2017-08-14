@@ -102,8 +102,10 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(SENTRY_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(true);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(1)).persistFullPathsImage(fullSnapshot.getPathImage());
-    Mockito.verify(sentryStore, times(1)).persistLastProcessedNotificationID(fullSnapshot.getId());
+    verify(sentryStore, times(1)).persistFullPathsImage(
+        fullSnapshot.getPathImage(), fullSnapshot.getId());
+    // Saving notificationID is in the same transaction of saving full snapshot
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(fullSnapshot.getId());
 
     Mockito.reset(sentryStore);
 
@@ -111,8 +113,8 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(fullSnapshot.getId());
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap());
-    Mockito.verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
+    verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
   @Test
@@ -148,8 +150,8 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(SENTRY_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(1)).persistFullPathsImage(Mockito.anyMap());
-    Mockito.verify(sentryStore, times(1)).persistLastProcessedNotificationID(Mockito.anyLong());
+    verify(sentryStore, times(1)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
 
     Mockito.reset(sentryStore);
 
@@ -157,8 +159,8 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(HMS_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap());
-    Mockito.verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
+    verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
   @Test
@@ -201,8 +203,8 @@ public class TestHMSFollower {
         .thenReturn(SENTRY_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(1)).persistFullPathsImage(Mockito.anyMap());
-    Mockito.verify(sentryStore, times(1)).persistLastProcessedNotificationID(Mockito.anyLong());
+    verify(sentryStore, times(1)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
 
     Mockito.reset(sentryStore);
 
@@ -210,8 +212,8 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(HMS_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap());
-    Mockito.verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
+    verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
+    verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
   /**
@@ -779,8 +781,8 @@ public class TestHMSFollower {
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(SENTRY_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(true);
     hmsFollower.run();
-    Mockito.verify(sentryStore, times(0)).persistFullPathsImage(fullSnapshot.getPathImage());
-    Mockito.verify(sentryStore, times(1)).persistLastProcessedNotificationID(fullSnapshot.getId());
+    verify(sentryStore, times(0)).persistFullPathsImage(fullSnapshot.getPathImage(), fullSnapshot.getId());
+    verify(sentryStore, times(1)).persistLastProcessedNotificationID(fullSnapshot.getId());
   }
 
   @Test
