@@ -101,6 +101,7 @@ public class TestHMSFollower {
     // 1st run should get a full snapshot because AuthzPathsMapping is empty
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(SENTRY_PROCESSED_EVENT_ID);
     Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(true);
+    Mockito.when(sentryStore.isHmsNotificationEmpty()).thenReturn(true);
     hmsFollower.run();
     verify(sentryStore, times(1)).persistFullPathsImage(
         fullSnapshot.getPathImage(), fullSnapshot.getId());
@@ -779,10 +780,13 @@ public class TestHMSFollower {
 
     // 1st run should get a full snapshot because AuthzPathsMapping is empty
     Mockito.when(sentryStore.getLastProcessedNotificationID()).thenReturn(SENTRY_PROCESSED_EVENT_ID);
-    Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(true);
+    Mockito.when(sentryStore.isAuthzPathsMappingEmpty()).thenReturn(false);
+    Mockito.when(sentryStore.isHmsNotificationEmpty()).thenReturn(true);
     hmsFollower.run();
     verify(sentryStore, times(0)).persistFullPathsImage(fullSnapshot.getPathImage(), fullSnapshot.getId());
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(fullSnapshot.getId());
+    verify(sentryStore, times(1)).isHmsNotificationEmpty();
+    verify(sentryStore, times(0)).isAuthzPathsMappingEmpty();
   }
 
   @Test
