@@ -87,9 +87,9 @@ public class ServiceConstants {
     // The configuration for the maximum number of retries per db transaction,
     // the default value is 3 times
     public static final String SENTRY_STORE_TRANSACTION_RETRY = "sentry.store.transaction.retry";
-    public static final int SENTRY_STORE_TRANSACTION_RETRY_DEFAULT = 10;
+    public static final int SENTRY_STORE_TRANSACTION_RETRY_DEFAULT = 20;
     // The configuration for the delay (in milliseconds) between retries,
-    // the default value is 500 ms
+    // the default value is 250 ms
     public static final String SENTRY_STORE_TRANSACTION_RETRY_WAIT_TIME_MILLIS =
         "sentry.store.transaction.retry.wait.time.millis";
     public static final int SENTRY_STORE_TRANSACTION_RETRY_WAIT_TIME_MILLIS_DEFAULT = 250;
