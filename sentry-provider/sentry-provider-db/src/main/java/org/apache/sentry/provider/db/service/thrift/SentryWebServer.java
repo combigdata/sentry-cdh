@@ -106,6 +106,8 @@ public class SentryWebServer {
     servletContextHandler.getServletContext()
         .setAttribute(ConfServlet.CONF_CONTEXT_ATTRIBUTE, conf);
 
+    servletContextHandler.addServlet(new ServletHolder(LogLevelServlet.class), "/admin/logLevel");
+
     ResourceHandler resourceHandler = new ResourceHandler();
     resourceHandler.setDirectoriesListed(true);
     URL url = this.getClass().getResource(RESOURCE_DIR);
@@ -123,7 +125,7 @@ public class SentryWebServer {
 
     String authMethod = conf.get(ServerConfig.SENTRY_WEB_SECURITY_TYPE);
     if (!ServerConfig.SENTRY_WEB_SECURITY_TYPE_NONE.equals(authMethod)) {
-      /**
+      /*
        * SentryAuthFilter is a subclass of AuthenticationFilter and
        * AuthenticationFilter tagged as private and unstable interface:
        * While there are not guarantees that this interface will not change,
@@ -184,8 +186,7 @@ public class SentryWebServer {
         throw new IllegalArgumentException("Can't use Kerberos authentication, principal ["
           + principal + "] keytab [" + keytabFile + "]", ex);
       }
-      LOGGER.info("Using Kerberos authentication, principal ["
-          + principal + "] keytab [" + keytabFile + "]");
+      LOGGER.info("Using Kerberos authentication, principal [{}] keytab [{}]", principal, keytabFile);
     }
   }
 }
