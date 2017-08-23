@@ -39,6 +39,8 @@ import java.util.HashSet;
 
 import com.google.common.collect.Sets;
 
+import org.apache.hive.hcatalog.listener.DbNotificationListener;
+import org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory;
 import org.apache.sentry.tests.e2e.hive.fs.TestFSContants;
 import org.fest.reflect.core.Reflection;
 import org.junit.After;
@@ -523,23 +525,13 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
 
     startSentryService();
     if (setMetastoreListener) {
-      if (useDbNotificationListener) {
-        properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
-                "org.apache.hive.hcatalog.listener.DbNotificationListener");
-      } else {
-        if (enableNotificationLog) {
-          properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
-              SentryMetastorePostEventListenerNotificationLog.class.getName());
-        } else {
-          properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
-              SentryMetastorePostEventListener.class.getName());
-        }
-      }
       LOGGER.info("setMetastoreListener is enabled");
-      if (!useDefaultMessageFactory) {
-        properties.put("hcatalog.message.factory.impl.json",
-            "org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory");
-      }
+      properties.put(ConfVars.METASTORE_TRANSACTIONAL_EVENT_LISTENERS.varname,
+          DbNotificationListener.class.getName());
+      properties.put(HiveConf.ConfVars.METASTORE_EVENT_LISTENERS.varname,
+          SentryMetastorePostEventListener.class.getName());
+      properties.put("hcatalog.message.factory.impl.json",
+          SentryJSONMessageFactory.class.getName());
     }
   }
 
