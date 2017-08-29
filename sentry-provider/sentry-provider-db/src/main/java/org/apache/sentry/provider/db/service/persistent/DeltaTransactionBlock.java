@@ -21,6 +21,7 @@ package org.apache.sentry.provider.db.service.persistent;
 import com.google.common.base.Preconditions;
 import org.apache.sentry.hdfs.PathsUpdate;
 import org.apache.sentry.hdfs.PermissionsUpdate;
+import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.service.model.MSentryHmsNotification;
 import org.apache.sentry.provider.db.service.model.MSentryPathChange;
@@ -87,9 +88,10 @@ public class DeltaTransactionBlock implements TransactionBlock<Object> {
     if (update instanceof PermissionsUpdate) {
       long lastChangeID = SentryStore.getLastProcessedChangeIDCore(pm, MSentryPermChange.class);
       pm.makePersistent(new MSentryPermChange(lastChangeID + 1, (PermissionsUpdate) update));
-    } else if (update instanceof PathsUpdate) {
+    } else if (update instanceof UniquePathsUpdate) {
       long lastChangeID = SentryStore.getLastProcessedChangeIDCore(pm, MSentryPathChange.class);
-      pm.makePersistent(new MSentryPathChange(lastChangeID + 1, (PathsUpdate) update));
+      String eventHash = ((UniquePathsUpdate) update).getEventHash();
+      pm.makePersistent(new MSentryPathChange(lastChangeID + 1, eventHash, (PathsUpdate) update));
       // Notification id from PATH_UPDATE entry is made persistent in
       // SENTRY_LAST_NOTIFICATION_ID table.
       pm.makePersistent(new MSentryHmsNotification(update.getSeqNum()));
