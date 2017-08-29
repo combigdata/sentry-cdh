@@ -42,7 +42,7 @@ import org.apache.hive.hcatalog.messaging.HCatEventMessage.EventType;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory;
-import org.apache.sentry.hdfs.Updateable;
+import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.provider.db.service.persistent.PathsImage;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
@@ -475,7 +475,7 @@ public class TestHMSFollower {
     Mockito.doNothing().when(sentryStore).persistLastProcessedNotificationID(Mockito.anyLong());
     //noinspection unchecked
     Mockito.doNothing().when(sentryStore).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
 
     Configuration configuration = new Configuration();
     HMSFollower hmsFollower = new HMSFollower(configuration, sentryStore, null,
@@ -500,7 +500,7 @@ public class TestHMSFollower {
     // and persistLastProcessedNotificationID was not invoked.
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
     reset(sentryStore);
     events.clear();
@@ -524,7 +524,7 @@ public class TestHMSFollower {
     // and persistLastProcessedNotificationID was not invoked.
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
     reset(sentryStore);
     events.clear();
@@ -561,7 +561,7 @@ public class TestHMSFollower {
     // Make sure that updateAuthzPathsMapping was invoked once to handle ALTER_PARTITION
     // notification and persistLastProcessedNotificationID was not invoked.
     verify(sentryStore, times(1)).updateAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyString(), Mockito.anyString(), Mockito.any(Updateable.Update.class));
+        Mockito.anyString(), Mockito.anyString(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(inputEventId - 1);
     reset(sentryStore);
     events.clear();
@@ -585,7 +585,7 @@ public class TestHMSFollower {
     // and persistLastProcessedNotificationID was not invoked.
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
@@ -610,7 +610,7 @@ public class TestHMSFollower {
     Mockito.doNothing().when(sentryStore).persistLastProcessedNotificationID(Mockito.anyLong());
     //noinspection unchecked
     Mockito.doNothing().when(sentryStore).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
 
     Configuration configuration = new Configuration();
     // enable HDFS sync, so perm and path changes will be saved into DB
@@ -640,7 +640,7 @@ public class TestHMSFollower {
     // and persistLastProcessedNotificationID was not invoked.
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
     reset(sentryStore);
     events.clear();
@@ -665,10 +665,10 @@ public class TestHMSFollower {
     // to handle CREATE_TABLE notification
     // and persistLastProcessedNotificationID is explicitly invoked
     verify(sentryStore, times(0)).renameAuthzObj(Mockito.anyString(), Mockito.anyString(),
-        Mockito.any(Updateable.Update.class));
+        Mockito.any(UniquePathsUpdate.class));
     //noinspection unchecked
     verify(sentryStore, times(0)).deleteAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(Mockito.anyLong());
     reset(sentryStore);
     events.clear();
@@ -692,7 +692,7 @@ public class TestHMSFollower {
     // and persistLastProcessedNotificationID was not invoked.
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
-        Mockito.anyCollection(), Mockito.any(Updateable.Update.class));
+        Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
@@ -713,7 +713,7 @@ public class TestHMSFollower {
     //noinspection unchecked
     Mockito.doNothing().when(sentryStore)
         .addAuthzPathsMapping(Mockito.anyString(), Mockito.anyCollection(),
-            Mockito.any(Updateable.Update.class));
+            Mockito.any(UniquePathsUpdate.class));
 
     // Create invalid notification event. The location of the storage descriptor is null, which is invalid for creating table
     StorageDescriptor invalidSd = new StorageDescriptor();
@@ -748,7 +748,7 @@ public class TestHMSFollower {
     // next valid event update path, which updates notification ID
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(), Mockito.anyCollection(),
-        Mockito.any(Updateable.Update.class));
+        Mockito.any(UniquePathsUpdate.class));
   }
 
   @Test
