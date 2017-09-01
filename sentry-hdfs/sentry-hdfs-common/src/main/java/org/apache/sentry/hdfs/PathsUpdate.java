@@ -20,6 +20,7 @@ package org.apache.sentry.hdfs;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -137,7 +138,16 @@ public class PathsUpdate implements Updateable.Update {
           throw new SentryMalformedPathException("Path part of uri does not seem right, was expecting a non empty path" +
                   ": path = " + uriPath + ", uri=" + uri);
         }
-        return Lists.newArrayList(uriPath.split("^/")[1].split("/"));
+        
+        // Convert each path to a list, so a/b/c becomes {a, b, c}
+        // Since these are partition names they may have a lot of duplicate strings.
+        // To save space for big snapshots we intern each path component.
+        String[] pathComponents = uriPath.split("^/")[1].split("/");
+        List<String> paths = new ArrayList<>(pathComponents.length);
+        for (String pathElement: pathComponents) {
+          paths.add(pathElement.intern());
+        }
+        return paths;
       } else {
         return null;
       }
