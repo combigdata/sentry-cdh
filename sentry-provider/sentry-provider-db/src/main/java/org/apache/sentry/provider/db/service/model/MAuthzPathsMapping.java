@@ -21,6 +21,7 @@ package org.apache.sentry.provider.db.service.model;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 
 import javax.jdo.annotations.PersistenceCapable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -95,22 +96,21 @@ public class MAuthzPathsMapping {
     return null;
   }
 
-  /*
-  This method is used to get path set in string format
-  constructed from Set<MPath>.
-  */
-  public Set<String> getPathStrings() {
-    Set<String> paths = new HashSet<>(this.paths.size());
+  /**
+   * @return collection of paths strings contained in this object.
+   */
+  public Collection<String> getPathStrings() {
+    Collection<String> pathValues = new ArrayList<>(this.paths.size());
     for (MPath path : this.paths) {
-      paths.add(path.getPath());
+      pathValues.add(path.getPath());
     }
-    return paths;
+    return pathValues;
   }
 
   @Override
   public String toString() {
     return "MSentryPathsUpdate authzSnapshotID=[" + authzSnapshotID + "], authzObj=[" + authzObjName
-        + "], paths=[" + paths.toString() + "], createTimeMs=[" + String.valueOf(createTimeMs) + "]";
+        + "], paths=[" + paths.toString() + "], createTimeMs=[" + createTimeMs + "]";
   }
 
   @Override
