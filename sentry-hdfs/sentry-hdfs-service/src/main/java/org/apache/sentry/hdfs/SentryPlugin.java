@@ -107,13 +107,6 @@ import org.slf4j.LoggerFactory;
    * Sentry checks if both fullUpdateNN == true and fullUpdateHMSWait == false.
    * If yes, it sends full update back to NameNode and immediately resets
    * fullUpdateNN to false.
-   * <li>
-   * All methods having to do with pushing permissions updates to Sentry are
-   * synchronized by permsUpdateLock. The reason for this synchronization is to
-   * ensure that performing the pair of operations a) assigning the auto-incrementing
-   * sequence number to the incoming permissions update and b) submitting this
-   * update to UpdateForwarder are performed atomically, so UpdateForwarder gets
-   * the updates numbered strictly sequentially.
    * </ol>
    */
 
@@ -174,8 +167,6 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   private final AtomicLong permSeqNum = new AtomicLong(5);
   private PermImageRetriever permImageRetriever;
   private boolean outOfSync = false;
-  private final Object permsUpdateLock = new Object();
-
   /*
    * This number is smaller than starting sequence numbers used by NN and HMS
    * so in both cases its effect is to creat appearence of out-of-sync
@@ -236,12 +227,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   public List<PathsUpdate> getAllPathsUpdatesFrom(long pathSeqNum) throws Exception {
     if (!fullUpdateNN.get()) {
       // Most common case - Sentry is NOT handling a full update.
-      List<PathsUpdate> pathsUpdate = pathsUpdater.getAllUpdatesFrom(pathSeqNum);
-      if (!pathsUpdate.isEmpty() && pathsUpdate.get(0).hasFullImage()) {
-        LOGGER.warn("getAllPathsUpdatesFrom([{}]): Sending Authz Paths FULL Update [numUpdates={}] [seqNum={}]",
-          pathSeqNum, pathsUpdate.size(), pathsUpdate.get(0).getSeqNum());
-      }
-      return pathsUpdate;
+      return pathsUpdater.getAllUpdatesFrom(pathSeqNum);
     } else if (!fullUpdateHMSWait.get()) {
       /*
        * Sentry is in the middle of signal-triggered full update.
@@ -284,12 +270,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   }
 
   public List<PermissionsUpdate> getAllPermsUpdatesFrom(long permSeqNum) throws Exception {
-    List<PermissionsUpdate> permsUpdate = permsUpdater.getAllUpdatesFrom(permSeqNum);
-      if (!permsUpdate.isEmpty() && permsUpdate.get(0).hasFullImage()) {
-        LOGGER.warn("getAllPermsUpdatesFrom([{}]): Sending Permissions FULL Update [numUpdates={}] [seqNum={}]",
-          permSeqNum, permsUpdate.size(), permsUpdate.get(0).getSeqNum());
-      }
-      return permsUpdate;
+    return permsUpdater.getAllUpdatesFrom(permSeqNum);
   }
 
   /*
@@ -299,9 +280,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       throws SentryPluginException {
     pathsUpdater.handleUpdateNotification(update);
     if (!update.hasFullImage()) { // most common case of partial update
-      LOGGER.debug("Received Authz Path update [" + update.getSeqNum() + "]..");
+      LOGGER.debug("Recieved Authz Path update [" + update.getSeqNum() + "]..");
     } else { // rare case of full update
-      LOGGER.warn("Received Authz Path FULL update [" + update.getSeqNum() + "]..");
+      LOGGER.warn("Recieved Authz Path FULL update [" + update.getSeqNum() + "]..");
       // indicate that we're ready to send full update to NameNode
       fullUpdateHMSWait.set(false);
     }
@@ -310,15 +291,12 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   @Override
   public void onAlterSentryRoleAddGroups(
       TAlterSentryRoleAddGroupsRequest request) throws SentryPluginException {
-    PermissionsUpdate update;
-    synchronized (permsUpdateLock) {
-      update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      TRoleChanges rUpdate = update.addRoleUpdate(request.getRoleName());
-      for (TSentryGroup group : request.getGroups()) {
-        rUpdate.addToAddGroups(group.getGroupName());
-      }
-      permsUpdater.handleUpdateNotification(update);
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    TRoleChanges rUpdate = update.addRoleUpdate(request.getRoleName());
+    for (TSentryGroup group : request.getGroups()) {
+      rUpdate.addToAddGroups(group.getGroupName());
     }
+    permsUpdater.handleUpdateNotification(update);
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
@@ -326,15 +304,12 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   public void onAlterSentryRoleDeleteGroups(
       TAlterSentryRoleDeleteGroupsRequest request)
           throws SentryPluginException {
-    PermissionsUpdate update;
-    synchronized (permsUpdateLock) {
-      update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      TRoleChanges rUpdate = update.addRoleUpdate(request.getRoleName());
-      for (TSentryGroup group : request.getGroups()) {
-        rUpdate.addToDelGroups(group.getGroupName());
-      }
-      permsUpdater.handleUpdateNotification(update);
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    TRoleChanges rUpdate = update.addRoleUpdate(request.getRoleName());
+    for (TSentryGroup group : request.getGroups()) {
+      rUpdate.addToDelGroups(group.getGroupName());
     }
+    permsUpdater.handleUpdateNotification(update);
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
@@ -356,13 +331,10 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       throws SentryPluginException {
     String authzObj = getAuthzObj(privilege);
     if (authzObj != null) {
-      PermissionsUpdate update;
-      synchronized (permsUpdateLock) {
-        update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-        update.addPrivilegeUpdate(authzObj).putToAddPrivileges(
+      PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+      update.addPrivilegeUpdate(authzObj).putToAddPrivileges(
           roleName, privilege.getAction().toUpperCase());
-        permsUpdater.handleUpdateNotification(update);
-      }
+      permsUpdater.handleUpdateNotification(update);
       LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + "]..");
     }
   }
@@ -372,14 +344,11 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       throws SentryPluginException {
     String oldAuthz = getAuthzObj(request.getOldAuthorizable());
     String newAuthz = getAuthzObj(request.getNewAuthorizable());
-    PermissionsUpdate update;
-    synchronized (permsUpdateLock) {
-      update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      TPrivilegeChanges privUpdate = update.addPrivilegeUpdate(PermissionsUpdate.RENAME_PRIVS);
-      privUpdate.putToAddPrivileges(newAuthz, newAuthz);
-      privUpdate.putToDelPrivileges(oldAuthz, oldAuthz);
-      permsUpdater.handleUpdateNotification(update);
-    }
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    TPrivilegeChanges privUpdate = update.addPrivilegeUpdate(PermissionsUpdate.RENAME_PRIVS);
+    privUpdate.putToAddPrivileges(newAuthz, newAuthz);
+    privUpdate.putToDelPrivileges(oldAuthz, oldAuthz);
+    permsUpdater.handleUpdateNotification(update);
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + newAuthz + ", " + oldAuthz + "]..");
   }
 
@@ -409,13 +378,10 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       throws SentryPluginException {
     String authzObj = getAuthzObj(privilege);
     if (authzObj != null) {
-      PermissionsUpdate update;
-      synchronized (permsUpdateLock) {
-        update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-        update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
+      PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+      update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
           roleName, privilege.getAction().toUpperCase());
-        permsUpdater.handleUpdateNotification(update);
-      }
+      permsUpdater.handleUpdateNotification(update);
       LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
     }
   }
@@ -423,29 +389,22 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   @Override
   public void onDropSentryRole(TDropSentryRoleRequest request)
       throws SentryPluginException {
-    PermissionsUpdate update;
-    synchronized (permsUpdateLock) {
-      update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      update.addPrivilegeUpdate(PermissionsUpdate.ALL_AUTHZ_OBJ).putToDelPrivileges(
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    update.addPrivilegeUpdate(PermissionsUpdate.ALL_AUTHZ_OBJ).putToDelPrivileges(
         request.getRoleName(), PermissionsUpdate.ALL_AUTHZ_OBJ);
-      update.addRoleUpdate(request.getRoleName()).addToDelGroups(PermissionsUpdate.ALL_GROUPS);
-      permsUpdater.handleUpdateNotification(update);
-    }
+    update.addRoleUpdate(request.getRoleName()).addToDelGroups(PermissionsUpdate.ALL_GROUPS);
+    permsUpdater.handleUpdateNotification(update);
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
   }
 
   @Override
   public void onDropSentryPrivilege(TDropPrivilegesRequest request)
       throws SentryPluginException {
-    PermissionsUpdate update;
-    String authzObj;
-    synchronized (permsUpdateLock) {
-      update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
-      authzObj = getAuthzObj(request.getAuthorizable());
-      update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
+    PermissionsUpdate update = new PermissionsUpdate(permSeqNum.incrementAndGet(), false);
+    String authzObj = getAuthzObj(request.getAuthorizable());
+    update.addPrivilegeUpdate(authzObj).putToDelPrivileges(
         PermissionsUpdate.ALL_ROLES, PermissionsUpdate.ALL_ROLES);
-      permsUpdater.handleUpdateNotification(update);
-    }
+    permsUpdater.handleUpdateNotification(update);
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
   }
 

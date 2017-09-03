@@ -316,15 +316,10 @@ public class TestUpdateForwarder {
 
   @Test
   public void testUpdateLogCompression() throws Exception {
-    // with the currentl implementation, with the log size 5,
-    // compaction will be triggered to keep the log size between 5 an 5*2=10
-    // Image retriever automatically creates updateLog entry #0
     DummyImageRetreiver imageRetreiver = new DummyImageRetreiver();
     imageRetreiver.setState("a,b,c");
     updateForwarder = UpdateForwarder.create(
         testConf, new DummyUpdatable(), new DummyUpdate(), imageRetreiver, 5);
-
-    // Now adding updateLog entry #1, 2 total
     updateForwarder.handleUpdateNotification(new DummyUpdate(5, false).setState("d"));
     while(!updateForwarder.areAllUpdatesCommited()) {
       Thread.sleep(100);
@@ -333,7 +328,6 @@ public class TestUpdateForwarder {
     List<DummyUpdate> allUpdates = updateForwarder.getAllUpdatesFrom(0);
     Assert.assertEquals(2, allUpdates.size());
 
-    // current # of entries ==2, adding 6 more entries, should be 8 total
     updateForwarder.handleUpdateNotification(new DummyUpdate(6, false).setState("e"));
     updateForwarder.handleUpdateNotification(new DummyUpdate(7, false).setState("f"));
     updateForwarder.handleUpdateNotification(new DummyUpdate(8, false).setState("g"));
@@ -346,59 +340,12 @@ public class TestUpdateForwarder {
     }
     Assert.assertEquals(11, updateForwarder.getLastUpdatedSeqNum());
     allUpdates = updateForwarder.getAllUpdatesFrom(0);
-    Assert.assertEquals(8, allUpdates.size());
-
-    // Total of 8 entries, no compaction at this point
-    Assert.assertEquals("a,b,c", allUpdates.get(0).getState());
-    Assert.assertEquals(4, allUpdates.get(0).getSeqNum());
-
-    Assert.assertEquals("d", allUpdates.get(1).getState());
-    Assert.assertEquals(5, allUpdates.get(1).getSeqNum());
-
-    Assert.assertEquals("e", allUpdates.get(2).getState());
-    Assert.assertEquals(6, allUpdates.get(2).getSeqNum());
-
-    Assert.assertEquals("f", allUpdates.get(3).getState());
-    Assert.assertEquals(7, allUpdates.get(3).getSeqNum());
-
-    Assert.assertEquals("g", allUpdates.get(4).getState());
-    Assert.assertEquals(8, allUpdates.get(4).getSeqNum());
-
-    Assert.assertEquals("h", allUpdates.get(5).getState());
-    Assert.assertEquals(9, allUpdates.get(5).getSeqNum());
-
-    Assert.assertEquals("i", allUpdates.get(6).getState());
-    Assert.assertEquals(10, allUpdates.get(6).getSeqNum());
-
-    Assert.assertEquals("j", allUpdates.get(7).getState());
-    Assert.assertEquals(11, allUpdates.get(7).getSeqNum());
-
-    // adding 2 more entries, brings log size to 10, triggering compression down to 5
-    updateForwarder.handleUpdateNotification(new DummyUpdate(12, false).setState("k"));
-    updateForwarder.handleUpdateNotification(new DummyUpdate(13, false).setState("l"));
-    while(!updateForwarder.areAllUpdatesCommited()) {
-      Thread.sleep(100);
-    }
-
-    Assert.assertEquals(13, updateForwarder.getLastUpdatedSeqNum());
-    allUpdates = updateForwarder.getAllUpdatesFrom(0);
-    Assert.assertEquals(5, allUpdates.size());
-
-    // update #0 is full image assuming the sequence number of the last
-    // partial update it assimilated, i.e. seqNum 9 of update "h"
+    Assert.assertEquals(3, allUpdates.size());
     Assert.assertEquals("a,b,c,d,e,f,g,h", allUpdates.get(0).getState());
     Assert.assertEquals(9, allUpdates.get(0).getSeqNum());
-
     Assert.assertEquals("i", allUpdates.get(1).getState());
     Assert.assertEquals(10, allUpdates.get(1).getSeqNum());
-
     Assert.assertEquals("j", allUpdates.get(2).getState());
     Assert.assertEquals(11, allUpdates.get(2).getSeqNum());
-
-    Assert.assertEquals("k", allUpdates.get(3).getState());
-    Assert.assertEquals(12, allUpdates.get(3).getSeqNum());
-
-    Assert.assertEquals("l", allUpdates.get(4).getState());
-    Assert.assertEquals(13, allUpdates.get(4).getSeqNum());
   }
 }
