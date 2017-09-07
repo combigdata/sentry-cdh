@@ -44,13 +44,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
+import org.apache.sentry.hdfs.PathsUpdate;
+import org.apache.sentry.hdfs.UniquePathsUpdate;
+import org.apache.sentry.hdfs.UpdateableAuthzPaths;
 import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryAlreadyExistsException;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
-import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.provider.db.service.model.MAuthzPathsMapping;
 import org.apache.sentry.provider.db.service.model.MAuthzPathsSnapshotId;
 import org.apache.sentry.provider.db.service.model.MSentryChange;
@@ -61,8 +63,6 @@ import org.apache.sentry.provider.db.service.model.MSentryPermChange;
 import org.apache.sentry.provider.db.service.model.MSentryPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
 import org.apache.sentry.provider.db.service.model.MSentryVersion;
-import org.apache.sentry.provider.db.service.model.MSentryPathChange;
-import org.apache.sentry.provider.db.service.model.MSentryPermChange;
 import org.apache.sentry.provider.db.service.thrift.SentryConfigurationException;
 import org.apache.sentry.provider.db.service.model.MSentryUtil;
 import org.apache.sentry.provider.db.service.model.MPath;
@@ -2492,11 +2492,15 @@ public class SentryStore {
   }
 
   /**
-   * Retrieves an up-to-date hive paths snapshot.
-   * <p>
+   * Retrieves an up-to-date hive paths snapshot. <p>
    * It reads hiveObj to paths mapping from {@link MAuthzPathsMapping} table and
    * gets the changeID of latest delta update, from {@link MSentryPathChange}, that
    * the snapshot corresponds to.
+   *
+   * NOTE: this method used to be used in the actual code but is now only used for tests
+   * which should be refactored to use the new {@link #retrieveFullPathsImageUpdate} functionality.
+   *
+   * TODO: Remove retrieveFullPathsImage method and reimplement tests.
    *
    * @return an up-to-date hive paths snapshot contains mapping of hiveObj to &lt Paths &gt.
    *         For empty image return {@link #EMPTY_CHANGE_ID} and a empty map.
@@ -2516,6 +2520,37 @@ public class SentryStore {
         return new PathsImage(pathImage, curChangeID, curImageID);
       }
     });
+  }
+
+  /**
+   * Retrieves an up-to-date hive paths snapshot.
+   * The image only contains PathsDump in it.
+   * <p>
+   * It reads hiveObj to paths mapping from {@link MAuthzPathsMapping} table and
+   * gets the changeID of latest delta update, from {@link MSentryPathChange}, that
+   * the snapshot corresponds to.
+   *
+   * @param prefixes path of Sentry managed prefixes. Ignore any path outside the prefix.
+   * @return an up-to-date hive paths snapshot contains mapping of hiveObj to &lt Paths &gt.
+   *         For empty image return {@link #EMPTY_CHANGE_ID} and a empty map.
+   * @throws Exception
+   */
+  public PathsUpdate retrieveFullPathsImageUpdate(final String[] prefixes) throws Exception {
+    return tm.executeTransaction(
+            new TransactionBlock<PathsUpdate>() {
+              public PathsUpdate execute(PersistenceManager pm) throws Exception {
+                pm.setDetachAllOnCommit(false); // No need to detach objects
+                long curImageID = getCurrentAuthzPathsSnapshotID(pm);
+                long curChangeID = getLastProcessedChangeIDCore(pm, MSentryPathChange.class);
+                PathsUpdate pathUpdate = new PathsUpdate(curChangeID, curImageID, true);
+                // We ignore anything in the update and set it later to the assembled PathsDump
+                UpdateableAuthzPaths authzPaths = new UpdateableAuthzPaths(prefixes);
+                // Extract all paths and put them into authzPaths
+                retrieveFullPathsImageCore(pm, curImageID, authzPaths);
+                pathUpdate.toThrift().setPathsDump(authzPaths.getPathsDump().createPathsDump(true));
+                return pathUpdate;
+              }
+            });
   }
 
   /**
@@ -2546,6 +2581,37 @@ public class SentryStore {
     }
 
     return retVal;
+  }
+
+  /**
+   * Extract all paths and convert them into HMSPaths obect
+   * @param pm Persistence manager
+   * @param currentSnapshotID Image ID we are interested in
+   * @param pathUpdate Destination for result
+   */
+  private void retrieveFullPathsImageCore(PersistenceManager pm,
+                                          long currentSnapshotID,
+                                          UpdateableAuthzPaths pathUpdate) {
+    // Query for all MAuthzPathsMapping objects matching the given image ID
+    Query query = pm.newQuery(MAuthzPathsMapping.class);
+    query.addExtension(LOAD_RESULTS_AT_COMMIT, "false");
+    query.setFilter("this.authzSnapshotID == currentSnapshotID");
+    query.declareParameters("long currentSnapshotID");
+    Collection<MAuthzPathsMapping> authzToPathsMappings =
+            (Collection<MAuthzPathsMapping>) query.execute(currentSnapshotID);
+
+    // Walk each MAuthzPathsMapping object, get set of paths and push them all
+    // into HMSPaths object contained in UpdateableAuthzPaths.
+    for (MAuthzPathsMapping authzToPaths : authzToPathsMappings) {
+      String  objName = authzToPaths.getAuthzObjName();
+      // Convert path strings to list of components
+      for (String path: authzToPaths.getPathStrings()) {
+        String[] pathComponents = path.split("/");
+        List<String> paths = new ArrayList<>(pathComponents.length);
+        Collections.addAll(paths, pathComponents);
+        pathUpdate.applyAddChanges(objName, Collections.singletonList(paths));
+      }
+    }
   }
 
   /**
