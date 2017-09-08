@@ -584,8 +584,10 @@ public class SentryStore {
     query.setFilter("changeID <= maxChangedIdDeleted");
     query.declareParameters("long maxChangedIdDeleted");
     long numDeleted = query.deletePersistentAll(maxIDDeleted);
-    LOGGER.info(String.format("Purged %d of %s to changeID=%d",
-        numDeleted, cls.getSimpleName(), maxIDDeleted));
+    if (numDeleted > 0) {
+      LOGGER.info(String.format("Purged %d of %s to changeID=%d",
+              numDeleted, cls.getSimpleName(), maxIDDeleted));
+    }
   }
 
   /**
@@ -608,7 +610,9 @@ public class SentryStore {
     query.setFilter("notificationId <= maxNotificationIdDeleted");
     query.declareParameters("long maxNotificationIdDeleted");
     long numDeleted = query.deletePersistentAll(lastNotificationID - changesToKeep);
-    LOGGER.info("Purged {} of {}", numDeleted, MSentryHmsNotification.class.getSimpleName());
+    if (numDeleted > 0) {
+      LOGGER.info("Purged {} of {}", numDeleted, MSentryHmsNotification.class.getSimpleName());
+    }
   }
 
   /**
@@ -2615,6 +2619,28 @@ public class SentryStore {
   }
 
   /**
+   * Delete all stored HMS notifications starting from given ID.<p>
+   *
+   * The purpose of the function is to clean up notifications in cases
+   * were we recover from HMS notifications resets.
+   *
+   * @param pm Persistent manager instance
+   * @param id initial ID. All notifications starting from this ID and above are
+   *          removed.
+   */
+  private void deleteNotificationsSince(PersistenceManager pm, long id) {
+    Query query = pm.newQuery(MSentryHmsNotification.class);
+    query.addExtension(LOAD_RESULTS_AT_COMMIT, "false");
+    query.setFilter("notificationId >= currentNotificationId");
+    query.declareParameters("long currentNotificationId");
+    long numDeleted = query.deletePersistentAll(id);
+    if (numDeleted > 0) {
+      LOGGER.info("Purged {} notification entries starting from {}",
+              numDeleted, id);
+    }
+  }
+
+  /**
    * Persist an up-to-date HMS snapshot into Sentry DB in a single transaction with its latest
    * notification ID
    *
@@ -2628,6 +2654,7 @@ public class SentryStore {
       new TransactionBlock() {
         public Object execute(PersistenceManager pm) throws Exception {
           pm.setDetachAllOnCommit(false); // No need to detach objects
+          deleteNotificationsSince(pm, notificationID + 1);
 
           // persist the notidicationID
           pm.makePersistent(new MSentryHmsNotification(notificationID));
@@ -3223,17 +3250,33 @@ public class SentryStore {
   }
 
   /**
+   * Set the notification ID of last processed HMS notification and remove all
+   * subsequent notifications stored.
+   */
+  public void setLastProcessedNotificationID(final Long notificationId) throws Exception {
+    LOGGER.debug("Persisting Last Processed Notification ID {}", notificationId);
+    tm.executeTransaction(
+      new TransactionBlock<Object>() {
+        public Object execute(PersistenceManager pm) throws Exception {
+          deleteNotificationsSince(pm, notificationId + 1);
+          return pm.makePersistent(new MSentryHmsNotification(notificationId));
+        }
+      });
+  }
+
+  /**
    * Set the notification ID of last processed HMS notification.
    */
   public void persistLastProcessedNotificationID(final Long notificationId) throws Exception {
     LOGGER.debug("Persisting Last Processed Notification ID {}", notificationId);
     tm.executeTransaction(
-      new TransactionBlock<Object>() {
-        public Object execute(PersistenceManager pm) throws Exception {
-          return pm.makePersistent(new MSentryHmsNotification(notificationId));
-        }
-      });
+            new TransactionBlock<Object>() {
+              public Object execute(PersistenceManager pm) throws Exception {
+                return pm.makePersistent(new MSentryHmsNotification(notificationId));
+              }
+            });
   }
+
   /**
    * Gets the last processed change ID for perm delta changes.
    *
