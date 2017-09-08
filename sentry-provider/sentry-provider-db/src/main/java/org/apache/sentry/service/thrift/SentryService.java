@@ -277,6 +277,7 @@ public class SentryService implements Callable, SigUtils.SigListener {
 
     // allow CM to know that sentry service is ready
     System.out.println("Sentry service is ready to serve client requests");
+    SentryStateBank.enableState(SentryServiceState.COMPONENT, SentryServiceState.SERVICE_RUNNING);  
     thriftServer.serve();
   }
 
@@ -488,6 +489,7 @@ public class SentryService implements Callable, SigUtils.SigListener {
     if (exception != null) {
       exception.ifExceptionThrow();
     }
+    SentryStateBank.disableState(SentryServiceState.COMPONENT,SentryServiceState.SERVICE_RUNNING);
     LOGGER.info("Stopped...");
   }
 
