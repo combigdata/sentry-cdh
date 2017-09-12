@@ -19,11 +19,14 @@
 package org.apache.sentry.service.thrift;
 
 import junit.framework.TestCase;
+import org.junit.Test;
 
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Test for CounterWait class
@@ -52,7 +55,7 @@ public class TestCounterWait extends TestCase {
                            long r = 0;
                            try {
                              r = waiter.waitFor(val); // blocks
-                           } catch (InterruptedException e) {
+                           } catch (InterruptedException | TimeoutException e) {
                              e.printStackTrace();
                            }
                            outSyncQueue.add(r); // Once we wake up, post result
@@ -83,6 +86,19 @@ public class TestCounterWait extends TestCase {
 
     // We are done
     executor.shutdown();
+  }
+
+  // Test for waitFor() timeout throwing TimeoutException
+  @Test
+  public void testWaitForWithTimeout() throws Exception {
+    CounterWait waiter = new CounterWait(1, TimeUnit.MILLISECONDS);
+    boolean gotException = false;
+    try {
+      waiter.waitFor(1); // Should throw exception
+    } catch (TimeoutException e) {
+      gotException = true;
+    }
+    assertFalse (!gotException);
   }
 
   private void sleep(long ms) {
