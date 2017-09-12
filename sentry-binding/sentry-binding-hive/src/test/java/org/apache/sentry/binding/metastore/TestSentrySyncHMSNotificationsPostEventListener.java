@@ -79,19 +79,19 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
 
   @Test
   public void testFailedEventsDoNotSyncNotifications() throws MetaException {
-    callAllEvents(FAILED_STATUS, EVENT_ID_UNSET);
+    callAllEventsThatSynchronize(FAILED_STATUS, EVENT_ID_UNSET);
     Mockito.verifyZeroInteractions(eventListener.getSentryServiceClient());
   }
 
   @Test
   public void testEventsWithoutAnEventIdDoNotSyncNotifications() throws MetaException {
-    callAllEvents(SUCCESSFUL_STATUS, EVENT_ID_UNSET);
+    callAllEventsThatSynchronize(SUCCESSFUL_STATUS, EVENT_ID_UNSET);
     Mockito.verifyZeroInteractions(eventListener.getSentryServiceClient());
   }
 
   @Test
   public void testSuccessfulEventsWithAnEventIdSyncNotifications() throws MetaException, SentryUserException {
-    long latestEventId = callAllEvents(SUCCESSFUL_STATUS, EVENT_ID_SET);
+    long latestEventId = callAllEventsThatSynchronize(SUCCESSFUL_STATUS, EVENT_ID_SET);
 
     for (int i=1; i<=latestEventId; i++) {
       Mockito.verify(
@@ -120,7 +120,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
       }
     }).when(mockSentryClient).syncNotifications(Mockito.anyLong());
 
-    long latestEventId = callAllEvents(SUCCESSFUL_STATUS, EVENT_ID_SET);
+    long latestEventId = callAllEventsThatSynchronize(SUCCESSFUL_STATUS, EVENT_ID_SET);
 
     for (int i=1; i<=latestEventId; i+=2) {
       Mockito.verify(
@@ -139,7 +139,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verifyNoMoreInteractions(eventListener.getSentryServiceClient());
   }
 
-  private long callAllEvents(boolean status, boolean eventIdSet) throws MetaException {
+  private long callAllEventsThatSynchronize(boolean status, boolean eventIdSet) throws MetaException {
     long eventId = 0;
 
     CreateDatabaseEvent createDatabaseEvent = new CreateDatabaseEvent(null, status , null);
@@ -157,22 +157,6 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     DropTableEvent dropTableEvent = new DropTableEvent(null, status , false, null);
     setEventId(eventIdSet, dropTableEvent, ++eventId);
     eventListener.onDropTable(dropTableEvent);
-
-    AlterTableEvent alterTableEvent = new AlterTableEvent(null, null, status , null);
-    setEventId(eventIdSet, alterTableEvent, ++eventId);
-    eventListener.onAlterTable(alterTableEvent);
-
-    AddPartitionEvent addPartitionEvent = new AddPartitionEvent(null, (Partition) null, status, null);
-    setEventId(eventIdSet, addPartitionEvent, ++eventId);
-    eventListener.onAddPartition(addPartitionEvent);
-
-    DropPartitionEvent dropPartitionEvent = new DropPartitionEvent(null, null, status, false, null);
-    setEventId(eventIdSet, dropPartitionEvent, ++eventId);
-    eventListener.onDropPartition(dropPartitionEvent);
-
-    AlterPartitionEvent alterPartitionEvent = new AlterPartitionEvent(null, null, null, status, null);
-    setEventId(eventIdSet, alterPartitionEvent, ++eventId);
-    eventListener.onAlterPartition(alterPartitionEvent);
 
     return eventId;
   }
