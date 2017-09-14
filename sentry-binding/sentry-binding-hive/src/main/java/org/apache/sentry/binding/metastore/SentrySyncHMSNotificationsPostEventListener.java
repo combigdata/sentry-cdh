@@ -61,7 +61,7 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
    */
   private final AtomicLong latestProcessedId = new AtomicLong(0);
 
-  SentrySyncHMSNotificationsPostEventListener(Configuration config) {
+  public SentrySyncHMSNotificationsPostEventListener(Configuration config) {
     super(config);
 
     if (!(config instanceof HiveConf)) {
