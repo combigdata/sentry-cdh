@@ -162,7 +162,7 @@ public class SentryStore {
             equals(ServerConfig.DATANUCLEUS_REPEATABLE_READ) &&
                     jdbcUrl.contains(oracleDb)) {
       String parts[] = jdbcUrl.split(":");
-      if (parts.length > 1 && parts[1].equals(oracleDb)) {
+      if ((parts.length > 1) && parts[1].equals(oracleDb)) {
         // For Oracle JDBC driver, replace "repeatable-read" with "read-committed"
         prop.setProperty(ServerConfig.DATANUCLEUS_ISOLATION_LEVEL,
                 "read-committed");
@@ -450,11 +450,11 @@ public class SentryStore {
           MSentryPrivilege mSelect = getMSentryPrivilege(tNotAll, pm);
           tNotAll.setAction(AccessConstants.INSERT);
           MSentryPrivilege mInsert = getMSentryPrivilege(tNotAll, pm);
-          if ((mSelect != null) && (mRole.getPrivileges().contains(mSelect))) {
+          if ((mSelect != null) && mRole.getPrivileges().contains(mSelect)) {
             mSelect.removeRole(mRole);
             pm.makePersistent(mSelect);
           }
-          if ((mInsert != null) && (mRole.getPrivileges().contains(mInsert))) {
+          if ((mInsert != null) && mRole.getPrivileges().contains(mInsert)) {
             mInsert.removeRole(mRole);
             pm.makePersistent(mInsert);
           }
@@ -1830,6 +1830,7 @@ public class SentryStore {
     return tm.executeTransaction(
         new TransactionBlock<Map<String, LinkedList<String>>>() {
           public Map<String, LinkedList<String>> execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             Query query = pm.newQuery(MSentryGroup.class);
             @SuppressWarnings("unchecked")
             List<MSentryGroup> groups = (List<MSentryGroup>) query.execute();
@@ -1868,6 +1869,7 @@ public class SentryStore {
     return tm.executeTransaction(
       new TransactionBlock<Boolean>() {
         public Boolean execute(PersistenceManager pm) throws Exception {
+          pm.setDetachAllOnCommit(false); // No need to detach objects
           return findOrphanedPrivilegesCore(pm);
         }
       });
@@ -1901,6 +1903,7 @@ public class SentryStore {
     return tm.executeTransaction(
         new TransactionBlock<Set<String>>() {
           public Set<String> execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             return getAllRoleNames(pm);
           }
         });
@@ -1951,5 +1954,4 @@ public class SentryStore {
     }
     return roleNames;
   }
-
 }
