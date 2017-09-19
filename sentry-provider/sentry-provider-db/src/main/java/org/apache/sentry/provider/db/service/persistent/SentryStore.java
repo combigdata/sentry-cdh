@@ -295,6 +295,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             String trimmedRoleName = trimAndLower(roleName);
             if (getRole(pm, trimmedRoleName) != null) {
               throw new SentryAlreadyExistsException("Role: " + trimmedRoleName);
@@ -316,10 +317,12 @@ public class SentryStore {
       return tm.executeTransaction(
           new TransactionBlock<Long>() {
             public Long execute(PersistenceManager pm) throws Exception {
+              pm.setDetachAllOnCommit(false); // No need to detach objects
               Query query = pm.newQuery();
               query.setClass(tClass);
               query.setResult("count(this)");
-              return (Long) query.execute();
+              Long result = (Long)query.execute();
+              return result;
             }
           });
     } catch (Exception e) {
@@ -401,7 +404,7 @@ public class SentryStore {
   public void alterSentryRoleGrantPrivilege(String grantorPrincipal,
       String roleName, TSentryPrivilege privilege) throws Exception {
     alterSentryRoleGrantPrivileges(grantorPrincipal, roleName,
-            Sets.newHashSet(privilege));
+        Sets.newHashSet(privilege));
   }
 
   /**
@@ -416,6 +419,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             String trimmedRoleName = trimAndLower(roleName);
             for (TSentryPrivilege privilege : privileges) {
               // first do grant check
@@ -481,10 +485,19 @@ public class SentryStore {
     return mPrivilege;
   }
 
+  /**
+  * Alter a given sentry role to revoke a privilege.
+  *
+  * @param grantorPrincipal User name
+  * @param roleName the given role name
+  * @param tPrivilege the given privilege
+  * @throws Exception
+  *
+  */
   public void alterSentryRoleRevokePrivilege(String grantorPrincipal,
       String roleName, TSentryPrivilege tPrivilege) throws Exception {
     alterSentryRoleRevokePrivileges(grantorPrincipal, roleName,
-            Sets.newHashSet(tPrivilege));
+        Sets.newHashSet(tPrivilege));
   }
 
   public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
@@ -492,6 +505,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             String trimmedRoleName = safeTrimLower(roleName);
             for (TSentryPrivilege tPrivilege : tPrivileges) {
               // first do revoke check
@@ -779,6 +793,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             dropSentryRoleCore(pm, roleName);
             return null;
           }
@@ -833,6 +848,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             alterSentryRoleAddGroupsCore(pm, roleName, groupNames);
             return null;
           }
@@ -867,6 +883,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             String trimmedRoleName = trimAndLower(roleName);
             MSentryRole role = getRole(pm, trimmedRoleName);
             if (role == null) {
@@ -960,6 +977,7 @@ public class SentryStore {
     return tm.executeTransaction(
       new TransactionBlock<Boolean>() {
         public Boolean execute(PersistenceManager pm) throws Exception {
+          pm.setDetachAllOnCommit(false); // No need to detach objects
           Query query = pm.newQuery(MSentryPrivilege.class);
           QueryParamBuilder paramBuilder = QueryParamBuilder.addRolesFilter(query,null, roleNames);
           paramBuilder.add(SERVER_NAME, serverName);
@@ -1201,13 +1219,14 @@ public class SentryStore {
   }
 
   public Set<String> getRoleNamesForGroups(final Set<String> groups) throws Exception {
-    if (groups == null || groups.isEmpty()) {
+    if ((groups == null) || groups.isEmpty()) {
       return ImmutableSet.of();
     }
 
     return tm.executeTransaction(
         new TransactionBlock<Set<String>>() {
           public Set<String>execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
             return getRoleNamesForGroupsCore(pm, groups);
           }
         });
@@ -1273,8 +1292,6 @@ public class SentryStore {
     Set<String> rolesToQuery = getRolesToQuery(groups, roleSet);
     return hasAnyServerPrivileges(rolesToQuery, server);
   }
-
-
 
   private Set<String> getRolesToQuery(Set<String> groups,
       TSentryActiveRoleSet roleSet) throws Exception {
@@ -1505,6 +1522,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
 
             TSentryPrivilege tPrivilege = toSentryPrivilege(tAuthorizable);
             try {
@@ -1536,6 +1554,7 @@ public class SentryStore {
     tm.executeTransactionWithRetry(
         new TransactionBlock() {
           public Object execute(PersistenceManager pm) throws Exception {
+            pm.setDetachAllOnCommit(false); // No need to detach objects
 
             TSentryPrivilege tPrivilege = toSentryPrivilege(tAuthorizable);
             TSentryPrivilege newPrivilege = toSentryPrivilege(newTAuthorizable);
