@@ -47,10 +47,9 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
   
   private static final int MAX_UPDATES_PER_LOCK_USE = 99;
   private static final String UPDATABLE_TYPE_NAME = "perm_authz_update";
-  private volatile SentryPermissions perms = new SentryPermissions();
+  private static final Logger LOG = LoggerFactory.getLogger(UpdateableAuthzPermissions.class);
+  private final SentryPermissions perms = new SentryPermissions();
   private final AtomicLong seqNum = new AtomicLong(SEQUENCE_NUMBER_UPDATE_UNINITIALIZED);
-
-  private static Logger LOG = LoggerFactory.getLogger(UpdateableAuthzPermissions.class);
 
   @Override
   public List<AclEntry> getAcls(String authzObj) {
@@ -209,6 +208,7 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
       if (action == null) {
         // Encountered a privilege that is not supported. Since we do not know what
         // to do with it we just drop all access.
+        LOG.warn("Unsupported privilege {}, disabling all access", strPriv);
         action = FsAction.NONE;
       }
       retVal = retVal.or(action);
@@ -248,6 +248,15 @@ public class UpdateableAuthzPermissions implements AuthzPermissions, Updateable<
   @Override
   public String getUpdateableTypeName() {
     return UPDATABLE_TYPE_NAME;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s(%s, %s)", getClass().getSimpleName(), seqNum, perms);
+  }
+
+  public String dumpContent() {
+    return String.format("%s(%s) ", getClass().getSimpleName(), seqNum) + perms.dumpContent();
   }
 
 }
