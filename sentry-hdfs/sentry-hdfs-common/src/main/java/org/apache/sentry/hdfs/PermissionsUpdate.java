@@ -28,11 +28,11 @@ import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 
 public class PermissionsUpdate implements Updateable.Update {
 
-  public static String RENAME_PRIVS = "__RENAME_PRIV__";
-  public static String ALL_AUTHZ_OBJ = "__ALL_AUTHZ_OBJ__";
-  public static String ALL_PRIVS = "__ALL_PRIVS__";
-  public static String ALL_ROLES = "__ALL_ROLES__";
-  public static String ALL_GROUPS = "__ALL_GROUPS__";
+  public static final String RENAME_PRIVS = "__RENAME_PRIV__";
+  public static final String ALL_AUTHZ_OBJ = "__ALL_AUTHZ_OBJ__";
+  public static final String ALL_PRIVS = "__ALL_PRIVS__";
+  public static final String ALL_ROLES = "__ALL_ROLES__";
+  public static final String ALL_GROUPS = "__ALL_GROUPS__";
 
   private final TPermissionsUpdate tPermUpdate;
 
@@ -106,4 +106,37 @@ public class PermissionsUpdate implements Updateable.Update {
   public void deserialize(byte[] data) throws IOException {
     ThriftSerializer.deserialize(tPermUpdate, data);
   }
+
+  @Override
+  public int hashCode() {
+    return (tPermUpdate == null) ? 0 : tPermUpdate.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    }
+
+    if (this == obj) {
+      return true;
+    }
+
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+
+    PermissionsUpdate other = (PermissionsUpdate) obj;
+    if (tPermUpdate == null) {
+      return other.tPermUpdate == null;
+    }
+    return tPermUpdate.equals(other.tPermUpdate);
+  }
+
+  @Override
+  public String toString() {
+    // TPermissionsUpdate implements toString() perfectly; null tPermUpdate is ok
+    return getClass().getSimpleName() + "(" + tPermUpdate + ")";
+  }
+
 }

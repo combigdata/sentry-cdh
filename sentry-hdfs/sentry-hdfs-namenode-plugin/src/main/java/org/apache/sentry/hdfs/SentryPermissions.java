@@ -49,6 +49,10 @@ public class SentryPermissions implements AuthzPermissions {
     public String getAuthzObj() {
       return authzObj;
     }
+    @Override
+    public String toString() {
+      return "PrivilegeInfo(" + authzObj + " --> " + roleToPermission + ")";
+    }
   }
 
   public static class RoleInfo {
@@ -71,6 +75,10 @@ public class SentryPermissions implements AuthzPermissions {
     public Set<String> getAllGroups() {
       return groups;
     }
+    @Override
+    public String toString() {
+      return "RoleInfo(" + role + " --> " + groups + ")";
+    }
   }
 
   // Comparison of authorizable object should be case insensitive.
@@ -81,12 +89,13 @@ public class SentryPermissions implements AuthzPermissions {
   private final Map<String, RoleInfo> roles = new TreeMap<String, RoleInfo>(String.CASE_INSENSITIVE_ORDER);
 
   String getParentAuthzObject(String authzObject) {
-    int dot = authzObject.indexOf('.');
-    if (dot > 0) {
-      return authzObject.substring(0, dot);
-    } else {
-      return authzObject;
+    if (authzObject != null) {
+      int dot = authzObject.indexOf('.');
+      if (dot > 0) {
+        return authzObject.substring(0, dot);
+      }
     }
+    return authzObject;
   }
 
   void addParentChildMappings(String authzObject) {
@@ -143,8 +152,8 @@ public class SentryPermissions implements AuthzPermissions {
       builder.setType(AclEntryType.GROUP);
       builder.setScope(AclEntryScope.ACCESS);
       FsAction action = groupPerm.getValue();
-      if ((action == FsAction.READ) || (action == FsAction.WRITE)
-          || (action == FsAction.READ_WRITE)) {
+      if (action == FsAction.READ || action == FsAction.WRITE
+          || action == FsAction.READ_WRITE) {
         action = action.or(FsAction.EXECUTE);
       }
       builder.setPermission(action);
@@ -201,5 +210,22 @@ public class SentryPermissions implements AuthzPermissions {
 
   public void addRoleInfo(RoleInfo roleInfo) {
     roles.put(roleInfo.role, roleInfo);
+  }
+
+  public String dumpContent() {
+    return new StringBuffer(getClass().getSimpleName())
+      .append(": Privileges: ").append(privileges)
+      .append(", Roles: ").append(roles)
+      .append(", AuthzObjChildren: ").append(authzObjChildren)
+      .toString();
+  }
+
+  @Override
+  public String toString() {
+    return new StringBuffer(getClass().getSimpleName())
+      .append(": Privileges: ").append(privileges.size())
+      .append(", Roles: ").append(roles.size())
+      .append(", AuthzObjChildren: ").append(authzObjChildren.size())
+      .toString();
   }
 }

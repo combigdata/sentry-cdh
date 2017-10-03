@@ -34,7 +34,7 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
   private volatile HMSPaths paths;
   private final AtomicLong seqNum = new AtomicLong(0);
 
-  private static Logger LOG = LoggerFactory.getLogger(UpdateableAuthzPaths.class);
+  private static final Logger LOG = LoggerFactory.getLogger(UpdateableAuthzPaths.class);
 
   public UpdateableAuthzPaths(String[] pathPrefixes) {
     this.paths = new HMSPaths(pathPrefixes);
@@ -51,12 +51,12 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
 
   @Override
   public Set<String> findAuthzObject(String[] pathElements) {
-    return  paths.findAuthzObject(pathElements);
+    return paths.findAuthzObject(pathElements);
   }
 
   @Override
   public Set<String> findAuthzObjectExactMatches(String[] pathElements) {
-    return  paths.findAuthzObjectExactMatches(pathElements);
+    return paths.findAuthzObjectExactMatches(pathElements);
   }
 
   @Override
@@ -94,12 +94,12 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
       List<TPathChanges> pathChanges = update.getPathChanges();
       TPathChanges newPathInfo = null;
       TPathChanges oldPathInfo = null;
-      if ((pathChanges.get(0).getAddPathsSize() == 1)
-          && (pathChanges.get(1).getDelPathsSize() == 1)) {
+      if (pathChanges.get(0).getAddPathsSize() == 1
+          && pathChanges.get(1).getDelPathsSize() == 1) {
         newPathInfo = pathChanges.get(0);
         oldPathInfo = pathChanges.get(1);
-      } else if ((pathChanges.get(1).getAddPathsSize() == 1)
-          && (pathChanges.get(0).getDelPathsSize() == 1)) {
+      } else if (pathChanges.get(1).getAddPathsSize() == 1
+          && pathChanges.get(0).getDelPathsSize() == 1) {
         newPathInfo = pathChanges.get(1);
         oldPathInfo = pathChanges.get(0);
       }
@@ -125,8 +125,8 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
     }
     for (TPathChanges pathChanges : deletePathChanges) {
       List<List<String>> delPaths = pathChanges.getDelPaths();
-      if ((delPaths.size() == 1) && (delPaths.get(0).size() == 1)
-          && (delPaths.get(0).get(0).equals(PathsUpdate.ALL_PATHS))) {
+      if (delPaths.size() == 1 && delPaths.get(0).size() == 1
+          && delPaths.get(0).get(0).equals(PathsUpdate.ALL_PATHS)) {
         // Remove all paths.. eg. drop table
         paths.deleteAuthzObject(pathChanges.getAuthzObj());
       } else {
@@ -173,5 +173,14 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
   @Override
   public String getUpdateableTypeName() {
     return UPDATABLE_TYPE_NAME;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s(%s, %s)", getClass().getSimpleName(), seqNum, paths);
+  }
+
+  public String dumpContent() {
+    return String.format("%s(%s) ", getClass().getSimpleName(), seqNum) + paths.dumpContent();
   }
 }
