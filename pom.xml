@@ -61,7 +61,7 @@ limitations under the License.
     <commons.lang.version>2.6</commons.lang.version>
     <commons.logging.version>1.2</commons.logging.version>
     <commons.codec.version>1.9</commons.codec.version>
-    <bonecp.version>0.8.0.RELEASE</bonecp.version>
+    <bonecp.version>0.7.1.RELEASE</bonecp.version>
     <datanucleus.maven.plugin.version>4.0.1</datanucleus.maven.plugin.version>
     <datanucleus-api-jdo.version>3.2.6</datanucleus-api-jdo.version>
     <datanucleus-core.version>3.2.12</datanucleus-core.version>
@@ -73,7 +73,7 @@ limitations under the License.
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
     <hbase-solr.version>${cdh.hbase-solr.version}</hbase-solr.version>
     <fest.reflect.version>1.4.1</fest.reflect.version>
-    <guava.version>14.0.1</guava.version>
+    <guava.version>11.0.2</guava.version>
     <junit.version>4.9</junit.version>
     <libthrift.version>${cdh.thrift.version}</libthrift.version>
     <curator.version>2.11.1</curator.version>

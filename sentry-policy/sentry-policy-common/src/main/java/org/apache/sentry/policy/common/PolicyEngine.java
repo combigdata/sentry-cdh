@@ -20,7 +20,7 @@ package org.apache.sentry.policy.common;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.http.annotation.ThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
