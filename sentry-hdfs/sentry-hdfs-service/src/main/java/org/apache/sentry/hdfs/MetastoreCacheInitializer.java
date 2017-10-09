@@ -175,6 +175,10 @@ class MetastoreCacheInitializer implements Closeable {
           "database \"%s\", table \"%s\", partition with Null SD",
           dbName, tblName);
         try {
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("#### Fetching partition " +
+                "[" + dbName + "." + tblName + "], path " + part.getSd().getLocation());
+          }
           partPath = PathsUpdate.parsePath(part.getSd().getLocation());
         } catch (SentryMalformedPathException e) {
           String msg = String.format("Unexpected path in partitionTask: dbName=\"%s\", tblName=\"%s\", path=\"%s\"",
@@ -227,6 +231,10 @@ class MetastoreCacheInitializer implements Closeable {
         Preconditions.checkArgument(tbl.getDbName().equalsIgnoreCase(db.getName()),
           "database \"%s\", table \"%s\": inconsistent database name \"%s\"", tbl.getDbName(), tbl.getTableName(), db.getName());
         String tableName = tbl.getTableName().toLowerCase();
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug("#### Fetching table "
+            + "[" + db.getName() + "." + tableName + "], path " + tbl.getSd().getLocation());
+        }
         synchronized (update) {
           tblPathChange = update.newPathChange(db.getName() + "." + tableName);
         }
@@ -244,10 +252,20 @@ class MetastoreCacheInitializer implements Closeable {
           }
           List<String> tblPartNames =
                   hmsHandler.get_partition_names(db.getName(), tableName, (short) -1);
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("#### Fetching table "
+              + "[" + db.getName() + "." + tableName + "], path " + tbl.getSd().getLocation()
+              + ", partitions total " + tblPartNames.size());
+          }
           for (int i = 0; i < tblPartNames.size(); i += maxPartitionsPerCall) {
             List<String> partsToFetch =
                     tblPartNames.subList(i, Math.min(
                             i + maxPartitionsPerCall, tblPartNames.size()));
+            if (LOGGER.isDebugEnabled()) {
+              LOGGER.debug("#### Fetching table "
+                + "[" + db.getName() + "." + tableName + "], path " + tbl.getSd().getLocation()
+                + ", initializing partitions " + partsToFetch);
+            }
             Callable<CallResult> partTask =
                     new PartitionTask(db.getName(), tableName,
                             partsToFetch, tblPathChange);
@@ -274,6 +292,9 @@ class MetastoreCacheInitializer implements Closeable {
 
     @Override
     public void doTask() throws TException, SentryMalformedPathException {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("#### Fetching database ["+ dbName + "]");
+      }
       Database db = hmsHandler.get_database(dbName);
       Preconditions.checkNotNull(db, "Cannot find database \"%s\"", dbName);
       List<String> dbPath = null;
@@ -284,6 +305,9 @@ class MetastoreCacheInitializer implements Closeable {
           db.getName(), db.getLocationUri());
         throw new SentryMalformedPathException(msg, e);
       }
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("#### Fetching database [" + dbName + "], path " + dbPath);
+      }
       if (dbPath != null) {
         Preconditions.checkArgument(dbName.equalsIgnoreCase(db.getName()),
                 "Inconsistent database names \"%s\" vs \"%s\"", dbName, db.getName());
@@ -293,10 +317,16 @@ class MetastoreCacheInitializer implements Closeable {
       }
       List<String> allTblStr = hmsHandler.get_all_tables(dbName);
       Preconditions.checkNotNull(allTblStr, "Cannot fetch tables for database \"%s\"", dbName);
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("#### Fetching database [" + dbName + "], path " + dbPath + ", tables total " + allTblStr.size());
+      }
       for (int i = 0; i < allTblStr.size(); i += maxTablesPerCall) {
         List<String> tablesToFetch =
                 allTblStr.subList(i, Math.min(
                         i + maxTablesPerCall, allTblStr.size()));
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug("#### Fetching database [" + dbName + "], path " + dbPath + ", initializing tables " + tablesToFetch);
+        }
         Callable<CallResult> tableTask =
                 new TableTask(db, tablesToFetch, update);
           results.add(threadPool.submit(tableTask));
@@ -355,7 +385,13 @@ class MetastoreCacheInitializer implements Closeable {
             String[]{"/"});
     PathsUpdate tempUpdate = new PathsUpdate(-1, false);
     List<String> allDbStr = hmsHandler.get_all_databases();
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("#### initializing, databases total " + allDbStr.size());
+    }
     for (String dbName : allDbStr) {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("#### initializing database " + dbName);
+      }
       Callable<CallResult> dbTask = new DbTask(tempUpdate, dbName);
       results.add(threadPool.submit(dbTask));
     }
