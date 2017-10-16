@@ -34,6 +34,7 @@ public class HBaseIndexerAuthzConf extends Configuration {
     AUTHZ_PROVIDER_RESOURCE("sentry.hbaseindexer.provider.resource", ""),
     AUTHZ_PROVIDER_BACKEND("sentry.hbaseindexer.provider.backend", "org.apache.sentry.provider.file.SimpleFileProviderBackend"),
     AUTHZ_POLICY_ENGINE("sentry.hbaseindexer.policy.engine", "org.apache.sentry.policy.indexer.SimpleIndexerPolicyEngine"),
+    AUTHZ_SERVICE_NAME("sentry.hbaseindexer.service", "KS_INDEXER-1"),
     // binding uses hbase regionserver specification to login, but hbase regionservers
     // support putting _HOST instead of fqdn and doing the translation at runtime.
     // Setting this property tells sentry how to do the translation.

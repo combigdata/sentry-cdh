@@ -21,11 +21,11 @@ import static junit.framework.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedList;
-import java.util.Set;
 
 import junit.framework.Assert;
 
@@ -37,6 +37,7 @@ import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzCo
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.core.model.indexer.Indexer;
 import org.apache.sentry.core.model.indexer.IndexerModelAction;
+import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.apache.sentry.provider.file.PolicyFiles;
 import org.junit.After;
 import org.junit.Before;
@@ -292,6 +293,19 @@ public class TestHBaseIndexerAuthzBinding {
     assertEquals(2, genFilter.size());
     assertTrue(genFilter.contains(infoIndexerDefinition));
     assertTrue(genFilter.contains(generalInfoIndexerDefinition));
+  }
+
+  @Test
+  public void testSentryGenericProviderBackendConfig() throws Exception {
+    HBaseIndexerAuthzConf indexerAuthzConf =
+      new HBaseIndexerAuthzConf(Resources.getResource("sentry-site-service.xml"));
+
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    Field f = binding.getClass().getDeclaredField("providerBackend"); //NoSuchFieldException
+    f.setAccessible(true);
+    SentryGenericProviderBackend providerBackend = (SentryGenericProviderBackend) f.get(binding);
+    assertEquals(HBaseIndexerAuthzBinding.HBASEINDEXER, providerBackend.getComponentType());
+    assertEquals("MyService", providerBackend.getServiceName());
   }
 
   private IndexerDefinition getIndexerDefinition(Indexer indexer) {
