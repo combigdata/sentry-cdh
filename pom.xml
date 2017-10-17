@@ -769,7 +769,12 @@ limitations under the License.
       </plugin>
       <plugin>
         <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
+	<artifactId>apache-rat-plugin</artifactId>
+	<configuration>
+          <excludes>
+            <exclude>cloudera/*</exclude>
+          </excludes>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
