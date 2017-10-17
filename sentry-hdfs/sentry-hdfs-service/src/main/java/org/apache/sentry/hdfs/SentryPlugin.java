@@ -237,14 +237,14 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
    * Full update to NameNode should happen only after full update from HMS.
    */
   public List<PathsUpdate> getAllPathsUpdatesFrom(long pathSeqNum) throws Exception {
+    final List<PathsUpdate> pathsUpdate;
     if (!fullUpdateNN.get()) {
       // Most common case - Sentry is NOT handling a full update.
-      List<PathsUpdate> pathsUpdate = pathsUpdater.getAllUpdatesFrom(pathSeqNum);
+      pathsUpdate = pathsUpdater.getAllUpdatesFrom(pathSeqNum);
       if (!pathsUpdate.isEmpty() && pathsUpdate.get(0).hasFullImage()) {
         LOGGER.warn("getAllPathsUpdatesFrom([{}]): Sending Authz Paths FULL Update [numUpdates={}] [seqNum={}]",
           pathSeqNum, pathsUpdate.size(), pathsUpdate.get(0).getSeqNum());
       }
-      return pathsUpdate;
     } else if (!fullUpdateHMSWait.get()) {
       /*
        * Sentry is in the middle of signal-triggered full update.
@@ -252,7 +252,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
        */
       LOGGER.info("SIGNAL HANDLING: sending full update to NameNode");
       fullUpdateNN.set(false); // don't do full NN update till the next signal
-      List<PathsUpdate> updates = pathsUpdater.getAllUpdatesFrom(NO_LAST_SEEN_HMS_PATH_SEQ_NUM);
+      pathsUpdate = pathsUpdater.getAllUpdatesFrom(NO_LAST_SEEN_HMS_PATH_SEQ_NUM);
       /*
        * This code branch is only called when Sentry is in the middle of a full update
        * (fullUpdateNN == true) and Sentry has already received full update from HMS
@@ -265,9 +265,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
        * Returning NULL, empty, or partial update instead would be unexplainable, so
        * it should be logged.
        */
-      if (updates != null) {
-        if (!updates.isEmpty()) {
-          if (updates.get(0).hasFullImage()) {
+      if (pathsUpdate != null) {
+        if (!pathsUpdate.isEmpty()) {
+          if (pathsUpdate.get(0).hasFullImage()) {
             LOGGER.info("SIGNAL HANDLING: Confirmed full update to NameNode");
           } else {
             LOGGER.warn("SIGNAL HANDLING: Sending partial instead of full update to NameNode (???)");
@@ -278,21 +278,28 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       } else {
         LOGGER.warn("SIGNAL HANDLING: returned NULL instead of full update to NameNode (???)");
       }
-      return updates;
+      return pathsUpdate;
     } else {
       // Sentry is handling a full update, but not yet received full update from HMS
       LOGGER.warn("SIGNAL HANDLING: sending partial update to NameNode: still waiting for full update from HMS");
-      return pathsUpdater.getAllUpdatesFrom(pathSeqNum);
+      pathsUpdate = pathsUpdater.getAllUpdatesFrom(pathSeqNum);
     }
+    if (LOGGER.isTraceEnabled() && pathsUpdate != null && !pathsUpdate.isEmpty()) {
+      LOGGER.trace("Sending Path Updates: " + pathsUpdate); // toString() of each PathsUpdate object prints all we need
+    }
+    return pathsUpdate;
   }
 
   public List<PermissionsUpdate> getAllPermsUpdatesFrom(long permSeqNum) throws Exception {
     List<PermissionsUpdate> permsUpdate = permsUpdater.getAllUpdatesFrom(permSeqNum);
-      if (!permsUpdate.isEmpty() && permsUpdate.get(0).hasFullImage()) {
-        LOGGER.warn("getAllPermsUpdatesFrom([{}]): Sending Permissions FULL Update [numUpdates={}] [seqNum={}]",
-          permSeqNum, permsUpdate.size(), permsUpdate.get(0).getSeqNum());
-      }
-      return permsUpdate;
+    if (!permsUpdate.isEmpty() && permsUpdate.get(0).hasFullImage()) {
+      LOGGER.warn("getAllPermsUpdatesFrom([{}]): Sending Permissions FULL Update [numUpdates={}] [seqNum={}]",
+        permSeqNum, permsUpdate.size(), permsUpdate.get(0).getSeqNum());
+    }
+    if (LOGGER.isTraceEnabled() && permsUpdate != null && !permsUpdate.isEmpty()) {
+      LOGGER.trace("Sending Perms Updates: " + permsUpdate); // toString() of each PathsUpdate object prints all we need
+    }
+    return permsUpdate;
   }
 
   /*
@@ -307,6 +314,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       LOGGER.warn("Received Authz Path FULL update [" + update.getSeqNum() + "]..");
       // indicate that we're ready to send full update to NameNode
       fullUpdateHMSWait.set(false);
+    }
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Received Paths Updates: " + update); // toString() of PathsUpdate object has all we need
     }
   }
 
@@ -323,6 +333,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       permsUpdater.handleUpdateNotification(update);
     }
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Authz Permission: " + update);
+    }
   }
 
   @Override
@@ -339,6 +352,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       permsUpdater.handleUpdateNotification(update);
     }
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Authz Permission: " + update);
+    }
   }
 
   @Override
@@ -367,6 +383,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
         permsUpdater.handleUpdateNotification(update);
       }
       LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + "]..");
+      if (LOGGER.isTraceEnabled()) {
+        LOGGER.trace("Authz Permission: " + update);
+      }
     }
   }
 
@@ -384,6 +403,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       permsUpdater.handleUpdateNotification(update);
     }
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + newAuthz + ", " + oldAuthz + "]..");
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Authz Permission: " + update);
+    }
   }
 
   @Override
@@ -420,6 +442,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
         permsUpdater.handleUpdateNotification(update);
       }
       LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
+      if (LOGGER.isTraceEnabled()) {
+        LOGGER.trace("Authz Permission: " + update);
+      }
     }
   }
 
@@ -435,6 +460,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       permsUpdater.handleUpdateNotification(update);
     }
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + request.getRoleName() + "]..");
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Authz Permission: " + update);
+    }
   }
 
   @Override
@@ -450,6 +478,9 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
       permsUpdater.handleUpdateNotification(update);
     }
     LOGGER.debug("Authz Perm preUpdate [" + update.getSeqNum() + ", " + authzObj + "]..");
+    if (LOGGER.isTraceEnabled()) {
+      LOGGER.trace("Authz Permission: " + update);
+    }
   }
 
   @Override

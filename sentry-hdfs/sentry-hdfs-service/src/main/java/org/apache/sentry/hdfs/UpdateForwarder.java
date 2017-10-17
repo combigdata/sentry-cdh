@@ -256,33 +256,37 @@ public class UpdateForwarder<K extends Updateable.Update> implements Closeable {
     Runnable task = new Runnable() {
       @Override
       public void run() {
-        K toUpdate = update;
-        if (update.hasFullImage()) {
-          LOGGER.warn("[{}]: Full Image Arrived: [{}]", update.getClass().getSimpleName(), update.getSeqNum());
-          updateable = updateable.updateFull(update); // merge full update
-        } else {
-          if (editMissed) {
-            // Retrieve full update from External Source
-            if (imageRetriever != null) {
-              LOGGER.warn("[{}]: FULL Update Required due to out-of-sync: [expectedSeqNum {}] [seqNum {}]",
-                update.getClass().getSimpleName(), lastSeenSeqNum.get(),  update.getSeqNum());
-              try {
-                toUpdate = imageRetriever.retrieveFullImage(update.getSeqNum());
-              } catch (Exception e) {
-                LOGGER.warn("failed to retrieve full image: ", e);
+        try {
+          K toUpdate = update;
+          if (update.hasFullImage()) {
+            LOGGER.warn("[{}]: Full Image Arrived: [{}]", update.getClass().getSimpleName(), update.getSeqNum());
+            updateable = updateable.updateFull(update); // merge full update
+          } else {
+            if (editMissed) {
+              // Retrieve full update from External Source
+              if (imageRetriever != null) {
+                LOGGER.warn("[{}]: FULL Update Required due to out-of-sync: [expectedSeqNum {}] [seqNum {}]",
+                  update.getClass().getSimpleName(), lastSeenSeqNum.get(),  update.getSeqNum());
+                try {
+                  toUpdate = imageRetriever.retrieveFullImage(update.getSeqNum());
+                } catch (Exception e) {
+                  LOGGER.warn("failed to retrieve full image: ", e);
+                }
+                updateable = updateable.updateFull(toUpdate); // merge full update
+              } else {
+                LOGGER.warn("[{}]: Update Notification: out-of-sync [{}]: Cannot retrieve Full Image, no retriever",
+                  update.getClass().getSimpleName(), update.getSeqNum());
               }
-              updateable = updateable.updateFull(toUpdate); // merge full update
-            } else {
-              LOGGER.warn("[{}]: Update Notification: out-of-sync [{}]: Cannot retrieve Full Image, no retriever",
-                update.getClass().getSimpleName(), update.getSeqNum());
             }
           }
-        }
 
-        try {
-          appendToUpdateLog(toUpdate);
-        } catch (Exception e) {
-          LOGGER.warn("failed to append to update log", e);
+          try {
+            appendToUpdateLog(toUpdate);
+          } catch (Exception e) {
+            LOGGER.warn("failed to append to update log", e);
+          }
+        } catch (Throwable t) {
+          LOGGER.error("Error processing " + update.getClass().getSimpleName(), t);
         }
       }
     };
