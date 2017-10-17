@@ -17,6 +17,7 @@
  */
 package org.apache.sentry.hdfs;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -58,5 +59,38 @@ public class TestPathsUpdate {
     List<String> results = PathsUpdate.parsePath("file://hostname/path");
     System.out.println(results);
     Assert.assertNull("Parse path without throwing exception",results);
+  }
+
+  @Test
+  public void testSingleSlashPath() throws SentryMalformedPathException {
+    String paths[] = {
+      "hdfs://hostname.test.com:8020/path1/path2/path3",
+      "hdfs://hostname.test.com:8020/path1/path2/path3/"
+    };
+    List<String> expected = Arrays.asList("path1", "path2", "path3");
+
+    for (String path : paths) {
+      List<String> results = PathsUpdate.parsePath(path);
+      Assert.assertEquals("Error parsing " + path, expected, results);
+    }
+  }
+
+  @Test
+  public void testMultiSlashPath() throws SentryMalformedPathException {
+    String paths[] = {
+      "hdfs://hostname.test.com:8020//path1/path2/path3",
+      "hdfs://hostname.test.com:8020/path1//path2/path3",
+      "hdfs://hostname.test.com:8020/path1/path2//path3",
+      "hdfs://hostname.test.com:8020//path1//path2/path3",
+      "hdfs://hostname.test.com:8020//path1//path2//path3",
+      "hdfs://hostname.test.com:8020//path1//path2//path3/",
+      "hdfs://hostname.test.com:8020///path1///path2///path3///"
+    };
+    List<String> expected = Arrays.asList("path1", "path2", "path3");
+
+    for (String path : paths) {
+      List<String> results = PathsUpdate.parsePath(path);
+      Assert.assertEquals("Error parsing " + path, expected, results);
+    }
   }
 }

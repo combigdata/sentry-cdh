@@ -142,7 +142,8 @@ public class PathsUpdate implements Updateable.Update {
         // Convert each path to a list, so a/b/c becomes {a, b, c}
         // Since these are partition names they may have a lot of duplicate strings.
         // To save space for big snapshots we intern each path component.
-        String[] pathComponents = uriPath.split("^/")[1].split("/");
+        // Consequtive slashes are a single separator, so using regex "/+".
+        String[] pathComponents = uriPath.split("^/+")[1].split("/+");
         List<String> paths = new ArrayList<>(pathComponents.length);
         for (String pathElement: pathComponents) {
           paths.add(pathElement.intern());
