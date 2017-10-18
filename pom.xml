@@ -61,9 +61,9 @@ limitations under the License.
     <bonecp.version>0.8.0.RELEASE</bonecp.version>
     <build.helper.maven.plugin.version>1.8</build.helper.maven.plugin.version>
     <cglib.version>2.2</cglib.version>
-    <commons-cli.version>1.2</commons-cli.version>
+    <commons-cli.version>${cdh.commons-cli.version}</commons-cli.version>
     <commons-pool2.version>2.4.2</commons-pool2.version>
-    <commons.lang.version>2.6</commons.lang.version>
+    <commons.lang.version>${cdh.commons-lang.version}</commons.lang.version>
     <commons.logging.version>1.2</commons.logging.version>
     <curator.version>2.11.1</curator.version>
     <derby.version>10.13.1.1</derby.version>
@@ -73,30 +73,30 @@ limitations under the License.
     <hadoop.version>2.7.2</hadoop.version>
     <hamcrest.version>1.3</hamcrest.version>
     <hive.version>2.3.2</hive.version>
-    <jackson.version>1.8.8</jackson.version>
+    <jackson.version>${cdh.jackson.version}</jackson.version>
     <jdo-api.version>3.0.1</jdo-api.version>
-    <jetty.version>9.3.21.v20170918</jetty.version>
-    <joda-time.version>2.5</joda-time.version>
+    <jetty.version>${cdh.jetty9.version}</jetty.version>
+    <joda-time.version>${cdh.joda-time.version}</joda-time.version>
     <junit.version>4.10</junit.version>
-    <kafka.version>0.11.0.1</kafka.version>
-    <libfb303.version>0.9.3</libfb303.version>
-    <libthrift.version>0.9.3</libthrift.version>
-    <log4j.version>1.2.16</log4j.version>
+    <kafka.version>${cdh.kafka.version}</kafka.version>
+    <libfb303.version>${cdh.thrift.version}</libfb303.version>
+    <libthrift.version>${cdh.thrift.version}</libthrift.version>
+    <log4j.version>${cdh.log4j.version}</log4j.version>
     <maven.antrun.plugin.version>1.7</maven.antrun.plugin.version>
     <maven.eclipse.plugin.version>2.9</maven.eclipse.plugin.version>
     <maven.enforcer.plugin.version>1.3.1</maven.enforcer.plugin.version>
     <maven.shade.plugin.version>2.4.3</maven.shade.plugin.version>
     <metrics.version>3.0.2</metrics.version>
-    <mockito.version>1.8.5</mockito.version>
+    <mockito.version>${cdh.mockito.version}</mockito.version>
     <objenesis.version>1.2</objenesis.version>
     <pig.version>0.12.0</pig.version>
     <shiro.version>1.4.0</shiro.version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <slf4j.version>${cdh.slf4j.version}</slf4j.version>
     <solr.version>7.1.0</solr.version>
     <sqoop.version>1.99.7</sqoop.version>
     <surefire.version>2.20.1</surefire.version>
     <test.sentry.hadoop.classpath>${maven.test.classpath}</test.sentry.hadoop.classpath>
-    <zookeeper.version>3.4.5</zookeeper.version>
+    <zookeeper.version>${cdh.zookeeper.version}</zookeeper.version>
     <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
 
     <!-- Datanucleus package versions -->
