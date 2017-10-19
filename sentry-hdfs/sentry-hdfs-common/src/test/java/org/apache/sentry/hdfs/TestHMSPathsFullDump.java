@@ -55,7 +55,11 @@ public class TestHMSPathsFullDump {
         "/user/hive/warehouse/db1/tbl11/part_duplicate1",
         "/user/hive/warehouse/db1/tbl11/part_duplicate1/part_duplicate2",
         "/user/hive/warehouse/db1/tbl11/part_duplicate2",
-        "/user/hive/warehouse/db1/tbl11/part_duplicate2/part_duplicate1"));
+        "/user/hive/warehouse/db1/tbl11/part_duplicate2/part_duplicate1",
+        "/user/hive/warehouse/db1/tbl11/part_duplicate2//after_double_slash"));
+    // this call is equivalent to passing path with double slash but without collapsing it,
+    // to make sure deserializing structures with empty paths works.
+    hmsPaths.addPathsToAuthzObject("db1.tbl11", Arrays.asList(Arrays.asList("user", "hive", "warehouse", "db1", "tbl11", "part_duplicate2", "", "after_double_slash1")));
 
     // Not in Deserialized objects prefix paths
     hmsPaths._addAuthzObject("db2", Lists.newArrayList("/user/hive/w2/db2"));
@@ -112,6 +116,8 @@ public class TestHMSPathsFullDump {
     Assert.assertEquals(new HashSet<String>(Arrays.asList("db1.tbl11")), hmsPaths2.findAuthzObject(new String[]{"user", "hive", "warehouse", "db1", "tbl11", "part_duplicate1", "part_duplicate2"}, false));
     Assert.assertEquals(new HashSet<String>(Arrays.asList("db1.tbl11")), hmsPaths2.findAuthzObject(new String[]{"user", "hive", "warehouse", "db1", "tbl11", "part_duplicate2"}, false));
     Assert.assertEquals(new HashSet<String>(Arrays.asList("db1.tbl11")), hmsPaths2.findAuthzObject(new String[]{"user", "hive", "warehouse", "db1", "tbl11", "part_duplicate2", "part_duplicate1"}, false));
+    Assert.assertEquals(new HashSet<String>(Arrays.asList("db1.tbl11")), hmsPaths2.findAuthzObject(new String[]{"user", "hive", "warehouse", "db1", "tbl11", "part_duplicate2", "after_double_slash"}, false));
+    Assert.assertEquals(new HashSet<String>(Arrays.asList("db1.tbl11")), hmsPaths2.findAuthzObject(new String[]{"user", "hive", "warehouse", "db1", "tbl11", "part_duplicate2", "", "after_double_slash1"}, false));
 
     // This path is not under prefix, so should not be deserialized..
     Assert.assertNull(hmsPaths2.findAuthzObject(new String[]{"user", "hive", "w2", "db2", "tbl21", "p1=1"}, true));
