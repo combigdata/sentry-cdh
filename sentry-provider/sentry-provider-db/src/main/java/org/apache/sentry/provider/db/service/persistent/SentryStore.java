@@ -43,6 +43,7 @@ import javax.jdo.Query;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
+import org.apache.sentry.core.common.utils.PathUtils;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 import org.apache.sentry.hdfs.PathsUpdate;
@@ -2617,7 +2618,7 @@ public class SentryStore {
       String  objName = authzToPaths.getAuthzObjName();
       // Convert path strings to list of components
       for (String path: authzToPaths.getPathStrings()) {
-        String[] pathComponents = path.split("/");
+        String[] pathComponents = PathUtils.splitPath(path);
         List<String> paths = new ArrayList<>(pathComponents.length);
         Collections.addAll(paths, pathComponents);
         pathUpdate.applyAddChanges(objName, Collections.singletonList(paths));
