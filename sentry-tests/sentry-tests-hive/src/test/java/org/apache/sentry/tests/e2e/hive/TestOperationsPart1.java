@@ -60,6 +60,7 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     privileges.put("insert_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=insert");
     privileges.put("insert_db2_tb2", "server=server1->db=" + DB2 + "->table=tb2->action=insert");
     privileges.put("select_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=select");
+    privileges.put("select_db1_tb2", "server=server1->db=" + DB1 + "->table=tb2->action=select");
 
   }
 
@@ -527,5 +528,81 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     //MSCK db1.table1
     assertSemanticException(statement, "MSCK REPAIR TABLE " + DB2 + "." + tableName);
     statement.execute("MSCK REPAIR TABLE " + DB1 + "." + tableName);
+  }
+
+  @Test
+  public void testAlterRenameView() throws Exception {
+    adminCreate(DB1, tableName, true);
+
+    Connection connection;
+    Statement statement;
+    //Setup
+    connection = context.createConnection(ADMIN1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("CREATE VIEW view1 AS SELECT * FROM tb1");
+
+    policyFile
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addRolesToGroup(USERGROUP1, "all_db1")
+        .addPermissionsToRole("select_db1_view1", privileges.get("select_db1_view1"))
+        .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
+        .addRolesToGroup(USERGROUP2, "select_db1_tb1", "select_db1_view1");
+    writePolicyFile(policyFile);
+
+    //positive test cases
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("ALTER VIEW view1 RENAME TO view2");
+    statement.close();
+    connection.close();
+
+    //negative test cases
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    context.assertSentrySemanticException(statement, "ALTER VIEW view2 RENAME TO view1",
+        semanticException);
+    statement.close();
+    connection.close();
+  }
+
+  @Test
+  public void testAlterViewAs() throws Exception {
+    adminCreate(DB1, tableName, true);
+
+    Connection connection;
+    Statement statement;
+    //Setup
+    connection = context.createConnection(ADMIN1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("CREATE TABLE tb2 (foo int)");
+    statement.execute("CREATE VIEW view1 AS SELECT * FROM tb1");
+
+    policyFile
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addPermissionsToRole("select_db1_tb2", privileges.get("select_db1_tb2"))
+        .addRolesToGroup(USERGROUP1, "all_db1", "select_db1_tb2")
+        .addRolesToGroup(USERGROUP2, "select_db1_tb2");
+    writePolicyFile(policyFile);
+
+    //positive test cases
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("ALTER VIEW view1 AS SELECT * FROM tb2");
+    statement.close();
+    connection.close();
+
+    //negative test cases
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    context.assertSentrySemanticException(statement, "ALTER VIEW view1 AS SELECT * FROM tb2",
+        semanticException);
+    statement.close();
+    connection.close();
   }
 }

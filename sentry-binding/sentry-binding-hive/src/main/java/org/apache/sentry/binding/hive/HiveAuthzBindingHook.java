@@ -194,6 +194,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       case HiveParser.TOK_ALTERVIEW_DROPPARTS:
       case HiveParser.TOK_ALTERVIEW_PROPERTIES:
       case HiveParser.TOK_ALTERVIEW_RENAME:
+      case HiveParser.TOK_ALTERVIEW:
       case HiveParser.TOK_DROPINDEX:
       case HiveParser.TOK_LOCKTABLE:
       case HiveParser.TOK_UNLOCKTABLE:
