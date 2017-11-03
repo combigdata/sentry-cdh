@@ -20,7 +20,6 @@ package org.apache.sentry.provider.cache;
 import java.util.Set;
 
 import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Authorizable;
 
 public interface PrivilegeCache {
   /**
@@ -32,18 +31,10 @@ public interface PrivilegeCache {
 
   /**
    * Get the privileges for the give set of groups and users with the give active
-   * roles from the cache. For performance issue, it is recommended to use
-   * listPrivileges with authorization hierarchy
+   * roles from the cache.
    */
-  @Deprecated
   Set<String> listPrivileges(Set<String> groups, Set<String> users,
       ActiveRoleSet roleSet);
 
-  /**
-   * Get the privileges for the give set of groups and users with the give active
-   * roles and authorization hierarchy from the cache.
-   */
-  Set<String> listPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet,
-      Authorizable... authorizationhierarchy);
   void close();
 }

@@ -178,7 +178,7 @@ public class SentryGenericProviderBackend extends CacheProvider implements Provi
   public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
                                               ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
     // SentryGenericProviderBackend doesn't support getPrivileges for user now.
-    return getPrivileges(groups, roleSet);
+    return getPrivileges(groups, roleSet, authorizableHierarchy);
   }
 
   @Override

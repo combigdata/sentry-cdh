@@ -28,7 +28,6 @@ import org.apache.sentry.core.common.utils.KeyValue;
 import org.apache.sentry.core.common.utils.PathUtils;
 import org.apache.sentry.core.common.utils.SentryConstants;
 
-import java.util.ArrayList;
 import java.util.List;
 
 // The class is used to compare the privilege
@@ -112,23 +111,6 @@ public class CommonPrivilege implements Privilege {
     }
 
     return true;
-  }
-
-  @Override
-  public List<KeyValue> getAuthorizable() {
-    List<KeyValue> authorizable = new ArrayList<>();
-
-    for (KeyValue part : parts) {
-
-      // Authorizeable is the same as privileges but should exclude action
-      if (!SentryConstants.PRIVILEGE_NAME.equalsIgnoreCase(part.getKey())) {
-        KeyValue keyValue = new KeyValue(part.getKey().toLowerCase(),
-            part.getValue().toLowerCase());
-        authorizable.add(keyValue);
-      }
-    }
-
-    return authorizable;
   }
 
   // The method is used for compare the value of resource by the ImplyMethodType.

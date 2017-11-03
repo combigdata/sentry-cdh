@@ -16,6 +16,7 @@
  */
 package org.apache.sentry.privilege.hive;
 
+import junit.framework.Assert;
 import org.apache.sentry.core.common.Model;
 import org.apache.sentry.core.common.utils.KeyValue;
 import org.apache.sentry.core.common.utils.PathUtils;
@@ -27,11 +28,8 @@ import org.apache.sentry.policy.common.Privilege;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
-import static junit.framework.Assert.assertEquals;
 
 public class TestCommonPrivilegeForHive {
 
@@ -211,19 +209,13 @@ public class TestCommonPrivilegeForHive {
       public boolean implies(Privilege p, Model m) {
         return false;
       }
-
-      @Override
-      public List<KeyValue> getAuthorizable() {
-        return null;
-      }
-
     };
     assertFalse(ROLE_SERVER_SERVER1_DB_ALL.implies(null, hivePrivilegeModel));
     assertFalse(ROLE_SERVER_SERVER1_DB_ALL.implies(p, hivePrivilegeModel));
     assertFalse(ROLE_SERVER_SERVER1_DB_ALL.equals(null));
     assertFalse(ROLE_SERVER_SERVER1_DB_ALL.equals(p));
 
-    assertEquals(ROLE_SERVER_SERVER1_DB_ALL.hashCode(),
+    Assert.assertEquals(ROLE_SERVER_SERVER1_DB_ALL.hashCode(),
             create(ROLE_SERVER_SERVER1_DB_ALL.toString()).hashCode());
   }
 
@@ -266,13 +258,6 @@ public class TestCommonPrivilegeForHive {
     assertTrue(PathUtils.impliesURI("hdfs://namenode:8020/path", "hdfs://namenode:8020/path"));
     assertTrue(PathUtils.impliesURI("file:///path", "file:///path/to/some/dir"));
     assertTrue(PathUtils.impliesURI("file:///path", "file:///path"));
-  }
-
-  @Test
-  public void testGetAuthz() throws Exception {
-    CommonPrivilege dbAll = create(new KeyValue("server", "server1"),
-        new KeyValue("db", "db1"), new KeyValue("action", "ALL"));
-    assertEquals(2, dbAll.getAuthorizable().size());
   }
 
   @Test

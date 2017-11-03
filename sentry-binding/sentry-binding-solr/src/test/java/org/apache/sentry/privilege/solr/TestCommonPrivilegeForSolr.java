@@ -26,8 +26,6 @@ import org.apache.sentry.policy.common.Privilege;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 
@@ -236,11 +234,6 @@ public class TestCommonPrivilegeForSolr {
       @Override
       public boolean implies(Privilege p, Model m) {
         return false;
-      }
-
-      @Override
-      public List<KeyValue> getAuthorizable() {
-        return null;
       }
     };
     Privilege collection1 = create(new KeyValue("collection", "coll1"));

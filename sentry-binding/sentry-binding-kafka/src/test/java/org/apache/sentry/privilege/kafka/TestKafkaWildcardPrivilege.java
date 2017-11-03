@@ -30,8 +30,6 @@ import org.apache.sentry.policy.common.Privilege;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-
 public class TestKafkaWildcardPrivilege {
 
   private Model kafkaPrivilegeModel;
@@ -138,11 +136,6 @@ public class TestKafkaWildcardPrivilege {
       @Override
       public boolean implies(Privilege p, Model model) {
         return false;
-      }
-
-      @Override
-      public List<KeyValue> getAuthorizable() {
-        return null;
       }
     };
     Privilege topic1 = create(new KeyValue("HOST", "host"), new KeyValue("TOPIC", "topic1"));

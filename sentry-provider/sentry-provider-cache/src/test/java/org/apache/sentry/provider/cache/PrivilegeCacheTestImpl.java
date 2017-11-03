@@ -25,7 +25,6 @@ import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.provider.common.ProviderBackendContext;
 import org.apache.sentry.core.common.utils.PolicyFiles;
 import org.apache.sentry.provider.file.SimpleFileProviderBackend;
@@ -65,11 +64,5 @@ public class PrivilegeCacheTestImpl implements PrivilegeCache {
   @Override
   public Set<String> listPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet) {
     return backend.getPrivileges(groups, users, roleSet);
-  }
-
-  @Override
-  public Set<String> listPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet,
-      Authorizable... authorizationhierarchy) {
-    return backend.getPrivileges(groups, users, roleSet, authorizationhierarchy);
   }
 }

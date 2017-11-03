@@ -26,8 +26,6 @@ import org.apache.sentry.policy.common.Privilege;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 
@@ -146,11 +144,6 @@ public class TestCommonPrivilegeForSqoop {
       @Override
       public boolean implies(Privilege p, Model m) {
         return false;
-      }
-
-      @Override
-      public List<KeyValue> getAuthorizable() {
-        return null;
       }
     };
     Privilege job1 = create(new KeyValue("SERVER", "server"), new KeyValue("JOB", "job1"));
