@@ -216,9 +216,12 @@ public class ServiceConstants {
     public static final String SENTRY_WEB_ADMIN_SERVLET_ENABLED = "sentry.web.admin.servlet.enabled";
     public static final boolean SENTRY_WEB_ADMIN_SERVLET_ENABLED_DEFAULT = false;
 
+    public static final String SENTRY_WEB_PUBSUB_SERVLET_ENABLED = "sentry.web.pubsub.servlet.enabled";
+    public static final boolean SENTRY_WEB_PUBSUB_SERVLET_ENABLED_DEFAULT = false;
+
     // max message size for thrift messages
-    public static String SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE = "sentry.policy.server.thrift.max.message.size";
-    public static long SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE_DEFAULT = 100 * 1024 * 1024;
+    public static final String SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE = "sentry.policy.server.thrift.max.message.size";
+    public static final long SENTRY_POLICY_SERVER_THRIFT_MAX_MESSAGE_SIZE_DEFAULT = 100 * 1024 * 1024;
 
     // action factories for external components
     public static final String SENTRY_COMPONENT_ACTION_FACTORY_FORMAT = "sentry.%s.action.factory";
