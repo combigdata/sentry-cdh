@@ -88,6 +88,11 @@ public class SentryWebServer {
       servletContextHandler.addEventListener(listener);
     }
 
+    if (conf.getBoolean(ServerConfig.SENTRY_WEB_PUBSUB_SERVLET_ENABLED,
+                        ServerConfig.SENTRY_WEB_PUBSUB_SERVLET_ENABLED_DEFAULT)) {
+      servletContextHandler.addServlet(new ServletHolder(PubSubServlet.class), "/admin/publishMessage");
+    }
+
     String authMethod = conf.get(ServerConfig.SENTRY_WEB_SECURITY_TYPE);
     if (!ServerConfig.SENTRY_WEB_SECURITY_TYPE_NONE.equals(authMethod)) {
       /**
