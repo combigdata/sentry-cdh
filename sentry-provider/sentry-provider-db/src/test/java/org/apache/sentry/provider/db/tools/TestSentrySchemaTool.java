@@ -91,4 +91,10 @@ public class TestSentrySchemaTool {
     schemaTool.verifySchemaVersion();
   }
 
+  @Test
+  public void testUpgradeFromCdh5_13() throws Exception {
+    schemaTool.doInit("1.5.0-cdh5");
+    schemaTool.doUpgrade();
+    schemaTool.verifySchemaVersion();
+  }
 }

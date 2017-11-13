@@ -103,7 +103,7 @@ public class SentryStoreSchemaInfo {
    * @return
    * @throws SentryUserException
    */
-  public String generateInitFileName(String toVersion)
+  public String generateInitFileName(String toVersion, String scriptDir)
       throws SentryUserException {
     String version = toVersion;
     if (version == null) {
@@ -112,7 +112,7 @@ public class SentryStoreSchemaInfo {
     String initScriptName = INIT_FILE_PREFIX + dbType + "-" + version
         + SQL_FILE_EXTENSION;
     // check if the file exists
-    if (!(new File(getSentryStoreScriptDir() + File.separatorChar
+    if (!(new File(scriptDir + File.separatorChar
         + initScriptName).exists())) {
       throw new SentryUserException(
           "Unknown version specified for initialization: " + version);

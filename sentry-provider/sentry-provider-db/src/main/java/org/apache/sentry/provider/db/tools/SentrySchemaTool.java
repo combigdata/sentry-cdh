@@ -308,7 +308,7 @@ public class SentrySchemaTool {
     System.out.println("Starting sentry store schema initialization to " + toVersion);
 
     String initScriptDir = sentryStoreSchemaInfo.getSentryStoreScriptDir();
-    String initScriptFile = sentryStoreSchemaInfo.generateInitFileName(toVersion);
+    String initScriptFile = sentryStoreSchemaInfo.generateInitFileName(toVersion, initScriptDir);
 
     try {
       System.out.println("Initialization script " + initScriptFile);
