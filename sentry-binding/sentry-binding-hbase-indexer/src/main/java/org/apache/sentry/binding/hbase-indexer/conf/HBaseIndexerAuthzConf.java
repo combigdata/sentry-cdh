@@ -33,7 +33,7 @@ public class HBaseIndexerAuthzConf extends Configuration {
       "org.apache.sentry.provider.common.HadoopGroupResourceAuthorizationProvider"),
     AUTHZ_PROVIDER_RESOURCE("sentry.hbaseindexer.provider.resource", ""),
     AUTHZ_PROVIDER_BACKEND("sentry.hbaseindexer.provider.backend", "org.apache.sentry.provider.file.SimpleFileProviderBackend"),
-    AUTHZ_POLICY_ENGINE("sentry.hbaseindexer.policy.engine", "org.apache.sentry.policy.indexer.SimpleIndexerPolicyEngine");
+    AUTHZ_POLICY_ENGINE("sentry.hbaseindexer.policy.engine", "org.apache.sentry.policy.engine.common.CommonPolicyEngine");
 
     private final String varName;
     private final String defaultVal;

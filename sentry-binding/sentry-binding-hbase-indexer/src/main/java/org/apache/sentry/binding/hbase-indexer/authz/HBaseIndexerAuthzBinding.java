@@ -34,12 +34,15 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
 import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
 import org.apache.sentry.core.common.ActiveRoleSet;
+import org.apache.sentry.core.common.Model;
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.core.model.indexer.Indexer;
 import org.apache.sentry.core.model.indexer.IndexerModelAction;
+import org.apache.sentry.core.model.indexer.IndexerPrivilegeModel;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
+import org.apache.sentry.provider.common.ProviderBackendContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +94,13 @@ public class HBaseIndexerAuthzBinding {
     providerBackend =
       (ProviderBackend) providerBackendConstructor.newInstance(new Object[] {authzConf, resourceName});
 
+    // create backendContext
+    ProviderBackendContext context = new ProviderBackendContext();
+    context.setAllowPerDatabase(true);
+    context.setValidators(IndexerPrivilegeModel.getInstance().getPrivilegeValidators());
+    // initialize the backend with the context
+    providerBackend.initialize(context);
+
     // load the policy engine class
     Constructor<?> policyConstructor =
       Class.forName(policyEngineName).getDeclaredConstructor(ProviderBackend.class);
@@ -100,9 +110,10 @@ public class HBaseIndexerAuthzBinding {
 
     // load the authz provider class
     Constructor<?> constrctor =
-      Class.forName(authProviderName).getDeclaredConstructor(String.class, PolicyEngine.class);
+      Class.forName(authProviderName).getDeclaredConstructor(String.class, PolicyEngine.class, Model.class);
     constrctor.setAccessible(true);
-    return (AuthorizationProvider) constrctor.newInstance(new Object[] {resourceName, policyEngine});
+    return (AuthorizationProvider) constrctor.newInstance(new Object[] {resourceName, policyEngine,
+        IndexerPrivilegeModel.getInstance()});
   }
 
   public void authorizeIndexerAction(Subject subject, Indexer indexer, Set<IndexerModelAction> actions)
