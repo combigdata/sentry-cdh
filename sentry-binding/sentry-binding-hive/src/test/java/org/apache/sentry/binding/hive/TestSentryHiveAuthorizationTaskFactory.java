@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.apache.hadoop.hive.ql.QueryState;
+import org.apache.hadoop.hive.ql.parse.ParseDriver;
 import org.junit.Assert;
 
 import org.apache.commons.io.FileUtils;
@@ -69,7 +70,7 @@ public class TestSentryHiveAuthorizationTaskFactory {
   private static final String USER = "user1";
   private static final String SERVER = "server1";
 
-
+  private ParseDriver parseDriver;
   private DDLSemanticAnalyzer analyzer;
   private HiveConf conf;
   private Context context;
@@ -89,6 +90,8 @@ public class TestSentryHiveAuthorizationTaskFactory {
     SessionState.start(conf);
     conf.setVar(ConfVars.HIVE_AUTHORIZATION_TASK_FACTORY,
         SentryHiveAuthorizationTaskFactoryImpl.class.getName());
+    conf.setBoolVar(HiveConf.ConfVars.HIVE_IN_TEST, true);
+    conf.setBoolVar(HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
 
     // This configuration avoids starting the HS2 WebUI which was causes test failures when
     // HS2 is configured for concurrency
@@ -102,6 +105,7 @@ public class TestSentryHiveAuthorizationTaskFactory {
     table = new Table(DB, TABLE);
     partition = new Partition(table);
     context = new Context(conf);
+    parseDriver = new ParseDriver();
     analyzer = new DDLSemanticAnalyzer(new QueryState(conf), db);
     SessionState.start(conf);
     Mockito.when(db.getTable(TABLE, false)).thenReturn(table);
@@ -493,7 +497,7 @@ public class TestSentryHiveAuthorizationTaskFactory {
   }
 
   private ASTNode parse(String command) throws Exception {
-    return ParseUtils.parse(command);
+    return ParseUtils.findRootNonNullToken(parseDriver.parse(command));
   }
 
   private DDLWork analyze(ASTNode ast) throws Exception {

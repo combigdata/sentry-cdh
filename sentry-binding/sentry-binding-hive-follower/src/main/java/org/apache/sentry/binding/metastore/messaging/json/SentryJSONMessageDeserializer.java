@@ -163,7 +163,8 @@ public class SentryJSONMessageDeserializer extends MessageDeserializer {
   }
 
   /**
-   * Method to de-serialize CreateIndexMessage instance.                                                                                                                                                   +   */
+   * Method to de-serialize CreateIndexMessage instance.
+   */
   @Override
   public CreateIndexMessage getCreateIndexMessage(String messageBody) {
     // Sentry does not need this message, but it needs to be implemented so that Hive can

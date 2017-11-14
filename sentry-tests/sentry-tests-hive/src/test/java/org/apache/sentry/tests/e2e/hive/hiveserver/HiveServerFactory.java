@@ -197,6 +197,10 @@ public class HiveServerFactory {
     // HS2 is configured for concurrency
     properties.put(ConfVars.HIVE_IN_TEST.varname, "true");
 
+    // This configuration will avoid that the HMS fails if the metastore schema has not version
+    // information. For some reason, HMS does not set a version initially on our tests.
+    properties.put(ConfVars.METASTORE_SCHEMA_VERIFICATION.varname, "false");
+
     // This configuration is used by SentryHiveAuthorizerFactory to change the client type
     // to HIVESERVER2 if we're using the authorization V2 in test mode.
     properties.put(ConfVars.HIVE_TEST_AUTHORIZATION_SQLSTD_HS2_MODE.varname, "true");
@@ -212,9 +216,6 @@ public class HiveServerFactory {
 
     // Disable join cartesian checks to allow Sentry tests to pass
     properties.put(ConfVars.HIVE_STRICT_CHECKS_CARTESIAN.varname, "false");
-
-    // Disable capability checks (these checks do not work when Hive is in testing mode)
-    properties.put(ConfVars.METASTORE_CAPABILITY_CHECK.varname, "false");
 
     if (!properties.containsKey(METASTORE_BYPASS)) {
       properties.put(METASTORE_BYPASS, "hive,impala," + System.getProperty("user.name", ""));

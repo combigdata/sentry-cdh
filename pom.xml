@@ -73,7 +73,7 @@ limitations under the License.
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
     <hbase-solr.version>${cdh.hbase-solr.version}</hbase-solr.version>
     <hamcrest.version>1.3</hamcrest.version>
-    <hive.version>2.3.2</hive.version>
+    <hive.version>${cdh.hive.version}</hive.version>
     <jackson.version>${cdh.jackson.version}</jackson.version>
     <jdo-api.version>3.0.1</jdo-api.version>
     <jetty.version>${cdh.jetty9.version}</jetty.version>

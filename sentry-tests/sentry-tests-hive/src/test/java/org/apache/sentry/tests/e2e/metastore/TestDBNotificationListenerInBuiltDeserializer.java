@@ -24,7 +24,6 @@ import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hive.hcatalog.messaging.CreateDatabaseMessage;
 import org.apache.hive.hcatalog.messaging.HCatEventMessage;
 import org.apache.hive.hcatalog.messaging.MessageDeserializer;
-import org.apache.hive.hcatalog.messaging.MessageFactory;
 import org.apache.hive.hcatalog.messaging.CreateTableMessage;
 import org.apache.hive.hcatalog.messaging.DropTableMessage;
 import org.apache.hive.hcatalog.messaging.AlterTableMessage;
@@ -33,6 +32,7 @@ import org.apache.hive.hcatalog.messaging.DropDatabaseMessage;
 import org.apache.hive.hcatalog.messaging.AddPartitionMessage;
 import org.apache.hive.hcatalog.messaging.DropPartitionMessage;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAlterPartitionMessage;
+import org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageDeserializer;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory;
 import org.hamcrest.text.IsEqualIgnoringCase;
@@ -61,14 +61,13 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
   @BeforeClass
   public static void setupTestStaticConfiguration() throws Exception {
     setMetastoreListener = true;
-    useDbNotificationListener = true;
     beforeClass();
   }
 
   protected static void beforeClass() throws Exception {
     AbstractMetastoreTestWithStaticConfiguration.setupTestStaticConfiguration();
     client = context.getMetaStoreClient(ADMIN1);
-    deserializer = MessageFactory.getDeserializer("json", "");
+    deserializer = new SentryJSONMessageDeserializer();
     writePolicyFile(setAdminOnServer1(ADMINGROUP).setUserGroupMapping(StaticUserGroup.getStaticMapping()));
   }
 
