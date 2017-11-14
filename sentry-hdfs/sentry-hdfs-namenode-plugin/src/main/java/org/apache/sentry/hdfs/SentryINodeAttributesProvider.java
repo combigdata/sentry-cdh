@@ -331,7 +331,7 @@ public class SentryINodeAttributesProvider extends INodeAttributeProvider
   public INodeAttributes getAttributes(String[] pathElements,
                                        INodeAttributes inode) {
     Preconditions.checkNotNull(pathElements);
-    pathElements = "".equals(pathElements[0]) && pathElements.length > 1 ?
+    pathElements = pathElements.length > 1 && "".equals(pathElements[0]) ?
             Arrays.copyOfRange(pathElements, 1, pathElements.length) :
             pathElements;
     return isSentryManaged(pathElements) ? new SentryINodeAttributes

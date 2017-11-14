@@ -80,7 +80,11 @@ limitations under the License.
       <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
-
+    <dependency>
+      <groupId>commons-httpclient</groupId>
+      <artifactId>commons-httpclient</artifactId>
+      <version>${commons-httpclient.version}</version>
+    </dependency>
   </dependencies>
   <build>
     <sourceDirectory>${basedir}/src/main/java</sourceDirectory>

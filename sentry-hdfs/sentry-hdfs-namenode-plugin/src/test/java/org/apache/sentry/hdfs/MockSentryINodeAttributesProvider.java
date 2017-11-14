@@ -17,10 +17,16 @@
  */
 package org.apache.sentry.hdfs;
 
+import org.apache.hadoop.conf.Configuration;
+
 public class MockSentryINodeAttributesProvider extends
     SentryINodeAttributesProvider {
+  private static Configuration conf = new Configuration();
+    static {
+        conf.set(SentryAuthorizationConstants.HDFS_PATH_PREFIXES_KEY, "/user/authz");
+  };
 
-  public MockSentryINodeAttributesProvider() {
-    super(new SentryAuthorizationInfoX());
+  public MockSentryINodeAttributesProvider() throws Exception {
+    super(new SentryAuthorizationInfoX(conf));
   }
 }

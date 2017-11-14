@@ -35,7 +35,6 @@ import org.apache.sentry.hdfs.Updateable.Update;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 public class SentryAuthorizationInfo implements Runnable {
@@ -61,12 +60,6 @@ public class SentryAuthorizationInfo implements Runnable {
   private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
   private String[][] pathPrefixes;
-
-  // For use only for testing !!
-  @VisibleForTesting
-  SentryAuthorizationInfo(String[] pathPrefixes) {
-    setPrefixPaths(pathPrefixes);
-  }
 
   public SentryAuthorizationInfo(Configuration conf) throws Exception {
     String[] newPathPrefixes = conf.getTrimmedStrings(

@@ -22,6 +22,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -40,16 +42,20 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 
 public class TestSentryINodeAttributesProvider {
 
-  private MiniDFSCluster miniDFS;
-  private UserGroupInformation admin;
+  private static MiniDFSCluster miniDFS;
+  private static UserGroupInformation admin;
+  private FileSystem fs;
 
-  @Before
-  public void setUp() throws Exception {
+
+  @BeforeClass
+  public static void initialize() throws Exception {
+    SentryAuthorizationInfoX.initializeTestData();
     admin = UserGroupInformation.createUserForTesting(
         System.getProperty("user.name"), new String[] { "supergroup" });
     admin.doAs(new PrivilegedExceptionAction<Void>() {
@@ -61,11 +67,24 @@ public class TestSentryINodeAttributesProvider {
         conf.set(DFSConfigKeys.DFS_NAMENODE_INODE_ATTRIBUTES_PROVIDER_KEY,
             MockSentryINodeAttributesProvider.class.getName());
         conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY, true);
+        conf.set(SentryAuthorizationConstants.HDFS_PATH_PREFIXES_KEY, "/user");
         EditLogFileOutputStream.setShouldSkipFsyncForTesting(true);
         miniDFS = new MiniDFSCluster.Builder(conf).build();
         return null;
       }
     });
+  }
+
+  @Before
+  public void setup() throws IOException {
+    if (miniDFS != null) {
+      Path path;
+      fs = FileSystem.get(miniDFS.getConfiguration(0));
+      for (Map.Entry<String, String> entry : SentryAuthorizationInfoX.hiveObjPathMapping.entrySet()) {
+        path = new Path(entry.getKey());
+        fs.mkdirs(path);
+      }
+    }
   }
 
   @After
@@ -75,6 +94,9 @@ public class TestSentryINodeAttributesProvider {
     }
   }
 
+  String getHiveObjectPath(int index) {
+    return SentryAuthorizationInfoX.hiveObjPaths.get(index);
+  }
   @Test
   public void testProvider() throws Exception {
     admin.doAs(new PrivilegedExceptionAction<Void>() {
@@ -97,6 +119,7 @@ public class TestSentryINodeAttributesProvider {
 
         fs.mkdirs(new Path("/user/authz/xxx"));
         fs.mkdirs(new Path("/user/xxx"));
+        fs.mkdirs(new Path("/user/authz/db1/tbl12/xxxx"));
 
         // root
         Path path = new Path("/");
@@ -128,7 +151,7 @@ public class TestSentryINodeAttributesProvider {
         Assert.assertTrue(fs.getAclStatus(path).getEntries().isEmpty());
 
         // dir inside of prefix, obj
-        path = new Path("/user/authz/obj");
+        path = new Path(getHiveObjectPath(0));
         Assert.assertEquals("hive", fs.getFileStatus(path).getOwner());
         Assert.assertEquals("hive", fs.getFileStatus(path).getGroup());
         Assert.assertEquals(new FsPermission((short) 0771), fs.getFileStatus(path).getPermission());
@@ -137,11 +160,23 @@ public class TestSentryINodeAttributesProvider {
         List<AclEntry> acls = new ArrayList<AclEntry>();
         acls.add(new AclEntry.Builder().setName(sysUser).setType(AclEntryType.USER).setScope(AclEntryScope.ACCESS).setPermission(FsAction.ALL).build());
         acls.add(new AclEntry.Builder().setName("supergroup").setType(AclEntryType.GROUP).setScope(AclEntryScope.ACCESS).setPermission(FsAction.READ_EXECUTE).build());
-        acls.add(new AclEntry.Builder().setName("user-authz").setType(AclEntryType.USER).setScope(AclEntryScope.ACCESS).setPermission(FsAction.ALL).build());
-        Assert.assertEquals(new LinkedHashSet<AclEntry>(acls), new LinkedHashSet<AclEntry>(fs.getAclStatus(path).getEntries()));
-
+        acls.add(new AclEntry.Builder().setName("test-group").setType(AclEntryType.USER).setScope(AclEntryScope.ACCESS).setPermission(FsAction.ALL).build());
+        LinkedHashSet<AclEntry> acls_received = new LinkedHashSet<AclEntry>(fs.getAclStatus(path).getEntries());
+        Set<String> groups = new LinkedHashSet<String>();
+        groups.add("supergroup");
+        groups.add("test-group");
+        groups.add(sysUser);
+        for(String entry : groups) {
+          boolean found = false;
+          for (AclEntry aclEntry : acls_received) {
+             if(aclEntry.getName() != null && aclEntry.getName().equals(entry)) {
+               found = true;
+             }
+          }
+          Assert.assertTrue(found);
+        }
         // dir inside of prefix, inside of obj
-        path = new Path("/user/authz/obj/xxx");
+        path = new Path(getHiveObjectPath(0) + "/xxxx");
         Assert.assertEquals("hive", fs.getFileStatus(path).getOwner());
         Assert.assertEquals("hive", fs.getFileStatus(path).getGroup());
         Assert.assertEquals(new FsPermission((short) 0771), fs.getFileStatus(path).getPermission());
@@ -203,7 +238,7 @@ public class TestSentryINodeAttributesProvider {
         Assert.assertTrue(fs.getAclStatus(pathInside).getEntries().isEmpty());
 
         // setPermission/setUser/setGroup is a no op for dir inside of prefix, and is a hive obj.
-        Path pathInsideAndHive = new Path("/user/authz/obj");
+        Path pathInsideAndHive = new Path("/user/authz/db1/tbl12");
 
         fs.setPermission(pathInsideAndHive, new FsPermission((short) 0000));
         Assert.assertEquals(new FsPermission((short) 0771), fs.getFileStatus(pathInsideAndHive).getPermission());

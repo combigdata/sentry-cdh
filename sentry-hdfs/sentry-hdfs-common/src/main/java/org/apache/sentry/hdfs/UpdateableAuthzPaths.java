@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.sentry.hdfs.service.thrift.TPathChanges;
 import org.apache.sentry.hdfs.service.thrift.TPathsDump;
 import org.slf4j.Logger;
@@ -44,6 +45,14 @@ public class UpdateableAuthzPaths implements AuthzPaths, Updateable<PathsUpdate>
   }
 
   UpdateableAuthzPaths(HMSPaths paths) {
+    this.paths = paths;
+  }
+
+  /*
+  To be used only for testing
+  */
+  @VisibleForTesting
+  void setHMSPaths(HMSPaths paths) {
     this.paths = paths;
   }
 
