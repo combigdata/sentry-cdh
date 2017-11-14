@@ -20,6 +20,7 @@ package org.apache.sentry.provider.common;
  * using generic model
  */
 public class AuthorizationComponent{
+  public static final String HBASEINDEXER = "hbaseindexer";
   public static final String Search = "solr";
   public static final String KAFKA = "kafka";
 }

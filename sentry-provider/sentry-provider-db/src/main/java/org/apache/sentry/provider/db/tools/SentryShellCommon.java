@@ -37,6 +37,7 @@ import org.apache.commons.lang.StringUtils;
 abstract public class SentryShellCommon {
 
   protected String roleName;
+  protected String serviceName;
   protected String groupName;
   protected String privilegeStr;
   protected String confPath;
@@ -60,6 +61,7 @@ abstract public class SentryShellCommon {
   public final static String OPTION_DESC_ROLE_NAME = "Role name";
   public final static String OPTION_DESC_GROUP_NAME = "Group name";
   public final static String OPTION_DESC_PRIVILEGE = "Privilege string";
+  public final static String OPTION_DESC_SERVICE = "Name of the service being managed";
   public final static String PREFIX_MESSAGE_MISSING_OPTION = "Missing required option: ";
 
   public final static String GROUP_SPLIT_CHAR = ",";
@@ -122,6 +124,10 @@ abstract public class SentryShellCommon {
     simpleShellOptGroup.setRequired(true);
     simpleShellOptions.addOptionGroup(simpleShellOptGroup);
 
+    Option sOpt = new Option("s", "service", true, OPTION_DESC_SERVICE);
+    sOpt.setRequired(false);
+    simpleShellOptions.addOption(sOpt);
+
     // optional args
     Option pOpt = new Option("p", "privilege", true, OPTION_DESC_PRIVILEGE);
     pOpt.setRequired(false);
@@ -177,6 +183,8 @@ abstract public class SentryShellCommon {
           groupName = opt.getValue();
         } else if (opt.getOpt().equals("r")) {
           roleName = opt.getValue();
+        } else if (opt.getOpt().equals("s")) {
+          serviceName = opt.getValue();
         } else if (opt.getOpt().equals("cr")) {
           isCreateRole = true;
           roleNameRequired = true;

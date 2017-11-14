@@ -29,6 +29,9 @@ import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_SECURITY_AUTHENTICATION;
+import static org.apache.sentry.provider.common.AuthorizationComponent.HBASEINDEXER;
+import static org.apache.sentry.service.thrift.ServiceConstants.ClientConfig.COMPONENT_TYPE;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -42,7 +45,6 @@ import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.GroupMappingService;
 import org.apache.sentry.provider.common.ProviderBackend;
-import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,6 @@ public class HBaseIndexerAuthzBinding {
   public static final int SC_UNAUTHORIZED = 401;
   private static final Logger LOG = LoggerFactory
       .getLogger(HBaseIndexerAuthzBinding.class);
-  public static final String HBASEINDEXER = "hbaseindexer";
   private static final String[] HADOOP_HBASE_CONF_FILES = {"core-site.xml",
     "hdfs-site.xml", "mapred-site.xml", "yarn-site.xml", "hadoop-site.xml", "hbase-site.xml"};
   private static Boolean kerberosInit;
@@ -76,8 +77,6 @@ public class HBaseIndexerAuthzBinding {
       authzConf.get(AuthzConfVars.AUTHZ_PROVIDER_BACKEND.getVar());
     String policyEngineName =
       authzConf.get(AuthzConfVars.AUTHZ_POLICY_ENGINE.getVar());
-    String serviceName =
-      authzConf.get(AuthzConfVars.AUTHZ_SERVICE_NAME.getVar());
 
     LOG.debug("Using authorization provider " + authProviderName +
       " with resource " + resourceName + ", policy engine "
@@ -101,15 +100,12 @@ public class HBaseIndexerAuthzBinding {
         initKerberos(keytabProp, principalProp);
       }
     }
+
+    // For SentryGenericProviderBackend
+    authzConf.set(COMPONENT_TYPE, HBASEINDEXER);
+
     providerBackend =
       (ProviderBackend) providerBackendConstructor.newInstance(new Object[] {authzConf, resourceName});
-
-    if (providerBackend instanceof SentryGenericProviderBackend) {
-      ((SentryGenericProviderBackend) providerBackend)
-              .setComponentType(HBASEINDEXER);
-      ((SentryGenericProviderBackend) providerBackend).setServiceName(serviceName);
-      LOG.info("Setting SentryGenericProviderBackend componentType={} and serviceName={}", HBASEINDEXER, serviceName);
-    }
 
     // load the policy engine class
     Constructor<?> policyConstructor =

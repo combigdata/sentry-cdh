@@ -18,6 +18,7 @@ package org.apache.sentry.binding.hbaseindexer;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
+import static org.apache.sentry.provider.common.AuthorizationComponent.HBASEINDEXER;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -304,7 +305,7 @@ public class TestHBaseIndexerAuthzBinding {
     Field f = binding.getClass().getDeclaredField("providerBackend"); //NoSuchFieldException
     f.setAccessible(true);
     SentryGenericProviderBackend providerBackend = (SentryGenericProviderBackend) f.get(binding);
-    assertEquals(HBaseIndexerAuthzBinding.HBASEINDEXER, providerBackend.getComponentType());
+    assertEquals(HBASEINDEXER, providerBackend.getComponentType());
     assertEquals("MyService", providerBackend.getServiceName());
   }
 

@@ -23,7 +23,7 @@
     <value>org.apache.sentry.provider.db.generic.SentryGenericProviderBackend</value>
   </property>
   <property>
-    <name>sentry.hbaseindexer.service</name>
+    <name>sentry.provider.backend.generic.service-name</name>
     <value>MyService</value>
   </property>
 </configuration>
