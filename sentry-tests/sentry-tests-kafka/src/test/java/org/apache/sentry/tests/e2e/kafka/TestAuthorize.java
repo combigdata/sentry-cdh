@@ -54,6 +54,8 @@ import java.util.concurrent.ExecutionException;
 public class TestAuthorize extends AbstractKafkaSentryTestBase {
   private static final Logger LOGGER = LoggerFactory.getLogger(TestAuthorize.class);
   private static final String TOPIC_NAME = "tOpIc1";
+  private static final String TOPIC1_NAME_FOR_WILDCARD_TEST = "someTopicToTestWildcards";
+  private static final String TOPIC2_NAME_FOR_WILDCARD_TEST = "someTopicToTestWildcards2";
 
   @Test
   public void testProduceConsumeForSuperuser() {
@@ -223,6 +225,118 @@ public class TestAuthorize extends AbstractKafkaSentryTestBase {
       Assert.fail("user1 should have been able to successfully read from topic " + TOPIC_NAME + ". \n Exception: " + ex);
 
     }
+
+    // CONSUMERGROUP WILDCARD
+    // HOST=localhost->Consumergroup=*->action=describe
+    authorizables = new ArrayList<>();
+    authorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    consumerGroup = new ConsumerGroup("*");
+    authorizables.add(new TAuthorizable(consumerGroup.getTypeName(), consumerGroup.getName()));
+    addPermissions(role, group, KafkaActionConstant.DESCRIBE, authorizables);
+    // HOST=localhost->Consumergroup=*->action=read
+    authorizables = new ArrayList<>();
+    authorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    consumerGroup = new ConsumerGroup("*");
+    authorizables.add(new TAuthorizable(consumerGroup.getTypeName(), consumerGroup.getName()));
+    addPermissions(role, group, KafkaActionConstant.READ, authorizables);
+
+    try {
+      testConsume(TOPIC_NAME, "user1", "SentryKafkaConsumer");
+      testConsume(TOPIC_NAME, "user1", "cg2");
+    } catch (Exception e) {
+      Assert.fail("Couldn't consume with wildcarded consumergroup:\n" + e);
+    }
+  }
+
+  @Test
+  public void testProduceSuccessForTopicWildcard() throws Exception {
+    final String localhost = InetAddress.getLocalHost().getHostAddress();
+    Host host = new Host(localhost);
+
+    SentryGenericServiceClientFactory.factoryReset();
+
+    final String role = StaticUserGroupRole.ROLE_1;
+    final String group = StaticUserGroupRole.GROUP_1;
+    ArrayList<TAuthorizable> topicWriteAuthorizables = new ArrayList<>();
+    topicWriteAuthorizables.add(new TAuthorizable(host.getTypeName(), host.getName())); // authorizing localhost
+    Topic topicAny = new Topic("*");
+    topicWriteAuthorizables.add(new TAuthorizable(topicAny.getTypeName(), topicAny.getName())); // with any topic
+    // HOST=localhost->Topic=*->action=describe
+    addPermissions(role, group, KafkaActionConstant.DESCRIBE, topicWriteAuthorizables);
+    // HOST=localhost->Topic=*->action=write
+    addPermissions(role, group, KafkaActionConstant.WRITE, topicWriteAuthorizables);
+
+    // HOST=localhost->Cluster=kafka-cluster->action=create
+    ArrayList<TAuthorizable> topicCreateAuthorizables = new ArrayList<>();
+    topicCreateAuthorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    Cluster cluster = new Cluster();
+    topicCreateAuthorizables.add(new TAuthorizable(cluster.getTypeName(), cluster.getName()));
+    addPermissions(role, group, KafkaActionConstant.CREATE, topicCreateAuthorizables);
+
+    try {
+      testProduce(TOPIC1_NAME_FOR_WILDCARD_TEST, StaticUserGroupRole.USER_1);
+    } catch (Exception ex) {
+      Assert.fail("user1 should have been able to successfully produce to topic " + TOPIC1_NAME_FOR_WILDCARD_TEST + ". \n Exception: " + ex);
+    }
+
+    try {
+      testProduce(TOPIC2_NAME_FOR_WILDCARD_TEST, StaticUserGroupRole.USER_1);
+    } catch (Exception ex) {
+      Assert.fail("user1 should have been able to successfully produce to topic " + TOPIC2_NAME_FOR_WILDCARD_TEST + ". \n Exception: " + ex);
+    }
+  }
+
+  @Test
+  public void testConsumeSuccessForConsumergroupWildcard() throws Exception {
+    final String localhost = InetAddress.getLocalHost().getHostAddress();
+    Host host = new Host(localhost);
+
+    SentryGenericServiceClientFactory.factoryReset();
+
+    final String role = StaticUserGroupRole.ROLE_1;
+    final String group = StaticUserGroupRole.GROUP_1;
+
+    // Create a dummy topic with the right permissions and produce to it
+    final Topic topic = new Topic("topicForConsumergroupWildcardTest");
+    ArrayList<TAuthorizable> topicAuthorizables = new ArrayList<>();
+    topicAuthorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    topicAuthorizables.add(new TAuthorizable(topic.getTypeName(), topic.getName()));
+    // HOST=localhost->Topic=topicForConsumergroupWildcardTest->action=describe
+    addPermissions(role, group, KafkaActionConstant.DESCRIBE, topicAuthorizables);
+    // HOST=localhost->Topic=topicForConsumergroupWildcardTest->action=write
+    addPermissions(role, group, KafkaActionConstant.WRITE, topicAuthorizables);
+    // HOST=localhost->Topic=topicForConsumergroupWildcardTest->action=read
+    addPermissions(role, group, KafkaActionConstant.READ, topicAuthorizables); // the topic should be readable for the given group when consuming
+    ArrayList<TAuthorizable> topicCreateAuthorizables = new ArrayList<>();
+    topicCreateAuthorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    Cluster cluster = new Cluster();
+    topicCreateAuthorizables.add(new TAuthorizable(cluster.getTypeName(), cluster.getName()));
+    addPermissions(role, group, KafkaActionConstant.CREATE, topicCreateAuthorizables);
+    try {
+      testProduce(topic.getName(), StaticUserGroupRole.USER_1);
+    } catch (Exception ex) {
+      Assert.fail("user1 should have been able to successfully produce to topic " + topic.getName() + ". \n Exception: " + ex);
+    }
+
+    // Test consuming from the dummy topic with consumergroup wildcard
+    ArrayList<TAuthorizable> anyConsumerGroupAuthorizables = new ArrayList<>();
+    anyConsumerGroupAuthorizables.add(new TAuthorizable(host.getTypeName(), host.getName()));
+    ConsumerGroup anyConsumerGroup = new ConsumerGroup("*");
+    anyConsumerGroupAuthorizables.add(new TAuthorizable(anyConsumerGroup.getTypeName(), anyConsumerGroup.getName()));
+    // HOST=localhost->Consumergroup=*->action=describe
+    addPermissions(role, group, KafkaActionConstant.DESCRIBE, anyConsumerGroupAuthorizables);
+    // HOST=localhost->Consumergroup=*->action=read
+    addPermissions(role, group, KafkaActionConstant.READ, anyConsumerGroupAuthorizables);
+    try {
+      testConsume(topic.getName(), "user1", "SentryKafkaConsumer");
+    } catch (Exception e) {
+      Assert.fail("Couldn't consume with wildcarded consumergroup from SentryKafkaConsumer:\n" + e);
+    }
+    try {
+      testConsume(topic.getName(), "user1", "cg2");
+    } catch (Exception e) {
+      Assert.fail("Couldn't consume with wildcarded consumergroup from cg2:\n" + e);
+    }
   }
 
   @Test
@@ -337,8 +451,13 @@ public class TestAuthorize extends AbstractKafkaSentryTestBase {
     }
   }
 
-  private void testConsume(String topic, String consumerUser) throws Exception {
-    final KafkaConsumer<String, String> kafkaConsumer = createKafkaConsumer(consumerUser);
+
+    private void testConsume(String topic, String consumerUser) throws Exception {
+        testConsume(topic, consumerUser, "sentrykafkaconsumer");
+    }
+
+  private void testConsume(String topic, String consumerUser, String consumerGroup) throws Exception {
+    final KafkaConsumer<String, String> kafkaConsumer = createKafkaConsumer(consumerUser, consumerGroup);
     try {
       final String msg = "message1";
       kafkaConsumer.subscribe(Collections.singletonList(topic), new CustomRebalanceListener(kafkaConsumer));
@@ -380,11 +499,11 @@ public class TestAuthorize extends AbstractKafkaSentryTestBase {
     return new KafkaProducer<String, String>(props);
   }
 
-  private KafkaConsumer<String, String> createKafkaConsumer(String user) {
+  private KafkaConsumer<String, String> createKafkaConsumer(String user, String consumerGroup) {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "sentrykafkaconsumer");
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
     props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
     props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "30000");
