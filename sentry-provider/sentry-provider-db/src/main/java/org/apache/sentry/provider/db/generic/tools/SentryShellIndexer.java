@@ -18,6 +18,7 @@
 
 package org.apache.sentry.provider.db.generic.tools;
 
+import org.apache.commons.cli.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -40,10 +41,46 @@ import static org.apache.sentry.service.thrift.ServiceConstants.ClientConfig.SER
  */
 public class SentryShellIndexer extends SentryShellCommon {
 
+  protected boolean isMigration = false;
+
   private static final Logger LOGGER = LoggerFactory.getLogger(SentryShellIndexer.class);
+
+  private final SentryConfigToolIndexer configTool = new SentryConfigToolIndexer();
+
+  @Override
+  protected void setupOptions(Options simpleShellOptions) {
+    super.setupOptions(simpleShellOptions);
+    configTool.setupOptions(simpleShellOptions);
+  }
+
+  @Override
+  protected void parseOptions(CommandLine cmd) throws ParseException {
+    super.parseOptions(cmd);
+    configTool.parseOptions(cmd);
+    for (Option opt : cmd.getOptions()) {
+      if (opt.getOpt().equals("mgr")) {
+        isMigration = true;
+      }
+    }
+  }
+
+  @Override
+  protected OptionGroup getMainOptions() {
+    OptionGroup mainOptions = super.getMainOptions();
+    Option mgrOpt = new Option("mgr", "migrate", false, "Migrate ini file to Sentry service");
+    mgrOpt.setRequired(false);
+    mainOptions.addOption(mgrOpt);
+    return mainOptions;
+  }
 
   @Override
   public void run() throws Exception {
+
+    if (isMigration) {
+      configTool.run();
+      return;
+    }
+
     Command command = null;
     String component = HBASEINDEXER;
     Configuration conf = getSentryConf();
