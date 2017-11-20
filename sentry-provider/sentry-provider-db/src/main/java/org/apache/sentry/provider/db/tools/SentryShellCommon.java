@@ -87,41 +87,44 @@ abstract public class SentryShellCommon {
   protected boolean parseArgs(String[] args) {
     Options simpleShellOptions = new Options();
 
-    Option crOpt = new Option("cr", "create_role", false, "Create role");
-    crOpt.setRequired(false);
+    setupOptions(simpleShellOptions);
 
-    Option drOpt = new Option("dr", "drop_role", false, "Drop role");
-    drOpt.setRequired(false);
+    // help option
+    Option helpOpt = new Option("h", "help", false, OPTION_DESC_HELP);
+    helpOpt.setRequired(false);
+    simpleShellOptions.addOption(helpOpt);
 
-    Option argOpt = new Option("arg", "add_role_group", false, "Add role to group");
-    argOpt.setRequired(false);
+    // this Options is parsed first for help option
+    Options helpOptions = new Options();
+    helpOptions.addOption(helpOpt);
 
-    Option drgOpt = new Option("drg", "delete_role_group", false, "Delete role from group");
-    drgOpt.setRequired(false);
+    try {
+      Parser parser = new GnuParser();
 
-    Option gprOpt = new Option("gpr", "grant_privilege_role", false, "Grant privilege to role");
-    gprOpt.setRequired(false);
+      // parse help option first
+      CommandLine cmd = parser.parse(helpOptions, args, true);
+      for (Option opt : cmd.getOptions()) {
+        if (opt.getOpt().equals("h")) {
+          // get the help option, print the usage and exit
+          usage(simpleShellOptions);
+          return false;
+        }
+      }
 
-    Option rprOpt = new Option("rpr", "revoke_privilege_role", false, "Revoke privilege from role");
-    rprOpt.setRequired(false);
+      // without help option
+      cmd = parser.parse(simpleShellOptions, args);
 
-    Option lrOpt = new Option("lr", "list_role", false, "List role");
-    lrOpt.setRequired(false);
+      parseOptions(cmd);
+    } catch (ParseException pe) {
+      System.out.println(pe.getMessage());
+      usage(simpleShellOptions);
+      return false;
+    }
+    return true;
+  }
 
-    Option lpOpt = new Option("lp", "list_privilege", false, "List privilege");
-    lpOpt.setRequired(false);
-
-    // required args group
-    OptionGroup simpleShellOptGroup = new OptionGroup();
-    simpleShellOptGroup.addOption(crOpt);
-    simpleShellOptGroup.addOption(drOpt);
-    simpleShellOptGroup.addOption(argOpt);
-    simpleShellOptGroup.addOption(drgOpt);
-    simpleShellOptGroup.addOption(gprOpt);
-    simpleShellOptGroup.addOption(rprOpt);
-    simpleShellOptGroup.addOption(lrOpt);
-    simpleShellOptGroup.addOption(lpOpt);
-    simpleShellOptGroup.setRequired(true);
+  protected void setupOptions(Options simpleShellOptions) {
+    OptionGroup simpleShellOptGroup = getMainOptions();
     simpleShellOptions.addOptionGroup(simpleShellOptGroup);
 
     Option sOpt = new Option("s", "service", true, OPTION_DESC_SERVICE);
@@ -150,84 +153,94 @@ abstract public class SentryShellCommon {
     Option sentrySitePathOpt = new Option("conf", "sentry_conf", true, OPTION_DESC_CONF);
     sentrySitePathOpt.setRequired(true);
     simpleShellOptions.addOption(sentrySitePathOpt);
-
-    // help option
-    Option helpOpt = new Option("h", "help", false, OPTION_DESC_HELP);
-    helpOpt.setRequired(false);
-    simpleShellOptions.addOption(helpOpt);
-
-    // this Options is parsed first for help option
-    Options helpOptions = new Options();
-    helpOptions.addOption(helpOpt);
-
-    try {
-      Parser parser = new GnuParser();
-
-      // parse help option first
-      CommandLine cmd = parser.parse(helpOptions, args, true);
-      for (Option opt : cmd.getOptions()) {
-        if (opt.getOpt().equals("h")) {
-          // get the help option, print the usage and exit
-          usage(simpleShellOptions);
-          return false;
-        }
-      }
-
-      // without help option
-      cmd = parser.parse(simpleShellOptions, args);
-
-      for (Option opt : cmd.getOptions()) {
-        if (opt.getOpt().equals("p")) {
-          privilegeStr = opt.getValue();
-        } else if (opt.getOpt().equals("g")) {
-          groupName = opt.getValue();
-        } else if (opt.getOpt().equals("r")) {
-          roleName = opt.getValue();
-        } else if (opt.getOpt().equals("s")) {
-          serviceName = opt.getValue();
-        } else if (opt.getOpt().equals("cr")) {
-          isCreateRole = true;
-          roleNameRequired = true;
-        } else if (opt.getOpt().equals("dr")) {
-          isDropRole = true;
-          roleNameRequired = true;
-        } else if (opt.getOpt().equals("arg")) {
-          isAddRoleGroup = true;
-          roleNameRequired = true;
-          groupNameRequired = true;
-        } else if (opt.getOpt().equals("drg")) {
-          isDeleteRoleGroup = true;
-          roleNameRequired = true;
-          groupNameRequired = true;
-        } else if (opt.getOpt().equals("gpr")) {
-          isGrantPrivilegeRole = true;
-          roleNameRequired = true;
-          privilegeStrRequired = true;
-        } else if (opt.getOpt().equals("rpr")) {
-          isRevokePrivilegeRole = true;
-          roleNameRequired = true;
-          privilegeStrRequired = true;
-        } else if (opt.getOpt().equals("lr")) {
-          isListRole = true;
-        } else if (opt.getOpt().equals("lp")) {
-          isListPrivilege = true;
-          roleNameRequired = true;
-        } else if (opt.getOpt().equals("conf")) {
-          confPath = opt.getValue();
-        }
-      }
-      checkRequiredParameter(roleNameRequired, roleName, OPTION_DESC_ROLE_NAME);
-      checkRequiredParameter(groupNameRequired, groupName, OPTION_DESC_GROUP_NAME);
-      checkRequiredParameter(privilegeStrRequired, privilegeStr, OPTION_DESC_PRIVILEGE);
-    } catch (ParseException pe) {
-      System.out.println(pe.getMessage());
-      usage(simpleShellOptions);
-      return false;
-    }
-    return true;
   }
 
-  private void checkRequiredParameter(boolean isRequired, String paramValue, String paramName) throws ParseException {
+  protected OptionGroup getMainOptions() {
+    OptionGroup simpleShellOptGroup = new OptionGroup();
+    Option crOpt = new Option("cr", "create_role", false, "Create role");
+    crOpt.setRequired(false);
+
+    Option drOpt = new Option("dr", "drop_role", false, "Drop role");
+    drOpt.setRequired(false);
+
+    Option argOpt = new Option("arg", "add_role_group", false, "Add role to group");
+    argOpt.setRequired(false);
+
+    Option drgOpt = new Option("drg", "delete_role_group", false, "Delete role from group");
+    drgOpt.setRequired(false);
+
+    Option gprOpt = new Option("gpr", "grant_privilege_role", false, "Grant privilege to role");
+    gprOpt.setRequired(false);
+
+    Option rprOpt = new Option("rpr", "revoke_privilege_role", false, "Revoke privilege from role");
+    rprOpt.setRequired(false);
+
+    Option lrOpt = new Option("lr", "list_role", false, "List role");
+    lrOpt.setRequired(false);
+
+    Option lpOpt = new Option("lp", "list_privilege", false, "List privilege");
+    lpOpt.setRequired(false);
+
+    // required args group
+    simpleShellOptGroup.addOption(crOpt);
+    simpleShellOptGroup.addOption(drOpt);
+    simpleShellOptGroup.addOption(argOpt);
+    simpleShellOptGroup.addOption(drgOpt);
+    simpleShellOptGroup.addOption(gprOpt);
+    simpleShellOptGroup.addOption(rprOpt);
+    simpleShellOptGroup.addOption(lrOpt);
+    simpleShellOptGroup.addOption(lpOpt);
+    simpleShellOptGroup.setRequired(true);
+    return simpleShellOptGroup;
+  }
+
+  protected void parseOptions(CommandLine cmd) throws ParseException {
+    for (Option opt : cmd.getOptions()) {
+      if (opt.getOpt().equals("p")) {
+        privilegeStr = opt.getValue();
+      } else if (opt.getOpt().equals("g")) {
+        groupName = opt.getValue();
+      } else if (opt.getOpt().equals("r")) {
+        roleName = opt.getValue();
+      } else if (opt.getOpt().equals("s")) {
+        serviceName = opt.getValue();
+      } else if (opt.getOpt().equals("cr")) {
+        isCreateRole = true;
+        roleNameRequired = true;
+      } else if (opt.getOpt().equals("dr")) {
+        isDropRole = true;
+        roleNameRequired = true;
+      } else if (opt.getOpt().equals("arg")) {
+        isAddRoleGroup = true;
+        roleNameRequired = true;
+        groupNameRequired = true;
+      } else if (opt.getOpt().equals("drg")) {
+        isDeleteRoleGroup = true;
+        roleNameRequired = true;
+        groupNameRequired = true;
+      } else if (opt.getOpt().equals("gpr")) {
+        isGrantPrivilegeRole = true;
+        roleNameRequired = true;
+        privilegeStrRequired = true;
+      } else if (opt.getOpt().equals("rpr")) {
+        isRevokePrivilegeRole = true;
+        roleNameRequired = true;
+        privilegeStrRequired = true;
+      } else if (opt.getOpt().equals("lr")) {
+        isListRole = true;
+      } else if (opt.getOpt().equals("lp")) {
+        isListPrivilege = true;
+        roleNameRequired = true;
+      } else if (opt.getOpt().equals("conf")) {
+        confPath = opt.getValue();
+      }
+    }
+    checkRequiredParameter(roleNameRequired, roleName, OPTION_DESC_ROLE_NAME);
+    checkRequiredParameter(groupNameRequired, groupName, OPTION_DESC_GROUP_NAME);
+    checkRequiredParameter(privilegeStrRequired, privilegeStr, OPTION_DESC_PRIVILEGE);
+  }
+
+  protected void checkRequiredParameter(boolean isRequired, String paramValue, String paramName) throws ParseException {
     if (isRequired && StringUtils.isEmpty(paramValue)) {
       throw new ParseException(PREFIX_MESSAGE_MISSING_OPTION + paramName);
     }
