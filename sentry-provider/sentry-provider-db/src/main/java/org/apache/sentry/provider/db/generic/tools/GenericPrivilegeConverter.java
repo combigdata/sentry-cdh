@@ -40,8 +40,6 @@ import org.apache.sentry.core.model.kafka.KafkaModelAuthorizables;
 import org.apache.sentry.core.model.kafka.KafkaPrivilegeModel;
 import org.apache.sentry.core.model.solr.SolrModelAuthorizables;
 import org.apache.sentry.core.model.solr.SolrPrivilegeModel;
-import org.apache.sentry.core.model.sqoop.SqoopModelAuthorizables;
-import org.apache.sentry.core.model.sqoop.SqoopPrivilegeModel;
 import org.apache.sentry.provider.common.AuthorizationComponent;
 import org.apache.sentry.provider.db.generic.service.thrift.TAuthorizable;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryGrantOption;
@@ -163,8 +161,6 @@ public class GenericPrivilegeConverter implements TSentryPrivilegeConverter {
       return KafkaPrivilegeModel.getInstance().getPrivilegeValidators();
     } else if ("SOLR".equals(component)) {
       return SolrPrivilegeModel.getInstance().getPrivilegeValidators();
-    } else if (AuthorizationComponent.SQOOP.equals(component)) {
-      return SqoopPrivilegeModel.getInstance().getPrivilegeValidators(service);
     }
 
     throw new SentryUserException("Invalid component specified for GenericPrivilegeCoverter: " + component);
@@ -175,8 +171,6 @@ public class GenericPrivilegeConverter implements TSentryPrivilegeConverter {
       return KafkaModelAuthorizables.from(keyValue);
     } else if ("SOLR".equals(component)) {
       return SolrModelAuthorizables.from(keyValue);
-    } else if (AuthorizationComponent.SQOOP.equals(component)) {
-      return SqoopModelAuthorizables.from(keyValue);
     }
 
     throw new SentryUserException("Invalid component specified for GenericPrivilegeCoverter: " + component);

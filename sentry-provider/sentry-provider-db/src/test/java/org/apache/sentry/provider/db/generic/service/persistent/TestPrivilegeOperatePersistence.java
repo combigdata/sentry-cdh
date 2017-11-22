@@ -32,7 +32,6 @@ import org.apache.sentry.core.common.BitFieldActionFactory;
 import org.apache.sentry.core.model.solr.Collection;
 import org.apache.sentry.core.model.solr.Field;
 import org.apache.sentry.core.model.solr.SolrConstants;
-import org.apache.sentry.core.model.sqoop.SqoopActionConstant;
 import org.apache.sentry.core.common.exception.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.generic.service.persistent.PrivilegeObject.Builder;
 import org.apache.sentry.provider.file.PolicyFile;
@@ -1128,10 +1127,6 @@ public class TestPrivilegeOperatePersistence extends SentryStoreIntegrationBase 
 
     @Override
     public BitFieldAction getActionByName(String name) {
-      // Check the name is All
-      if (SqoopActionConstant.ALL_NAME.equalsIgnoreCase(name)) {
-        return new MyComponentAction(MyComponentActionType.ALL);
-      }
       return new MyComponentAction(name);
     }
   }

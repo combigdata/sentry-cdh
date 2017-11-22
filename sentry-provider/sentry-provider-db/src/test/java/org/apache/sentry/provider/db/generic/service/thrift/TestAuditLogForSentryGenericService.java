@@ -46,7 +46,7 @@ import com.google.common.collect.Sets;
 public class TestAuditLogForSentryGenericService extends SentryServiceIntegrationBase {
 
   private SentryGenericServiceClient client;
-  private static final String COMPONENT = "SQOOP";
+  private static final String COMPONENT = "KAFKA";
   private static final org.slf4j.Logger LOGGER = LoggerFactory
       .getLogger(TestAuditLogForSentryGenericService.class);
 
