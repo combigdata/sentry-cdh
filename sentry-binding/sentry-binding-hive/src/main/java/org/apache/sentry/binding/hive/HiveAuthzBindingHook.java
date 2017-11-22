@@ -304,14 +304,13 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         }
         break;
       case HiveParser.TOK_ALTERTABLE:
-
+        currDB = getCanonicalDb();
         for (Node childNode : ast.getChildren()) {
           ASTNode childASTNode = (ASTNode) childNode;
           if ("TOK_ALTERTABLE_SERIALIZER".equals(childASTNode.getText())) {
             ASTNode serdeNode = (ASTNode) childASTNode.getChild(0);
             String serdeClassName = BaseSemanticAnalyzer.unescapeSQLString(serdeNode.getText());
             setSerdeURI(serdeClassName);
-            currDB = getCanonicalDb();
           }
         }
         break;

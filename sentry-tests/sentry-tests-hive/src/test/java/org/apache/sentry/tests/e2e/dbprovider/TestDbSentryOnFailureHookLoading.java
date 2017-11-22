@@ -263,11 +263,13 @@ public class TestDbSentryOnFailureHookLoading extends AbstractTestWithDbProvider
     }
     if(tableName != null) {
       Assert.assertNotNull("Table object is null for op: " + expectedOp, DummySentryOnFailureHook.table);
-      Assert.assertTrue(tableName.equalsIgnoreCase(DummySentryOnFailureHook.table.getName()));
+      Assert.assertNotNull("Table name is null for op: " + expectedOp, DummySentryOnFailureHook.table.getName());
+      Assert.assertEquals(tableName.toLowerCase(), DummySentryOnFailureHook.table.getName().toLowerCase());
     }
     if(dbName != null) {
       Assert.assertNotNull("Database object is null for op: " + expectedOp, DummySentryOnFailureHook.db);
-      Assert.assertTrue(dbName.equalsIgnoreCase(DummySentryOnFailureHook.db.getName()));
+      Assert.assertNotNull("Database name is null for op: " + expectedOp, DummySentryOnFailureHook.db.getName());
+      Assert.assertEquals(dbName.toLowerCase(), DummySentryOnFailureHook.db.getName().toLowerCase());
     }
   }
 }
