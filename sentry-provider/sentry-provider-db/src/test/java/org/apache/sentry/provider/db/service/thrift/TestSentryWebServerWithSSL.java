@@ -18,6 +18,7 @@
 package org.apache.sentry.provider.db.service.thrift;
 
 import com.google.common.io.Resources;
+import java.net.HttpURLConnection;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
 import org.apache.hadoop.security.authentication.client.KerberosAuthenticator;
@@ -73,5 +74,16 @@ public class TestSentryWebServerWithSSL extends SentryServiceIntegrationBase {
     String response = IOUtils.toString(conn.getInputStream());
     Assert.assertEquals("pong\n", response);
 //    Thread.sleep(100000);
+  }
+
+  @Test
+  public void testTraceIsDisabled() throws Exception {
+    final URL url = new URL("https://"+ SERVER_HOST + ":" + webServerPort);
+    Properties systemProps = System.getProperties();
+    systemProps.put( "javax.net.ssl.trustStore", Resources.getResource("cacerts.jks").getPath());
+    System.setProperties(systemProps);
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("TRACE");
+    Assert.assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());
   }
 }
