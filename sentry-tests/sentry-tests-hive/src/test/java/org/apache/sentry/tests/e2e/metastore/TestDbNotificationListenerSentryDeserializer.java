@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,29 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.sentry.binding.metastore.messaging.json;
+package org.apache.sentry.tests.e2e.metastore;
 
-import org.apache.hive.hcatalog.messaging.json.JSONCreateDatabaseMessage;
-import org.codehaus.jackson.annotate.JsonProperty;
+import org.junit.BeforeClass;
 
-public class SentryJSONCreateDatabaseMessage extends JSONCreateDatabaseMessage {
-  @JsonProperty
-  private String location;
 
-  public SentryJSONCreateDatabaseMessage() {
-  }
+/**
+ * Make sure we are able to capture all HMS object and path changes using Hive's DbNotificationListener and
+ * Sentry's JSON deserializer. This would make sure Sentry is able to read the Notification logs written by
+ * Hive's DBNotificationListener
+ */
+public class TestDbNotificationListenerSentryDeserializer extends TestSentryListenerSentryDeserializer {
 
-  public SentryJSONCreateDatabaseMessage(String server, String servicePrincipal, String db, Long timestamp, String location) {
-    super(server, servicePrincipal, db, timestamp);
-    this.location = location;
-  }
-
-  public String getLocation() {
-    return location;
-  }
-
-  @Override
-  public String toString() {
-    return SentryJSONMessageDeserializer.serialize(this);
+  @BeforeClass
+  public static void setupTestStaticConfiguration() throws Exception {
+    setMetastoreListener = true;
+    useDbNotificationListener = true;
+    AbstractMetastoreTestWithStaticConfiguration.setupTestStaticConfiguration();
+    setupClass();
   }
 }
+

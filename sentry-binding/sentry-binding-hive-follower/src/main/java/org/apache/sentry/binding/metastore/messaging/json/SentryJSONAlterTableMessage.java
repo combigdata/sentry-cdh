@@ -18,8 +18,7 @@
 
 package org.apache.sentry.binding.metastore.messaging.json;
 
-import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.metastore.messaging.json.JSONAlterTableMessage;
+import org.apache.hive.hcatalog.messaging.json.JSONAlterTableMessage;
 import org.codehaus.jackson.annotate.JsonProperty;
 
 public class SentryJSONAlterTableMessage extends JSONAlterTableMessage {
@@ -29,18 +28,13 @@ public class SentryJSONAlterTableMessage extends JSONAlterTableMessage {
   private String oldLocation;
 
   public SentryJSONAlterTableMessage() {
-  }
-
-  public SentryJSONAlterTableMessage(String server, String servicePrincipal, Table tableObjBefore,
-      Table tableObjAfter, Long timestamp) {
-    this(server, servicePrincipal, tableObjBefore, tableObjAfter, timestamp,
-        tableObjBefore.getSd().getLocation(), tableObjAfter.getSd().getLocation());
+    super("", "", "", "", null);
   }
 
   public SentryJSONAlterTableMessage(String server, String servicePrincipal,
-      Table tableObjBefore, Table tableObjAfter, Long timestamp, String oldLocation,
-      String newLocation) {
-    super(server, servicePrincipal, tableObjBefore, tableObjAfter, timestamp);
+                                     String db, String table, Long timestamp,
+                                     String oldLocation, String newLocation) {
+    super(server, servicePrincipal, db, table, timestamp);
     this.newLocation = newLocation;
     this.oldLocation = oldLocation;
   }

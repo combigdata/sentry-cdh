@@ -21,55 +21,50 @@ package org.apache.sentry.tests.e2e.metastore;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.*;
-import org.apache.hive.hcatalog.messaging.CreateDatabaseMessage;
 import org.apache.hive.hcatalog.messaging.HCatEventMessage;
-import org.apache.hive.hcatalog.messaging.MessageDeserializer;
-import org.apache.hive.hcatalog.messaging.MessageFactory;
-import org.apache.hive.hcatalog.messaging.CreateTableMessage;
-import org.apache.hive.hcatalog.messaging.DropTableMessage;
-import org.apache.hive.hcatalog.messaging.AlterTableMessage;
-import org.apache.hive.hcatalog.messaging.AlterPartitionMessage;
-import org.apache.hive.hcatalog.messaging.DropDatabaseMessage;
-import org.apache.hive.hcatalog.messaging.AddPartitionMessage;
-import org.apache.hive.hcatalog.messaging.DropPartitionMessage;
-import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAlterPartitionMessage;
+import org.apache.sentry.binding.metastore.messaging.json.*;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
 import org.apache.sentry.tests.e2e.hive.hiveserver.HiveServerFactory;
 import org.hamcrest.text.IsEqualIgnoringCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.*;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Make sure NotificationLog is capturing the information correctly for the commands which change <Obj,Location> mapping
- * This test class is using Hive's DbNotificationListener and Hive's Notification log JSON deserializer.
+ * Make sure we are able to capture all HMS object and path changes using Sentry's SentryMetastorePostEventListener
+ * and Sentry Notification log deserializer. Can be removed if we move to using DBNotificationListener
  */
-
-public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetastoreTestWithStaticConfiguration {
+public class TestSentryListenerSentryDeserializer extends AbstractMetastoreTestWithStaticConfiguration {
 
   protected static HiveMetaStoreClient client;
-  protected static MessageDeserializer deserializer;
+  protected static SentryJSONMessageDeserializer deserializer;
   protected static Random random = new Random();
+  private static String warehouseDir;
   private static String testDB;
+
 
   @BeforeClass
   public static void setupTestStaticConfiguration() throws Exception {
     setMetastoreListener = true;
-    useDbNotificationListener = true;
-    beforeClass();
+    useDbNotificationListener = false;
+    AbstractMetastoreTestWithStaticConfiguration.setupTestStaticConfiguration();
+    setupClass();
   }
 
-  protected static void beforeClass() throws Exception {
-    AbstractMetastoreTestWithStaticConfiguration.setupTestStaticConfiguration();
+  protected static void setupClass() throws Exception{
     client = context.getMetaStoreClient(ADMIN1);
-    deserializer = MessageFactory.getDeserializer("json", "");
+    deserializer = new SentryJSONMessageDeserializer();
+    warehouseDir = hiveServer.getProperty(HiveServerFactory.WAREHOUSE_DIR);
     writePolicyFile(setAdminOnServer1(ADMINGROUP).setUserGroupMapping(StaticUserGroup.getStaticMapping()));
+
   }
 
   @AfterClass
@@ -100,10 +95,13 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     createMetastoreDB(client, testDB);
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    CreateDatabaseMessage createDatabaseMessage = deserializer.getCreateDatabaseMessage(response.getEvents().get(0).getMessage());
+    SentryJSONCreateDatabaseMessage createDatabaseMessage = deserializer.getCreateDatabaseMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.CREATE_DATABASE, createDatabaseMessage.getEventType()); //Validate EventType
     assertEquals(testDB, createDatabaseMessage.getDB()); //dbName
-    //Location information is not available
+    String expectedLocation = warehouseDir + "/" + testDB + ".db";
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), createDatabaseMessage.getLocation());
+    }
 
     //Alter database location and rename are not supported. See HIVE-4847
 
@@ -116,11 +114,12 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     latestID = client.getCurrentNotificationEventId();
     assertEquals(previousID.getEventId() + 1, latestID.getEventId()); //Validate monotonically increasing eventID
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    DropDatabaseMessage dropDatabaseMessage = deserializer.getDropDatabaseMessage(response.getEvents().get(0).getMessage());
+    SentryJSONDropDatabaseMessage dropDatabaseMessage = deserializer.getDropDatabaseMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.DROP_DATABASE, dropDatabaseMessage.getEventType()); //Event type
     assertThat(dropDatabaseMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB)); // dbName
-    //Location information is not available, but we might not really need it as we can drop all paths associated with
-    //the object when we drop
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), dropDatabaseMessage.getLocation()); //location
+    }
   }
 
   @Test
@@ -143,11 +142,15 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
         Lists.newArrayList(new FieldSchema("part_col1", "string", "")));
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    CreateTableMessage createTableMessage = deserializer.getCreateTableMessage(response.getEvents().get(0).getMessage());
+    SentryJSONCreateTableMessage createTableMessage = deserializer.getCreateTableMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.CREATE_TABLE, createTableMessage.getEventType());
     assertEquals(testDB, createTableMessage.getDB()); //dbName
     assertEquals(testTable, createTableMessage.getTable()); //tableName
-    //Location information is not available
+    String expectedLocation = warehouseDir + "/" + testDB + ".db/" + testTable;
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), createTableMessage.getLocation());
+    }
+
 
     //Drop table
     // We need:
@@ -159,12 +162,13 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     latestID = client.getCurrentNotificationEventId();
     assertEquals(previousID.getEventId() + 1, latestID.getEventId());
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    DropTableMessage dropTableMessage = deserializer.getDropTableMessage(response.getEvents().get(0).getMessage());
+    SentryJSONDropTableMessage dropTableMessage = deserializer.getDropTableMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.DROP_TABLE, dropTableMessage.getEventType());
     assertThat(dropTableMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));//dbName
     assertThat(dropTableMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));//tableName
-    //Location information is not available, but we might not really need it as we can drop all paths associated with
-    //the object when we drop
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), dropTableMessage.getLocation()); //location
+    }
   }
 
   @Test
@@ -177,7 +181,7 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     // Create database
     createMetastoreDB(client, testDB);
 
-    // Create table with partition
+    // Create table without partition
     // We need:
     // - dbname
     // - tablename
@@ -185,11 +189,14 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     createMetastoreTable(client, testDB, testTable, Lists.newArrayList(new FieldSchema("col1", "int", "")));
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    CreateTableMessage createTableMessage = deserializer.getCreateTableMessage(response.getEvents().get(0).getMessage());
+    SentryJSONCreateTableMessage createTableMessage = deserializer.getCreateTableMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.CREATE_TABLE, createTableMessage.getEventType());
     assertEquals(testDB, createTableMessage.getDB()); //dbName
     assertEquals(testTable, createTableMessage.getTable()); //tableName
-    //Location information is not available
+    String expectedLocation = warehouseDir + "/" + testDB + ".db/" + testTable;
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), createTableMessage.getLocation());
+    }
 
     //Drop table
     // We need:
@@ -201,27 +208,30 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     latestID = client.getCurrentNotificationEventId();
     assertEquals(previousID.getEventId() + 1, latestID.getEventId());
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    DropTableMessage dropTableMessage = deserializer.getDropTableMessage(response.getEvents().get(0).getMessage());
+    SentryJSONDropTableMessage dropTableMessage = deserializer.getDropTableMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.DROP_TABLE, dropTableMessage.getEventType());
     assertThat(dropTableMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));//dbName
     assertThat(dropTableMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));//tableName
-    //Location information is not available, but we might not really need it as we can drop all paths associated with
-    //the object when we drop
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), dropTableMessage.getLocation()); //location
+    }
   }
 
   @Test
   public void testAddDropPartition() throws Exception {
     testDB = "N_db" + random.nextInt(Integer.SIZE - 1);
     String testTable = "N_table" + random.nextInt(Integer.SIZE - 1);
+    String partColName = "part_col1";
+    String partColValue = "part1";
 
     NotificationEventResponse response;
     CurrentNotificationEventId latestID, previousID;
     // Create database and table
     createMetastoreDB(client, testDB);
     Table tbl1 = createMetastoreTableWithPartition(client, testDB, testTable, Lists.newArrayList(new FieldSchema("col1", "int", "")),
-        Lists.newArrayList(new FieldSchema("part_col1", "string", "")));
+        Lists.newArrayList(new FieldSchema(partColName, "string", "")));
 
-    ArrayList<String> partVals1 = Lists.newArrayList("part1");
+    ArrayList<String> partVals1 = Lists.newArrayList(partColValue);
 
     //Add partition
     // We need:
@@ -231,11 +241,14 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     addPartition(client, testDB, testTable, partVals1, tbl1);
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    AddPartitionMessage addPartitionMessage = deserializer.getAddPartitionMessage(response.getEvents().get(0).getMessage());
+    SentryJSONAddPartitionMessage addPartitionMessage = deserializer.getAddPartitionMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.ADD_PARTITION, addPartitionMessage.getEventType());
     assertThat(addPartitionMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));// dbName (returns lowered version)
     assertThat(addPartitionMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));// tableName (returns lowered version)
-    //Location information is not available
+    String expectedLocation = warehouseDir + "/" + testDB + ".db/" + testTable + "/" + partColName + "=" + partColValue;
+    if(!useDbNotificationListener) {
+      assertEquals(expectedLocation.toLowerCase(), addPartitionMessage.getLocations().get(0));
+    }
 
     //Drop partition
     // We need:
@@ -247,15 +260,15 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     latestID = client.getCurrentNotificationEventId();
     assertEquals(previousID.getEventId() + 1, latestID.getEventId());
     response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
-    DropPartitionMessage dropPartitionMessage = deserializer.getDropPartitionMessage(response.getEvents().get(0).getMessage());
+    SentryJSONDropPartitionMessage dropPartitionMessage = deserializer.getDropPartitionMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.DROP_PARTITION, dropPartitionMessage.getEventType());
     assertThat(dropPartitionMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB)); //dbName
     assertThat(dropPartitionMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable)); //tableName
-    //Location information is not available
-
+    if(!useDbNotificationListener) {
+      assertEquals(Arrays.asList(expectedLocation.toLowerCase()), dropPartitionMessage.getLocations());
+    }
   }
 
-  @Ignore("Needs Hive >= 1.1.2")
   @Test
   public void testAlterTableWithPartition() throws Exception {
     testDB = "N_db" + random.nextInt(Integer.SIZE - 1);
@@ -270,6 +283,7 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     Table tbl1 = createMetastoreTableWithPartition(client, testDB,
         testTable, Lists.newArrayList(new FieldSchema("col1", "int", "")),
         Lists.newArrayList(new FieldSchema("part_col1", "string", "")));
+    String oldLocation = tbl1.getSd().getLocation();
 
     //Alter table location
     // We need:
@@ -282,12 +296,14 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     alterTableWithLocation(client, tbl1, tabDir1);
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId()-1, 1, null);
-    AlterTableMessage alterTableMessage = deserializer.getAlterTableMessage(response.getEvents().get(0).getMessage());
+    SentryJSONAlterTableMessage alterTableMessage = deserializer.getAlterTableMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.ALTER_TABLE, alterTableMessage.getEventType());
     assertThat(alterTableMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));//dbName
     assertThat(alterTableMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));//tableName
-    //Old location is not available: This information is lost if not captured at the time of event.
-    //New location is not available
+    if(!useDbNotificationListener) {
+      assertEquals(oldLocation, alterTableMessage.getOldLocation()); //oldLocation
+      assertEquals(tbl1.getSd().getLocation(), alterTableMessage.getNewLocation()); //newLocation
+    }
 
     //Alter table rename managed table - location also changes
     // We need:
@@ -297,10 +313,14 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     // - newTableName
     // - old location
     // - new location
+    oldLocation = tbl1.getSd().getLocation();
     String newDBName = testDB + random.nextInt(Integer.SIZE - 1);
     String newTableName = testTable + random.nextInt(Integer.SIZE - 1);
     String newLocation = tabDir1 + random.nextInt(Integer.SIZE - 1);
     createMetastoreDB(client, newDBName);
+    previousID = latestID;
+    latestID = client.getCurrentNotificationEventId();
+    assertEquals(previousID.getEventId() + 1, latestID.getEventId());
     alterTableRename(client, tbl1, newDBName, newTableName, newLocation);
     previousID = latestID;
     latestID = client.getCurrentNotificationEventId();
@@ -312,15 +332,18 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     assertThat(alterTableMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));//oldTableName
     assertThat(response.getEvents().get(0).getDbName(), IsEqualIgnoringCase.equalToIgnoringCase(newDBName));//newDbName
     assertThat(response.getEvents().get(0).getTableName(), IsEqualIgnoringCase.equalToIgnoringCase(newTableName));//newTableName
-    //Old location: This information is lost if not captured at the time of event.
-    //New location: Not sure how can we get this? Refresh all paths for every alter table add partition?
+    if(!useDbNotificationListener) {
+      assertEquals(oldLocation, alterTableMessage.getOldLocation()); //oldLocation
+      assertEquals(tbl1.getSd().getLocation(), alterTableMessage.getNewLocation()); //newLocation
+    }
   }
 
-  @Ignore("Needs Hive >= 1.1.2")
   @Test
   public void testAlterPartition() throws Exception {
     testDB = "N_db" + random.nextInt(Integer.SIZE - 1);
     String testTable = "N_table" + random.nextInt(Integer.SIZE - 1);
+    String partColName = "part_col1";
+    String partColValue = "part1";
 
     NotificationEventResponse response;
     CurrentNotificationEventId latestID;
@@ -330,28 +353,30 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     // Create table with partition
     Table tbl1 = createMetastoreTableWithPartition(client, testDB,
         testTable, Lists.newArrayList(new FieldSchema("col1", "int", "")),
-        Lists.newArrayList(new FieldSchema("part_col1", "string", "")));
-    ArrayList<String> partVals1 = Lists.newArrayList("part1");
+        Lists.newArrayList(new FieldSchema(partColName, "string", "")));
+    ArrayList<String> partVals1 = Lists.newArrayList(partColValue);
     Partition partition = addPartition(client, testDB, testTable, partVals1, tbl1);
 
-
-    String warehouseDir = hiveServer.getProperty(HiveServerFactory.WAREHOUSE_DIR);
     //Alter partition with location
     // We need:
     // - dbName
     // - tableName
     // - partition location
-    alterPartitionWithLocation(client, partition, warehouseDir + File.separator + "newpart");
+    String oldLocation = tbl1.getSd().getLocation()  + "/" + partColName + "=" + partColValue;
+    String newLocation = warehouseDir + File.separator + "newpart";
+    alterPartitionWithLocation(client, partition, newLocation);
     latestID = client.getCurrentNotificationEventId();
     response = client.getNextNotification(latestID.getEventId()-1, 1, null);
-    AlterPartitionMessage alterPartitionMessage = deserializer.getAlterPartitionMessage(response.getEvents().get(0).getMessage());
+    SentryJSONAlterPartitionMessage alterPartitionMessage = deserializer.getAlterPartitionMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.ALTER_PARTITION, alterPartitionMessage.getEventType());
     assertThat(alterPartitionMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));// dbName
     assertThat(alterPartitionMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));// tableName
-    assertEquals(partVals1, alterPartitionMessage.getKeyValues());
-    if (alterPartitionMessage instanceof SentryJSONAlterPartitionMessage) {
-      SentryJSONAlterPartitionMessage sjAlterPartitionMessage = (SentryJSONAlterPartitionMessage) alterPartitionMessage;
-      assertEquals(partVals1, sjAlterPartitionMessage.getNewValues());
+    if(!useDbNotificationListener) {
+      assertEquals(oldLocation.toLowerCase(), alterPartitionMessage.getOldLocation());
+      assertEquals(newLocation.toLowerCase(), alterPartitionMessage.getNewLocation());
+      assertTrue(partVals1.containsAll(alterPartitionMessage.getKeyValues().values()) &&
+          alterPartitionMessage.getKeyValues().values().containsAll(partVals1));
+      assertEquals(partVals1, alterPartitionMessage.getNewValues());
     }
 
     Partition newPartition = partition.deepCopy();
@@ -359,16 +384,18 @@ public class TestDBNotificationListenerInBuiltDeserializer extends AbstractMetas
     newPartition.setValues(partVals2);
     renamePartition(client, partition, newPartition);
     latestID = client.getCurrentNotificationEventId();
-    response = client.getNextNotification(latestID.getEventId()-1, 1, null);
+    response = client.getNextNotification(latestID.getEventId() - 1, 1, null);
     alterPartitionMessage = deserializer.getAlterPartitionMessage(response.getEvents().get(0).getMessage());
     assertEquals(HCatEventMessage.EventType.ALTER_PARTITION, alterPartitionMessage.getEventType());
     assertThat(alterPartitionMessage.getDB(), IsEqualIgnoringCase.equalToIgnoringCase(testDB));// dbName
     assertThat(alterPartitionMessage.getTable(), IsEqualIgnoringCase.equalToIgnoringCase(testTable));// tableName
-    assertEquals(partVals1, alterPartitionMessage.getKeyValues());
-    if (alterPartitionMessage instanceof SentryJSONAlterPartitionMessage) {
-      SentryJSONAlterPartitionMessage sjAlterPartitionMessage = (SentryJSONAlterPartitionMessage) alterPartitionMessage;
-      assertEquals(partVals2, sjAlterPartitionMessage.getNewValues());
+    if(!useDbNotificationListener) {
+      assertTrue(partVals1.containsAll(alterPartitionMessage.getKeyValues().values()) &&
+          alterPartitionMessage.getKeyValues().values().containsAll(partVals1));
+      assertEquals(partVals2, alterPartitionMessage.getNewValues());
     }
+
+    dropMetastoreDBIfExists(client, testDB);
   }
 }
 
