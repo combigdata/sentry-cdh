@@ -170,10 +170,6 @@ limitations under the License.
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-hdfs</artifactId>
           </exclusion>
-          <exclusion>
-            <groupId>org.apache.solr</groupId>
-            <artifactId>solr:war</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
