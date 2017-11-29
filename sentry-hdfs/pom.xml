@@ -34,5 +34,4 @@ limitations under the License.
     <module>sentry-hdfs-namenode-plugin</module>
     <module>sentry-hdfs-dist</module>
   </modules>
-
 </project>
