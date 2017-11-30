@@ -48,14 +48,5 @@ limitations under the License.
         <module>sentry-binding-hive</module>
       </modules>
     </profile>
-    <profile>
-      <id>hive-authz2</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <modules>
-        <module>sentry-binding-hive-v2</module>
-      </modules>
-    </profile>
   </profiles>
 </project>
