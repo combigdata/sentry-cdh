@@ -21,6 +21,7 @@ import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.service.thrift.SentryServiceState;
 import org.apache.sentry.service.thrift.SentryStateBank;
 import org.apache.sentry.service.thrift.SentryStateBankTestHelper;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -44,6 +45,10 @@ public class TestDBUpdateForwarder {
     imageRetriever = Mockito.mock(ImageRetriever.class);
     deltaRetriever = Mockito.mock(DeltaRetriever.class);
     updater = new DBUpdateForwarder<>(imageRetriever, deltaRetriever);
+  }
+
+  @After
+  public void tearDown() {
     SentryStateBankTestHelper.clearAllStates();
   }
 
