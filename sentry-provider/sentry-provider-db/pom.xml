@@ -37,8 +37,8 @@ limitations under the License.
       <artifactId>commons-lang</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.jolbox</groupId>
-      <artifactId>bonecp</artifactId>
+      <groupId>org.apache.sentry</groupId>
+      <artifactId>sentry-shaded-miscellaneous</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -98,6 +98,13 @@ limitations under the License.
       <groupId>org.datanucleus</groupId>
       <artifactId>datanucleus-rdbms</artifactId>
       <version>${datanucleus-rdbms.version}</version>
+      <!-- Excluding BoneCP since a version shaded with Guava is included in sentry-shaded-miscellaneous-->
+      <exclusions>
+        <exclusion>
+          <groupId>com.jolbox</groupId>
+          <artifactId>bonecp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.datanucleus</groupId>
@@ -255,6 +262,11 @@ limitations under the License.
         <exclusion>
           <groupId>javax.jdo</groupId>
           <artifactId>jdo-api</artifactId>
+        </exclusion>
+        <!-- Excluding BoneCP since a version shaded with Guava is included in sentry-shaded-miscellaneous-->
+        <exclusion>
+          <groupId>com.jolbox</groupId>
+          <artifactId>bonecp</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
