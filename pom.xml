@@ -532,6 +532,12 @@ limitations under the License.
         <groupId>org.apache.sentry</groupId>
         <artifactId>sentry-shaded-miscellaneous</artifactId>
         <version>${project.version}</version>
+	<exclusions>
+          <exclusion>
+            <groupId>com.jolbox</groupId>
+            <artifactId>bonecp</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.sentry</groupId>
