@@ -12,14 +12,13 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.sentry.binding.hive.authz;
+package org.apache.sentry.binding.hive.v2.authorizer;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import org.apache.hadoop.hive.SentryHiveConstants;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
@@ -38,10 +37,11 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObje
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveRoleGrant;
 import org.apache.sentry.binding.hive.SentryOnFailureHookContext;
 import org.apache.sentry.binding.hive.SentryOnFailureHookContextImpl;
+import org.apache.sentry.binding.hive.authz.HiveAuthzBinding;
 import org.apache.sentry.binding.hive.authz.HiveAuthzBinding.HiveHook;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
-import org.apache.sentry.binding.util.SentryAuthorizerUtil;
+import org.apache.sentry.binding.hive.v2.util.SentryAuthorizerUtil;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.exception.SentryAccessDeniedException;
@@ -55,6 +55,9 @@ import org.apache.sentry.provider.db.service.thrift.TSentryRole;
 import org.apache.sentry.service.thrift.SentryServiceClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 
 public class DefaultSentryAccessController extends SentryHiveAccessController {
 
