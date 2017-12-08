@@ -2671,6 +2671,7 @@ public class SentryStore {
           long snapshotID = getCurrentAuthzPathsSnapshotID(pm);
           long nextSnapshotID = snapshotID + 1;
           pm.makePersistent(new MAuthzPathsSnapshotId(nextSnapshotID));
+          LOGGER.info("Attempting to commit new HMS snapshot with ID = {}", nextSnapshotID);
           for (Map.Entry<String, Collection<String>> authzPath : authzPaths.entrySet()) {
             pm.makePersistent(new MAuthzPathsMapping(nextSnapshotID, authzPath.getKey(), authzPath.getValue()));
           }
@@ -2743,7 +2744,7 @@ public class SentryStore {
         Collection<String> paths) {
     long currentSnapshotID = getCurrentAuthzPathsSnapshotID(pm);
     if (currentSnapshotID <= EMPTY_PATHS_SNAPSHOT_ID) {
-      LOGGER.error("AuthzObj: {} cannot be persisted if an paths snapshot ID does not exist yet.");
+      LOGGER.warn("AuthzObj: {} cannot be persisted if paths snapshot ID does not exist yet.", authzObj);
     }
 
     MAuthzPathsMapping mAuthzPathsMapping = getMAuthzPathsMappingCore(pm, currentSnapshotID, authzObj);
