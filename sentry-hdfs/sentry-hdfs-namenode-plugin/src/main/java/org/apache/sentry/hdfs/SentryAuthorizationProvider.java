@@ -41,10 +41,12 @@ import org.apache.hadoop.hdfs.server.namenode.AuthorizationProvider;
 import org.apache.hadoop.hdfs.server.namenode.DefaultAuthorizationProvider;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.security.AccessControlException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 public class SentryAuthorizationProvider
@@ -169,15 +171,39 @@ public class SentryAuthorizationProvider
     defaultAuthzProvider.removeSnapshot(dir, snapshotId);
   }
 
+  /**
+   * This is a fall-through method, so input validation is delegated to defaultAuthzProvider
+   */
   @Override
   public void checkPermission(String user, Set<String> groups,
       INodeAuthorizationInfo[] inodes, int snapshotId,
       boolean doCheckOwner, FsAction ancestorAccess, FsAction parentAccess,
       FsAction access, FsAction subAccess, boolean ignoreEmptyDir)
       throws AccessControlException, UnresolvedLinkException {
-    defaultAuthzProvider.checkPermission(user, groups, inodes, snapshotId,
+    if (LOG.isDebugEnabled()) {
+      // Note: Arrays.asList() returns "[null]" string for null argument
+      LOG.debug("### checkPermission(): " +
+                "User {}, Groups {}, Nodes {}, snapshotId {}, " +
+                "doCheckOwner {}, ancestorAccess {}, parentAccess {}, " +
+                "access {}, subAccess {}, ignoreEmptyDir {}",
+        user, groups, Arrays.asList(inodes), snapshotId,
+        doCheckOwner, ancestorAccess, parentAccess,
+        access, subAccess, ignoreEmptyDir);
+    }
+    try {
+      defaultAuthzProvider.checkPermission(user, groups, inodes, snapshotId,
         doCheckOwner, ancestorAccess, parentAccess, access, subAccess,
         ignoreEmptyDir);
+    } catch (AccessControlException e) {
+      LOG.debug("### AccessControlException", e);
+      throw e;
+    } catch (UnresolvedLinkException e) {
+      LOG.debug("### UnresolvedLinkException", e);
+      throw e;
+    } catch (RuntimeException e) {
+      LOG.error("### Unexpected Exception", e);
+      throw e;
+    }
   }
 
   private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -209,59 +235,130 @@ public class SentryAuthorizationProvider
 
   @Override
   public void setUser(INodeAuthorizationInfo node, String user) {
+    Preconditions.checkNotNull(node, "node");
     // always fall through to defaultAuthZProvider, 
     // issue warning when the path is sentry managed
     if (isSentryManaged(node)) {
-      LOG.warn("### setUser {} (sentry managed path) to {}, update HDFS." +
-          WARN_VISIBILITY,
-          node.getFullPathName(), user);
+      LOG.warn("### setUser {} to {}, update HDFS: " + WARN_VISIBILITY,
+          user, nodePath(node, true));
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### setUser {} to {}, update HDFS.",
+          user, nodePath(node));
+      }
     }
-    defaultAuthzProvider.setUser(node, user);
+    try {
+      defaultAuthzProvider.setUser(node, user);
+    } catch (RuntimeException e) {
+      LOG.error("### setUser " + user + " for " + nodePath(node) + " failed", e);
+      throw e;
+    }
   }
 
   @Override
   public String getUser(INodeAuthorizationInfo node, int snapshotId) {
-    return isSentryManaged(node)?
-        this.user : defaultAuthzProvider.getUser(node, snapshotId);
+    Preconditions.checkNotNull(node, "node");
+    if (isSentryManaged(node)) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### getUser for {} : {}", nodePath(node, snapshotId, true), this.user);
+      }
+      return this.user;
+    } else {
+      String usr;
+      try {
+        usr = defaultAuthzProvider.getUser(node, snapshotId);
+      } catch (Exception e) {
+        LOG.error("### getUser for " + nodePath(node, snapshotId) + " failed", e);
+        throw e;
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### getUser for {} : {}", nodePath(node, snapshotId), usr);
+      }
+      return usr;
+    }
   }
 
   @Override
   public void setGroup(INodeAuthorizationInfo node, String group) {
+    Preconditions.checkNotNull(node, "node");
     // always fall through to defaultAuthZProvider, 
     // issue warning when the path is sentry managed
     if (isSentryManaged(node)) {
-      LOG.warn("### setGroup {} (sentry managed path) to {}, update HDFS." +
-          WARN_VISIBILITY,
-          node.getFullPathName(), group);
+      LOG.warn("### setGroup {} to {}, update HDFS: " + WARN_VISIBILITY,
+        group, nodePath(node, true));
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### setGroup {} to {}, update HDFS.",
+          group, nodePath(node));
+      }
     }
-    defaultAuthzProvider.setGroup(node, group);
+
+    try {
+      defaultAuthzProvider.setGroup(node, group);
+    } catch (RuntimeException e) {
+      LOG.error("### setGroup " + group + " to " + nodePath(node) + " failed", e);
+      throw e;
+    }
   }
 
   @Override
   public String getGroup(INodeAuthorizationInfo node, int snapshotId) {
-    return isSentryManaged(node)?
-        this.group : defaultAuthzProvider.getGroup(node, snapshotId);
+    Preconditions.checkNotNull(node, "node");
+    if (isSentryManaged(node)) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### getGroup for {} : {} ", nodePath(node, snapshotId, true), this.group);
+      }
+      return this.group;
+    } else {
+      String grp;
+      try {
+        grp = defaultAuthzProvider.getGroup(node, snapshotId);
+      } catch (Exception e) {
+        LOG.error("### getGroup for " + nodePath(node, snapshotId) + " failed", e);
+        throw e;
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### getGroup for {} : {}", nodePath(node, snapshotId), grp);
+      }
+      return grp;
+    }
   }
 
   @Override
   public void setPermission(INodeAuthorizationInfo node, FsPermission permission) {
+    Preconditions.checkNotNull(node, "node");
     // always fall through to defaultAuthZProvider, 
     // issue warning when the path is sentry managed
     if (isSentryManaged(node)) {
-      LOG.warn("### setPermission {} (sentry managed path) to {}, update HDFS." +
-          WARN_VISIBILITY,
-          node.getFullPathName(), permission.toString());
+      LOG.warn("### setPermission {} to {}, update HDFS: " + WARN_VISIBILITY,
+        permission, nodePath(node, true));
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### setPermission {} to {}, update HDFS.",
+          permission, nodePath(node));
+      }
     }
-    defaultAuthzProvider.setPermission(node, permission);
+    try {
+      defaultAuthzProvider.setPermission(node, permission);
+    } catch (RuntimeException e) {
+      LOG.error("### setPermission " + permission + " to " + nodePath(node) + " failed", e);
+      throw e;
+    }
   }
 
   @Override
   public FsPermission getFsPermission(
       INodeAuthorizationInfo node, int snapshotId) {
+    Preconditions.checkNotNull(node, "node");
     FsPermission permission;
     String[] pathElements = getPathElements(node);
     if (!isSentryManaged(pathElements)) {
-      permission = defaultAuthzProvider.getFsPermission(node, snapshotId);
+      try {
+        permission = defaultAuthzProvider.getFsPermission(node, snapshotId);
+      } catch (RuntimeException e) {
+        LOG.error("### getFsPermission for " + nodePath(node, snapshotId, true) + " failed", e);
+        throw e;
+      }
     } else {
       FsPermission returnPerm = this.permission;
       // Handle case when prefix directory is itself associated with an
@@ -276,6 +373,9 @@ public class SentryAuthorizationProvider
         }
       }
       permission = returnPerm;
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("### getFsPermission for {} : {}", nodePath(node, snapshotId), permission);
     }
     return permission;
   }
@@ -309,6 +409,7 @@ public class SentryAuthorizationProvider
    */
   @Override
   public AclFeature getAclFeature(INodeAuthorizationInfo node, int snapshotId) {
+    Preconditions.checkNotNull(node, "node");
     AclFeature f = null;
     String[] pathElements = getPathElements(node);
     String p = Arrays.toString(pathElements);
@@ -383,6 +484,10 @@ public class SentryAuthorizationProvider
       group = defaultAuthzProvider.getGroup(pNode, snapshotId);
       pNode = pNode.getParent();
     }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("### default provider group for {} is {}",
+        nodePath(node, snapshotId), group);
+    }
     return group;
   }
 
@@ -397,44 +502,103 @@ public class SentryAuthorizationProvider
     AclFeature f = defaultAuthzProvider.getAclFeature(node,
         Snapshot.CURRENT_STATE_ID);
     if (f != null) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("### removeAclFeature for {}, warn {}", nodePath(node), warn);
+      }
       defaultAuthzProvider.removeAclFeature(node);
     } else {
       if (warn) {
         LOG.warn("### removeAclFeature is requested on {}, but it doesn't " +
-            "have any acl.", node);
+            "have any acl.", nodePath(node));
       }
     }
   }
 
   @Override
   public void removeAclFeature(INodeAuthorizationInfo node) {
+    Preconditions.checkNotNull(node, "node");
     // always fall through to defaultAuthZProvider, 
     // issue warning when the path is sentry managed
     if (isSentryManaged(node)) {
-      LOG.warn("### removeAclFeature {} (sentry managed path), update HDFS." +
-          WARN_VISIBILITY,
-          node.getFullPathName());
+      LOG.warn("### removeAclFeature {}, update HDFS: " + WARN_VISIBILITY,
+          nodePath(node, true));
       // For Sentry-managed paths, client code may try to remove a 
       // non-existing ACL, ignore the request with a warning if the ACL
       // doesn't exist
-      checkAndRemoveHdfsAcl(node, true);
+      try {
+        checkAndRemoveHdfsAcl(node, true);
+      } catch (RuntimeException e) {
+        LOG.error("### removeAclFeature for " + nodePath(node, true) + " failed", e);
+        throw e;
+      }
     } else {
-      defaultAuthzProvider.removeAclFeature(node);
+      LOG.warn("### removeAclFeature for {}, update HDFS.", nodePath(node));
+      try {
+        defaultAuthzProvider.removeAclFeature(node);
+      } catch (RuntimeException e) {
+        LOG.error("### removeAclFeature for " + nodePath(node) +" failed", e);
+        throw e;
+      }
     }
   }
 
   @Override
   public void addAclFeature(INodeAuthorizationInfo node, AclFeature f) {
+    Preconditions.checkNotNull(node, "node");
     // always fall through to defaultAuthZProvider, 
     // issue warning when the path is sentry managed
     if (isSentryManaged(node)) {
-      LOG.warn("### addAclFeature {} (sentry managed path) {}, update HDFS." +
-          WARN_VISIBILITY,
-          node.getFullPathName(), f.toString());
+      LOG.warn("### addAclFeature {} to {}, update HDFS: " + WARN_VISIBILITY,
+        f, nodePath(node, true));
       // For Sentry-managed path, remove ACL silently before adding new ACL
-      checkAndRemoveHdfsAcl(node, false);
+      try {
+        checkAndRemoveHdfsAcl(node, false);
+      } catch (RuntimeException e) {
+        LOG.error("### addAclFeature " + f + " to " + nodePath(node, true) + " failed", e);
+        throw e;
+      }
+    } else {
+      LOG.warn("### addAclFeature {} to {}, update HDFS.", f, nodePath(node));
     }
-    defaultAuthzProvider.addAclFeature(node, f);
+
+    try {
+      defaultAuthzProvider.addAclFeature(node, f);
+    } catch (RuntimeException e) {
+      LOG.error("### addAclFeature " + f + " to " + nodePath(node) + " failed", e);
+      throw e;
+    }
   }
 
+  // helpers for logging
+  private static String nodePath(INodeAuthorizationInfo node) {
+    return (node != null) ?
+      "node " + node.getFullPathName()
+      : null;
+  }
+
+  private static String nodePath(INodeAuthorizationInfo node,
+                                 int snapshotId) {
+    return (node != null) ?
+      "node " + node.getFullPathName() +
+      " snapshot " + snapshotId
+      : null;
+  }
+
+  private static String nodePath(INodeAuthorizationInfo node,
+                                 boolean isSentryManaged) {
+    return (node != null) ?
+      "node " + node.getFullPathName() +
+      (isSentryManaged ? " (sentry managed) " : "")
+      : null;
+  }
+
+  private static String nodePath(INodeAuthorizationInfo node,
+                                 int snapshotId,
+                                 boolean isSentryManaged) {
+    return (node != null) ?
+      "node " + node.getFullPathName() +
+      (isSentryManaged ? " (sentry managed) " : "") +
+      " snapshot " + snapshotId
+      : null;
+  }
 }
