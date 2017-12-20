@@ -323,6 +323,7 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
     int allowed = (resp.statusCode == AuthorizationResponse.OK.statusCode)
         ? AuditLogger.ALLOWED : AuditLogger.UNAUTHORIZED;
     String operationParams = ctx.getParams().toString();
+    String impersonator = ctx.getImpersonatorUserName().orElse(null);
 
     switch (perm) {
       case COLL_EDIT_PERM:
@@ -332,7 +333,7 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
         String operationName = (actionName != null) ?
             "CollectionAction." + ctx.getParams().get(CoreAdminParams.ACTION)
             : ctx.getHandler().getClass().getName();
-        auditLog.get().log (userName, null, ipAddress,
+        auditLog.get().log (userName, impersonator, ipAddress,
             operationName, operationParams, eventTime, allowed, collectionName);
         break;
       }
@@ -345,7 +346,7 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
           operationName = "CoreAdminAction." + ctx.getParams().get(CoreAdminParams.ACTION);
         }
 
-        auditLog.get().log (userName, null, ipAddress,
+        auditLog.get().log (userName, impersonator, ipAddress,
             operationName, operationParams, eventTime, allowed, collectionName);
         break;
       }
@@ -358,7 +359,7 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
         }
         String collectionName = String.join(",", names);
         String operationName = (perm == Name.READ_PERM) ? SolrConstants.QUERY : SolrConstants.UPDATE;
-        auditLog.get().log (userName, null, ipAddress,
+        auditLog.get().log (userName, impersonator, ipAddress,
             operationName, operationParams, eventTime, allowed, collectionName);
         break;
       }
