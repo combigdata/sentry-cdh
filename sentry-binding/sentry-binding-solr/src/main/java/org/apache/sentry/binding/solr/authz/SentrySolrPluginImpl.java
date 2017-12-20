@@ -170,7 +170,10 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
       LOG.debug("Authorizing a request with authorization context {} ", SolrAuthzUtil.toString(authCtx));
     }
 
-    String userNameStr = getShortUserName(authCtx.getUserPrincipal());
+    String userNameStr = authCtx.getUserName();
+    if (userNameStr == null) {
+      userNameStr = getShortUserName(authCtx.getUserPrincipal());
+    }
 
     if (this.solrSuperUser.equals(userNameStr)) {
       return AuthorizationResponse.OK;
@@ -311,7 +314,10 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
       return;
     }
 
-    String userName = getShortUserName(ctx.getUserPrincipal());
+    String userName = ctx.getUserName();
+    if (userName == null) {
+      userName = getShortUserName(ctx.getUserPrincipal());
+    }
     String ipAddress = ctx.getRemoteAddr();
     long eventTime = System.currentTimeMillis();
     int allowed = (resp.statusCode == AuthorizationResponse.OK.statusCode)

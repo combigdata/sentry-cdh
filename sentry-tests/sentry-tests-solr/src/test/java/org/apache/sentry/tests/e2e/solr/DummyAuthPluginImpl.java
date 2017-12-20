@@ -52,6 +52,10 @@ public class DummyAuthPluginImpl extends AuthenticationPlugin {
       public Principal getUserPrincipal() {
         return new BasicUserPrincipal(getUserName());
       }
+      @Override
+      public String getRemoteUser() {
+        return getUserName();
+      }
     };
     arg2.doFilter(wrapper, arg1);
     return true;
