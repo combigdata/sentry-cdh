@@ -125,6 +125,7 @@ class SolrAuthzUtil {
         }
 
         case DELETE:
+        case CREATEALIAS:
         case DELETEALIAS:
         case CREATESHARD:
         case DELETESHARD:
@@ -162,7 +163,6 @@ class SolrAuthzUtil {
         case DELETENODE:
         case ADDROLE:
         case REMOVEROLE:
-        case CREATEALIAS:
         case REQUESTSTATUS:
         case DELETESTATUS:
         case LIST:

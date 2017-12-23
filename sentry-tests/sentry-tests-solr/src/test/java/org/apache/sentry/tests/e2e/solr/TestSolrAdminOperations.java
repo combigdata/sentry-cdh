@@ -81,6 +81,23 @@ public class TestSolrAdminOperations extends SolrSentryServiceTestBase {
     adminUpdateActionFailure("user0", collectionName);
   }
 
+  @Test
+  public void testCreateAliasOperation() throws Exception {
+    String collectionName = "testCreateAliasOperation";
+    String aliasName = "testAlias";
+
+    // create a collection
+    grantCollectionPrivileges(ADMIN_USER, ADMIN_ROLE, collectionName, SolrConstants.UPDATE);
+    adminUpdateActionSuccess(ADMIN_USER, collectionName, false);
+
+    // create an alias (failure - collection level permissions missing)
+    createAliasActionFailure(ADMIN_USER, aliasName, collectionName);
+
+    // create an alias (success - collection level permissions configured)
+    grantCollectionPrivileges(ADMIN_USER, ADMIN_ROLE, aliasName, SolrConstants.UPDATE);
+    createAliasActionSuccess(ADMIN_USER, aliasName, collectionName);
+  }
+
   @SuppressWarnings("rawtypes")
   @Test
   public void testMetricsQuerySuccess() throws Exception {
@@ -150,6 +167,11 @@ public class TestSolrAdminOperations extends SolrSentryServiceTestBase {
 
   protected void adminUpdateActionSuccess(String userName, String collectionName)
       throws SolrServerException, IOException {
+    adminUpdateActionSuccess (userName, collectionName, true);
+  }
+
+  protected void adminUpdateActionSuccess(String userName, String collectionName, boolean shouldDelete)
+      throws SolrServerException, IOException {
     // Success.
     String tmp = getAuthenticatedUser();
     try {
@@ -159,9 +181,45 @@ public class TestSolrAdminOperations extends SolrSentryServiceTestBase {
           CollectionAdminRequest.createCollection(collectionName, "cloud-minimal", 1, NUM_SERVERS);
       assertEquals(0, createCmd.process(cluster.getSolrClient()).getStatus());
 
-      // Delete collection.
-      CollectionAdminRequest.Delete delCmd = CollectionAdminRequest.deleteCollection(collectionName);
-      assertEquals(0, delCmd.process(cluster.getSolrClient()).getStatus());
+      if (shouldDelete) {
+        // Delete collection.
+        CollectionAdminRequest.Delete delCmd = CollectionAdminRequest.deleteCollection(collectionName);
+        assertEquals(0, delCmd.process(cluster.getSolrClient()).getStatus());
+      }
+
+    } finally {
+      setAuthenticationUser(tmp);
+    }
+  }
+
+
+  protected void createAliasActionFailure(String userName, String aliasName, String collections)
+      throws SolrServerException, IOException {
+    String tmp = getAuthenticatedUser();
+    try {
+      setAuthenticationUser(userName); // This user doesn't have admin permissions
+      // Create collection.
+      CollectionAdminRequest.CreateAlias createCmd =
+          CollectionAdminRequest.createAlias(aliasName, collections);
+      createCmd.process(cluster.getSolrClient());
+      fail("This admin request should have failed with authorization error.");
+
+    } catch (RemoteSolrException ex) {
+      assertEquals(HttpServletResponse.SC_FORBIDDEN , ex.code());
+    } finally {
+      setAuthenticationUser(tmp);
+    }
+  }
+
+  protected void createAliasActionSuccess(String userName, String aliasName, String collections)
+      throws SolrServerException, IOException {
+    String tmp = getAuthenticatedUser();
+    try {
+      setAuthenticationUser(userName); // This user doesn't have admin permissions
+      // Create collection.
+      CollectionAdminRequest.CreateAlias createCmd =
+          CollectionAdminRequest.createAlias(aliasName, collections);
+      assertEquals(0, createCmd.process(cluster.getSolrClient()).getStatus());
 
     } finally {
       setAuthenticationUser(tmp);
