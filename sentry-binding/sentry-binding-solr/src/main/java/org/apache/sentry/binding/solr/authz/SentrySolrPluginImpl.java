@@ -216,13 +216,13 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
           resp = binding.authorize(userName, Collections.singleton(auth), actions);
           audit (perm, authCtx, resp);
           if (AuthorizationResponse.OK.equals(resp)) {
+            String operationName = getAdminOperationName(authCtx, perm);
             // Apply collection/core-level permissions check as well.
             for (Map.Entry<String, SolrModelAction> entry :
               SolrAuthzUtil.getCollectionsForAdminOp(authCtx).entrySet()) {
               resp = binding.authorizeCollection(userName,
                   new Collection(entry.getKey()), Collections.singleton(entry.getValue()));
-              Name p = entry.getValue().equals(SolrModelAction.UPDATE) ? Name.UPDATE_PERM : Name.READ_PERM;
-              audit(p, authCtx, resp);
+              audit(entry.getKey(), operationName, authCtx, resp);
               if (!AuthorizationResponse.OK.equals(resp)) {
                 break;
               }
@@ -310,6 +310,36 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
   }
 
   private void audit (Name perm, AuthorizationContext ctx, AuthorizationResponse resp) {
+    switch (perm) {
+      case CORE_READ_PERM:
+      case CORE_EDIT_PERM:
+      case COLL_READ_PERM:
+      case COLL_EDIT_PERM: {
+        audit ("admin", getAdminOperationName(ctx, perm), ctx, resp);
+        break;
+      }
+
+      case READ_PERM:
+      case UPDATE_PERM: {
+        List<String> names = new ArrayList<>();
+        for (CollectionRequest r : ctx.getCollectionRequests()) {
+          names.add(r.collectionName);
+        }
+        String collectionName = String.join(",", names);
+        String operationName = (perm == Name.READ_PERM) ? SolrConstants.QUERY : SolrConstants.UPDATE;
+        audit(collectionName, operationName, ctx, resp);
+        break;
+      }
+
+      default: {
+        // do nothing.
+        break;
+      }
+    }
+  }
+
+  private void audit (String collectionName, String operationName, AuthorizationContext ctx,
+      AuthorizationResponse resp) {
     if (!auditLog.isPresent() || !auditLog.get().isLogEnabled()) {
       return;
     }
@@ -325,48 +355,37 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
     String operationParams = ctx.getParams().toString();
     String impersonator = ctx.getImpersonatorUserName().orElse(null);
 
+    auditLog.get().log (userName, impersonator, ipAddress,
+        operationName, operationParams, eventTime, allowed, collectionName);
+  }
+
+
+  /**
+   * Return the operation name for the specified collection/core admin request
+   */
+  private String getAdminOperationName (AuthorizationContext ctx, Name perm) {
     switch (perm) {
       case COLL_EDIT_PERM:
       case COLL_READ_PERM: {
-        String collectionName = "admin";
         String actionName = ctx.getParams().get(CoreAdminParams.ACTION);
         String operationName = (actionName != null) ?
             "CollectionAction." + ctx.getParams().get(CoreAdminParams.ACTION)
             : ctx.getHandler().getClass().getName();
-        auditLog.get().log (userName, impersonator, ipAddress,
-            operationName, operationParams, eventTime, allowed, collectionName);
-        break;
+        return operationName;
       }
 
-      case CORE_EDIT_PERM:
-      case CORE_READ_PERM: {
-        String collectionName = "admin";
+      case CORE_READ_PERM:
+      case CORE_EDIT_PERM: {
         String operationName = "CoreAdminAction.STATUS";
         if (ctx.getParams().get(CoreAdminParams.ACTION) != null) {
           operationName = "CoreAdminAction." + ctx.getParams().get(CoreAdminParams.ACTION);
         }
-
-        auditLog.get().log (userName, impersonator, ipAddress,
-            operationName, operationParams, eventTime, allowed, collectionName);
-        break;
-      }
-
-      case READ_PERM:
-      case UPDATE_PERM: {
-        List<String> names = new ArrayList<>();
-        for (CollectionRequest r : ctx.getCollectionRequests()) {
-          names.add(r.collectionName);
-        }
-        String collectionName = String.join(",", names);
-        String operationName = (perm == Name.READ_PERM) ? SolrConstants.QUERY : SolrConstants.UPDATE;
-        auditLog.get().log (userName, impersonator, ipAddress,
-            operationName, operationParams, eventTime, allowed, collectionName);
-        break;
+        return operationName;
       }
 
       default: {
-        // Do nothing.
-        break;
+        throw new IllegalStateException(
+            "This api must only be used for collection/core admin permissions");
       }
     }
   }
