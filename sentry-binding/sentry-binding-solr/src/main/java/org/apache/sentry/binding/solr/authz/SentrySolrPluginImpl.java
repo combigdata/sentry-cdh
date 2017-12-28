@@ -176,7 +176,13 @@ public class SentrySolrPluginImpl implements AuthorizationPlugin {
     }
 
     if (this.solrSuperUser.equals(userNameStr)) {
-      return AuthorizationResponse.OK;
+      AuthorizationResponse resp = AuthorizationResponse.OK;
+      // audit the operation
+      if (authCtx.getHandler() instanceof PermissionNameProvider) {
+        Name perm = ((PermissionNameProvider) authCtx.getHandler()).getPermissionName(authCtx);
+        audit(perm, authCtx, resp);
+      }
+      return resp;
     }
 
     if (authCtx.getHandler() instanceof PermissionNameProvider) {
