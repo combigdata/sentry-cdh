@@ -34,7 +34,6 @@ import org.apache.sentry.binding.hbaseindexer.authz.SentryHBaseIndexerAuthorizat
 import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
 import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
 import org.apache.sentry.core.common.Subject;
-import org.apache.sentry.core.common.exception.SentryGroupNotFoundException;
 import org.apache.sentry.core.model.indexer.Indexer;
 import org.apache.sentry.core.model.indexer.IndexerModelAction;
 import org.apache.sentry.core.common.utils.PolicyFiles;
@@ -184,16 +183,17 @@ public class TestHBaseIndexerAuthzBinding {
      } catch(SentryHBaseIndexerAuthorizationException e) {
      }
   }
-
-  private void expectGroupNotFoundException(HBaseIndexerAuthzBinding binding, Subject subject,
-      Indexer indexer, EnumSet<IndexerModelAction> action) throws Exception {
+/*
+  private void expectSentryHBaseIndexerAuthorizationException(HBaseIndexerAuthzBinding binding, Subject subject,
+                                                              Indexer indexer, EnumSet<IndexerModelAction> action) throws Exception {
     try {
       binding.authorizeIndexerAction(subject, indexer, action);
-      Assert.fail("Expected SentryGroupNotFoundException");
-    } catch(SentryGroupNotFoundException e) {
+      Assert.fail("Excepted SentryHBaseIndexerAuthorizationException");
+    } catch(SentryHBaseIndexerAuthorizationException e) {
+
     }
   }
-
+*/
   /**
    * Test that a user that doesn't exist throws an exception
    * when trying to authorize
@@ -204,7 +204,7 @@ public class TestHBaseIndexerAuthzBinding {
        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
      setUsableAuthzConf(indexerAuthzConf);
      HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
-    expectGroupNotFoundException(binding, new Subject("bogus"), infoIndexer, readSet);
+    expectAuthException(binding, new Subject("bogus"), infoIndexer, readSet);
   }
 
   /**
