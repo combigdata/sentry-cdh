@@ -248,7 +248,6 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
     throws SentryUserException {
     Set<TSentryRole> tSentryRoles = Sets.newHashSet();
     tSentryRoles.addAll(listRolesByGroupName(requestorUserName, AccessConstants.ALL));
-    tSentryRoles.addAll(listRolesByUserName(requestorUserName, requestorUserName));
     return tSentryRoles;
   }
 

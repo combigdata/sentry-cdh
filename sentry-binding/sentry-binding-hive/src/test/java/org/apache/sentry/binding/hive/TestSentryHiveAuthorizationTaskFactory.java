@@ -145,15 +145,6 @@ public class TestSentryHiveAuthorizationTaskFactory {
   }
 
   /**
-   * GRANT ... ON TABLE ... TO USER ...
-   */
-  @Test
-  public void testGrantUserTable() throws Exception {
-    expectSemanticException("GRANT " + ALL + " ON TABLE " + TABLE + " TO USER " + USER,
-        SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + "USER");
-  }
-
-  /**
    * GRANT ... ON TABLE ... TO ROLE ...
    */
   @Test
@@ -243,26 +234,6 @@ public class TestSentryHiveAuthorizationTaskFactory {
         SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + "GROUP");
   }
 
-  /**
-   * GRANT ROLE ... TO USER ...
-   */
-  @Test
-  public void testGrantRoleUser() throws Exception {
-    DDLWork work = analyze(parse("GRANT ROLE " + ROLE + " TO USER " + USER));
-    GrantRevokeRoleDDL grantDesc = work.getGrantRevokeRoleDDL();
-    Assert.assertNotNull("Grant should not be null", grantDesc);
-    Assert.assertTrue("Expected grant ", grantDesc.getGrant());
-    Assert.assertFalse("Grant option should be false", grantDesc.isGrantOption());
-    Assert.assertEquals(currentUser, grantDesc.getGrantor());
-    Assert.assertEquals(PrincipalType.USER, grantDesc.getGrantorType());
-    for (String role : assertSize(1, grantDesc.getRoles())) {
-      Assert.assertEquals(ROLE, role);
-    }
-    for (PrincipalDesc principal : assertSize(1, grantDesc.getPrincipalDesc())) {
-      Assert.assertEquals(PrincipalType.USER, principal.getType());
-      Assert.assertEquals(USER, principal.getName());
-    }
-  }
 
   /**
    * GRANT ROLE ... TO ROLE ...
@@ -296,27 +267,6 @@ public class TestSentryHiveAuthorizationTaskFactory {
   }
 
   /**
-   * REVOKE ROLE ... FROM USER ...
-   */
-  @Test
-  public void testRevokeRoleUser() throws Exception {
-    DDLWork work = analyze(parse("REVOKE ROLE " + ROLE + " FROM USER " + USER));
-    GrantRevokeRoleDDL grantDesc = work.getGrantRevokeRoleDDL();
-    Assert.assertNotNull("Grant should not be null", grantDesc);
-    Assert.assertFalse("Did not expect grant ", grantDesc.getGrant());
-    Assert.assertFalse("Grant option is always true ", grantDesc.isGrantOption());
-    Assert.assertEquals(currentUser, grantDesc.getGrantor());
-    Assert.assertEquals(PrincipalType.USER, grantDesc.getGrantorType());
-    for (String role : assertSize(1, grantDesc.getRoles())) {
-      Assert.assertEquals(ROLE, role);
-    }
-    for (PrincipalDesc principal : assertSize(1, grantDesc.getPrincipalDesc())) {
-      Assert.assertEquals(PrincipalType.USER, principal.getType());
-      Assert.assertEquals(USER, principal.getName());
-    }
-  }
-
-  /**
    * REVOKE ROLE ... FROM ROLE ...
    */
   @Test
@@ -346,27 +296,6 @@ public class TestSentryHiveAuthorizationTaskFactory {
     }
   }
 
-  /**
-   * SHOW ROLE GRANT USER ...
-   */
-  @Test
-  public void testShowRoleGrantUser() throws Exception {
-    DDLWork work = analyze(parse("SHOW ROLE GRANT USER " + USER));
-    RoleDDLDesc roleDesc = work.getRoleDDLDesc();
-    Assert.assertNotNull("Role should not be null", roleDesc);
-    Assert.assertEquals(RoleOperation.SHOW_ROLE_GRANT, roleDesc.getOperation());
-    Assert.assertEquals(PrincipalType.USER, roleDesc.getPrincipalType());
-    Assert.assertEquals(USER, roleDesc.getName());
-  }
-
-  /**
-   * SHOW ROLE GRANT ROLE ...
-   */
-  @Test
-  public void testShowRoleGrantRole() throws Exception {
-    expectSemanticException("SHOW ROLE GRANT ROLE " + ROLE,
-        SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + "ROLE");
-  }
 
   /**
    * SHOW ROLE GRANT GROUP ...
@@ -381,14 +310,6 @@ public class TestSentryHiveAuthorizationTaskFactory {
     Assert.assertEquals(GROUP, roleDesc.getName());
   }
 
-  /**
-   * SHOW GRANT USER ... ON TABLE ...
-   */
-  @Test
-  public void testShowGrantUserOnTable() throws Exception {
-    expectSemanticException("SHOW GRANT USER " + USER + " ON TABLE " + TABLE,
-        SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + "USER");
-  }
 
   /**
    * SHOW GRANT ROLE ... ON TABLE ...

@@ -171,44 +171,4 @@ public class TestSentryServerWithoutKerberos extends SentryServiceIntegrationBas
     assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames, null,
             ActiveRoleSet.ALL).size());
   }
-
-  @Test
-  public void testDropRoleOnUser() throws Exception {
-    String requestorUserName = ADMIN_USER;
-    Set<String> requestorUserGroupNames = Sets.newHashSet(ADMIN_GROUP);
-    Set<String> requestorUserNames = Sets.newHashSet(ADMIN_USER);
-    setLocalGroupMapping(requestorUserName, requestorUserGroupNames);
-    writePolicyFile();
-    String roleName = "admin_r";
-
-    // create role and add privileges
-    client.dropRoleIfExists(requestorUserName, roleName);
-    client.createRole(requestorUserName, roleName);
-    client.grantRoleToUser(requestorUserName, ADMIN_USER, roleName);
-    client.grantDatabasePrivilege(requestorUserName, roleName, "server1", "db2", AccessConstants.ALL);
-    client.grantTablePrivilege(requestorUserName, roleName, "server1", "db3", "tab3", "ALL");
-    assertEquals(2, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-
-    // drop role and verify privileges
-    client.dropRole(requestorUserName, roleName);
-    assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-
-    // recreate the role
-    client.createRole(requestorUserName, roleName);
-    client.grantRoleToGroup(requestorUserName, ADMIN_GROUP, roleName);
-    assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-
-    // grant different privileges and verify
-    client.grantDatabasePrivilege(requestorUserName, roleName, "server1", "db2", AccessConstants.ALL);
-    assertEquals(1, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-    client.dropRole(requestorUserName, roleName);
-    assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-    assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames, requestorUserNames,
-            ActiveRoleSet.ALL).size());
-  }
 }

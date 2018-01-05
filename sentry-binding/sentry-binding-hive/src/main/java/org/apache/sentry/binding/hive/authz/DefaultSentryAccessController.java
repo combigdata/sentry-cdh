@@ -300,8 +300,6 @@ public class DefaultSentryAccessController extends SentryHiveAccessController {
       Set<TSentryRole> roles = null;
       if (principal.getType() == HivePrincipalType.GROUP) {
         roles = sentryClient.listRolesByGroupName(authenticator.getUserName(), principal.getName());
-      } else if (principal.getType() == HivePrincipalType.USER) {
-        roles = sentryClient.listRolesByUserName(authenticator.getUserName(), principal.getName());
       } else {
         String msg =
             SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
@@ -464,12 +462,9 @@ public class DefaultSentryAccessController extends SentryHiveAccessController {
       sentryClient = getSentryClient();
       // get principals
       Set<String> groups = Sets.newHashSet();
-      Set<String> users = Sets.newHashSet();
       for (HivePrincipal principal : hivePrincipals) {
         if (principal.getType() == HivePrincipalType.GROUP) {
           groups.add(principal.getName());
-        } else if (principal.getType() == HivePrincipalType.USER) {
-          users.add(principal.getName());
         } else {
           String msg =
               SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
@@ -484,15 +479,9 @@ public class DefaultSentryAccessController extends SentryHiveAccessController {
           if (groups.size() > 0) {
             sentryClient.grantRoleToGroups(grantorPrinc.getName(), roleName, groups);
           }
-          if (users.size() > 0) {
-            sentryClient.grantRoleToUsers(grantorPrinc.getName(), roleName, users);
-          }
         } else {
           if (groups.size() > 0) {
             sentryClient.revokeRoleFromGroups(grantorPrinc.getName(), roleName, groups);
-          }
-          if (users.size() > 0) {
-            sentryClient.revokeRoleFromUsers(grantorPrinc.getName(), roleName, users);
           }
         }
       }
