@@ -4,7 +4,7 @@ set -x
 set -e
 
 export JAVA8_BUILD=true
-source /opt/toolchain/toolchain.sh
+#source /opt/toolchain/toolchain.sh
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -16,8 +16,5 @@ source $DIR/setup_build_env.sh
 # clean the old test class compiles
 find . -name test-classes | grep target/test-classes | xargs rm -rf
 
-# For now, just verify the code compiles.
-mvn -s "${BUILD_SETTINGS_FILE}" clean compile package -DskipTests -Dmaven.test.failure.ignore=true
-
-# enable full tests for now
+# execute all tests (disable slow tests for now)
 mvn -s "${BUILD_SETTINGS_FILE}" test -PskipOnlySlowTests --fail-at-end
