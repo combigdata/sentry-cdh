@@ -4,7 +4,7 @@ set -x
 set -e
 
 export JAVA8_BUILD=true
-#source /opt/toolchain/toolchain.sh
+source /opt/toolchain/toolchain.sh
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
