@@ -16,7 +16,26 @@
  */
 package org.apache.sentry.binding.hbaseindexer.authz;
 
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.SecurityUtil;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
+import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
+import org.apache.sentry.core.common.ActiveRoleSet;
+import org.apache.sentry.core.common.Model;
+import org.apache.sentry.core.common.Subject;
+import org.apache.sentry.core.common.exception.SentryAccessDeniedException;
+import org.apache.sentry.core.model.indexer.Indexer;
+import org.apache.sentry.core.model.indexer.IndexerModelAction;
+import org.apache.sentry.core.model.indexer.IndexerPrivilegeModel;
+import org.apache.sentry.policy.common.PolicyEngine;
+import org.apache.sentry.provider.common.AuthorizationProvider;
+import org.apache.sentry.provider.common.ProviderBackend;
+import org.apache.sentry.provider.common.ProviderBackendContext;
+import org.apache.sentry.service.thrift.ServiceConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,34 +45,23 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hadoop.conf.Configuration;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_SECURITY_AUTHENTICATION;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.SecurityUtil;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
-import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
-import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Model;
-import org.apache.sentry.core.common.Subject;
-import org.apache.sentry.core.model.indexer.Indexer;
-import org.apache.sentry.core.model.indexer.IndexerModelAction;
-import org.apache.sentry.core.model.indexer.IndexerPrivilegeModel;
-import org.apache.sentry.policy.common.PolicyEngine;
-import org.apache.sentry.provider.common.AuthorizationProvider;
-import org.apache.sentry.provider.common.ProviderBackend;
-import org.apache.sentry.provider.common.ProviderBackendContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.sentry.provider.common.AuthorizationComponent.HBASE_INDEXER;
 
+/**
+ * This class provides functionality to initialize the Sentry as
+ * well as query the permissions for a given user over indexers for HBase-Indexer.
+ */
 public class HBaseIndexerAuthzBinding {
-  public static final int SC_UNAUTHORIZED = 401;
   private static final Logger LOG = LoggerFactory
       .getLogger(HBaseIndexerAuthzBinding.class);
   private static final String[] HADOOP_HBASE_CONF_FILES = {"core-site.xml",
     "hdfs-site.xml", "mapred-site.xml", "yarn-site.xml", "hadoop-site.xml", "hbase-site.xml"};
-  private static Boolean kerberosInit;
+  public static final String HBASE_REGIONSERVER_KEYTAB_FILE = "hbase.regionserver.keytab.file";
+  public static final String HBASE_REGIONSERVER_KERBEROS_PRINCIPAL = "hbase.regionserver.kerberos.principal";
+  private static final AtomicBoolean kerberosInit = new AtomicBoolean(false);
 
   private final HBaseIndexerAuthzConf authzConf;
   private final AuthorizationProvider authProvider;
@@ -75,7 +83,7 @@ public class HBaseIndexerAuthzBinding {
     String policyEngineName =
       authzConf.get(AuthzConfVars.AUTHZ_POLICY_ENGINE.getVar());
 
-    LOG.debug("Using authorization provider " + authProviderName +
+    LOG.debug("Using HBase indexer authorization provider " + authProviderName +
       " with resource " + resourceName + ", policy engine "
       + policyEngineName + ", provider backend " + providerBackendName);
     // load the provider backend class
@@ -86,8 +94,8 @@ public class HBaseIndexerAuthzBinding {
     if ("kerberos".equals(authzConf.get(HADOOP_SECURITY_AUTHENTICATION))) {
       // let's just reuse the hadoop/hbase properties since the HBase Indexer is
       // essentially running as an HBase RegionServer
-      String keytabProp = authzConf.get("hbase.regionserver.keytab.file");
-      String principalProp = authzConf.get("hbase.regionserver.kerberos.principal");
+      String keytabProp = authzConf.get(HBASE_REGIONSERVER_KEYTAB_FILE);
+      String principalProp = authzConf.get(HBASE_REGIONSERVER_KERBEROS_PRINCIPAL);
       if (keytabProp != null && principalProp != null) {
         // if necessary, translate _HOST in principal specification
         String actualHost = authzConf.get(AuthzConfVars.PRINCIPAL_HOSTNAME.getVar());
@@ -97,6 +105,10 @@ public class HBaseIndexerAuthzBinding {
         initKerberos(keytabProp, principalProp);
       }
     }
+
+    // For SentryGenericProviderBackend
+    authzConf.set(ServiceConstants.ClientConfig.COMPONENT_TYPE, HBASE_INDEXER);
+
     providerBackend =
       (ProviderBackend) providerBackendConstructor.newInstance(new Object[] {authzConf, resourceName});
 
@@ -122,22 +134,22 @@ public class HBaseIndexerAuthzBinding {
         IndexerPrivilegeModel.getInstance()});
   }
 
-  public void authorizeIndexerAction(Subject subject, Indexer indexer, Set<IndexerModelAction> actions)
-  throws SentryHBaseIndexerAuthorizationException {
+  public void authorize(Subject subject, Indexer indexer, Set<IndexerModelAction> actions)
+      throws SentryAccessDeniedException {
     if (!authProvider.hasAccess(subject, Arrays.asList(new Indexer[] {indexer}), actions,
         ActiveRoleSet.ALL)) {
-      throw new SentryHBaseIndexerAuthorizationException("User \'"
-        + (subject != null?subject.getName():"") +
-        "\' does not have privileges for indexer \'"
-        + (indexer != null?indexer.getName():"") + "\'");
+      throw new SentryAccessDeniedException(String.format("User '%s' does not have privileges for indexer '%s'",
+        (subject != null?subject.getName():""),
+        (indexer != null?indexer.getName():"")
+      ));
     }
   }
 
-  public Collection<IndexerDefinition> filterIndexers(Subject subject,
-      Collection<IndexerDefinition> indexers) {
-    ArrayList<IndexerDefinition> filteredIndexers = new ArrayList<IndexerDefinition>();
+  public Collection<Indexer> filterIndexers(Subject subject,
+      Collection<Indexer> indexers) {
+    ArrayList<Indexer> filteredIndexers = new ArrayList<Indexer>();
     Set<IndexerModelAction> actions = EnumSet.of(IndexerModelAction.READ);
-    for (IndexerDefinition def : indexers) {
+    for (Indexer def : indexers) {
       if (authProvider.hasAccess(subject, Arrays.asList(new Indexer[] {new Indexer(def.getName())}), actions,
           ActiveRoleSet.ALL)) {
         filteredIndexers.add(def);
@@ -147,17 +159,22 @@ public class HBaseIndexerAuthzBinding {
   }
 
   private HBaseIndexerAuthzConf addHdfsPropsToConf(HBaseIndexerAuthzConf conf) throws IOException {
-    String confDir = System.getProperty("hbaseindxer.hdfs.confdir", ".");
+    final String hdfsConfdirKey = "hbaseindxer.hdfs.confdir";
+    String confDir = System.getProperty(hdfsConfdirKey, ".");
     if (confDir != null && confDir.length() > 0) {
       File confDirFile = new File(confDir);
       if (!confDirFile.exists()) {
-        throw new IOException("Resource directory does not exist: " + confDirFile.getAbsolutePath());
+        throw new IOException(String.format("The HBase indexer resource '%s' does not exist. Use the '%s' configuration variable to specify an existing resource directory.",
+            confDirFile.getAbsolutePath(), hdfsConfdirKey));
       }
       if (!confDirFile.isDirectory()) {
-        throw new IOException("Specified resource directory is not a directory" + confDirFile.getAbsolutePath());
+        throw new IOException(String.format("The HBase indexer resource '%s' is not a directory. Use the '%s' configuration variable to specify an existing resource directory.",
+            confDirFile.getAbsolutePath(), hdfsConfdirKey));
       }
       if (!confDirFile.canRead()) {
-        throw new IOException("Resource directory must be readable by the Hbase Indexer process: " + confDirFile.getAbsolutePath());
+        throw new IOException(String.format("The HBase indexer resource '%s' does not have read permissions. Change the directory\n" +
+                "permissions to allow the HBase indexer process to read or use the %s' configuration variable to specify an existing resource directory with read permissions.",
+            confDirFile.getAbsolutePath(), hdfsConfdirKey));
       }
       for (String file : HADOOP_HBASE_CONF_FILES) {
         if (new File(confDirFile, file).exists()) {
@@ -171,30 +188,32 @@ public class HBaseIndexerAuthzBinding {
   /**
    * Initialize kerberos via UserGroupInformation.  Will only attempt to login
    * during the first request, subsequent calls will have no effect.
+   * @param keytabFile path to keytab file
+   * @param principal principal used for authentication
+   * @throws IllegalArgumentException
    */
-  public void initKerberos(String keytabFile, String principal) {
+  private void initKerberos(String keytabFile, String principal) {
     if (keytabFile == null || keytabFile.length() == 0) {
-      throw new IllegalArgumentException("keytabFile required because kerberos is enabled");
+      throw new IllegalArgumentException(String.format("Setting keytab file path required when kerberos is enabled. Use %s configuration entry to define keytab file.", HBASE_REGIONSERVER_KEYTAB_FILE));
     }
     if (principal == null || principal.length() == 0) {
-      throw new IllegalArgumentException("principal required because kerberos is enabled");
+      throw new IllegalArgumentException(String.format("Setting kerberos principal is required when kerberos is enabled. Use %s configuration entry to define principal.", HBASE_REGIONSERVER_KERBEROS_PRINCIPAL));
     }
-    synchronized (HBaseIndexerAuthzBinding.class) {
-      if (kerberosInit == null) {
-        kerberosInit = Boolean.TRUE;
-        // let's avoid modifying the supplied configuration, just to be conservative
-        final Configuration ugiConf = new Configuration(authzConf);
-        UserGroupInformation.setConfiguration(ugiConf);
-        LOG.info(
-            "Attempting to acquire kerberos ticket with keytab: {}, principal: {} ",
-            keytabFile, principal);
-        try {
-          UserGroupInformation.loginUserFromKeytab(principal, keytabFile);
-        } catch (IOException ioe) {
-          throw new RuntimeException(ioe);
-        }
-        LOG.info("Got Kerberos ticket");
+    if(kerberosInit.compareAndSet(false, true)) { // init kerberos if kerberosInit is false, then set it to true
+      // let's avoid modifying the supplied configuration, just to be conservative
+      final Configuration ugiConf = new Configuration(authzConf);
+      UserGroupInformation.setConfiguration(ugiConf);
+      LOG.info(
+          "Attempting to acquire kerberos ticket for HBase Indexer binding with keytab: {}, principal: {} ",
+          keytabFile, principal);
+      try {
+        UserGroupInformation.loginUserFromKeytab(principal, keytabFile);
+      } catch (IOException ioe) {
+        kerberosInit.set(false);
+        throw new RuntimeException(ioe);
       }
+      LOG.info("Got Kerberos ticket for HBase Indexer binding");
     }
+
   }
 }

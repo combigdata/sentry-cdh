@@ -16,36 +16,35 @@
  */
 package org.apache.sentry.binding.hbaseindexer;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertTrue;
+import com.google.common.io.Files;
+import com.google.common.io.Resources;
+import junit.framework.Assert;
+import org.apache.commons.io.FileUtils;
+import org.apache.sentry.binding.hbaseindexer.authz.HBaseIndexerAuthzBinding;
+import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
+import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
+import org.apache.sentry.core.common.Subject;
+import org.apache.sentry.core.common.exception.SentryAccessDeniedException;
+import org.apache.sentry.core.common.utils.PolicyFiles;
+import org.apache.sentry.core.model.indexer.Indexer;
+import org.apache.sentry.core.model.indexer.IndexerModelAction;
+import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedList;
 
-import junit.framework.Assert;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
+import static org.apache.sentry.provider.common.AuthorizationComponent.HBASE_INDEXER;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.sentry.binding.hbaseindexer.authz.HBaseIndexerAuthzBinding;
-import org.apache.sentry.binding.hbaseindexer.authz.SentryHBaseIndexerAuthorizationException;
-import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf;
-import org.apache.sentry.binding.hbaseindexer.conf.HBaseIndexerAuthzConf.AuthzConfVars;
-import org.apache.sentry.core.common.Subject;
-import org.apache.sentry.core.model.indexer.Indexer;
-import org.apache.sentry.core.model.indexer.IndexerModelAction;
-import org.apache.sentry.core.common.utils.PolicyFiles;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.io.Files;
-import com.google.common.io.Resources;
-
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 
 /**
  * Test for hbaseindexer authz binding
@@ -77,7 +76,7 @@ public class TestHBaseIndexerAuthzBinding {
 
   @After
   public void teardown() {
-    if(baseDir != null) {
+    if (baseDir != null) {
       FileUtils.deleteQuietly(baseDir);
     }
   }
@@ -97,7 +96,7 @@ public class TestHBaseIndexerAuthzBinding {
   @Test
   public void testClassNotFound() throws Exception {
     HBaseIndexerAuthzConf indexerAuthzConf =
-      new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
     setUsableAuthzConf(indexerAuthzConf);
     // verify it is usable
     new HBaseIndexerAuthzBinding(indexerAuthzConf);
@@ -107,7 +106,8 @@ public class TestHBaseIndexerAuthzBinding {
     try {
       new HBaseIndexerAuthzBinding(indexerAuthzConf);
       Assert.fail("Expected ClassNotFoundException");
-    } catch (ClassNotFoundException e) {}
+    } catch (ClassNotFoundException e) {
+    }
 
     setUsableAuthzConf(indexerAuthzConf);
     // give a bogus provider backend
@@ -115,7 +115,8 @@ public class TestHBaseIndexerAuthzBinding {
     try {
       new HBaseIndexerAuthzBinding(indexerAuthzConf);
       Assert.fail("Expected ClassNotFoundException");
-    } catch (ClassNotFoundException e) {}
+    } catch (ClassNotFoundException e) {
+    }
 
     setUsableAuthzConf(indexerAuthzConf);
     // give a bogus policy enine
@@ -123,7 +124,8 @@ public class TestHBaseIndexerAuthzBinding {
     try {
       new HBaseIndexerAuthzBinding(indexerAuthzConf);
       Assert.fail("Expected ClassNotFoundException");
-    } catch (ClassNotFoundException e) {}
+    } catch (ClassNotFoundException e) {
+    }
   }
 
   /**
@@ -133,7 +135,7 @@ public class TestHBaseIndexerAuthzBinding {
   @Test
   public void testResourceNotFound() throws Exception {
     HBaseIndexerAuthzConf indexerAuthzConf =
-      new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
     setUsableAuthzConf(indexerAuthzConf);
 
     // bogus specification
@@ -169,41 +171,31 @@ public class TestHBaseIndexerAuthzBinding {
    */
   @Test
   public void testHBaseIndexerAuthzConfs() throws Exception {
-     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    HBaseIndexerAuthzConf indexerAuthzConf =
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    new HBaseIndexerAuthzBinding(indexerAuthzConf);
   }
 
   private void expectAuthException(HBaseIndexerAuthzBinding binding, Subject subject,
-      Indexer indexer, EnumSet<IndexerModelAction> action) throws Exception {
-     try {
-       binding.authorizeIndexerAction(subject, indexer, action);
-       Assert.fail("Expected SentryHBaseIndexerAuthorizationException");
-     } catch(SentryHBaseIndexerAuthorizationException e) {
-     }
-  }
-/*
-  private void expectSentryHBaseIndexerAuthorizationException(HBaseIndexerAuthzBinding binding, Subject subject,
-                                                              Indexer indexer, EnumSet<IndexerModelAction> action) throws Exception {
+                                   Indexer indexer, EnumSet<IndexerModelAction> action) throws Exception {
     try {
-      binding.authorizeIndexerAction(subject, indexer, action);
-      Assert.fail("Excepted SentryHBaseIndexerAuthorizationException");
-    } catch(SentryHBaseIndexerAuthorizationException e) {
-
+      binding.authorize(subject, indexer, action);
+      Assert.fail("Expected SentryHBaseIndexerAuthorizationException");
+    } catch (SentryAccessDeniedException e) {
     }
   }
-*/
+
   /**
    * Test that a user that doesn't exist throws an exception
    * when trying to authorize
    */
   @Test
   public void testNoUser() throws Exception {
-     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    HBaseIndexerAuthzConf indexerAuthzConf =
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
     expectAuthException(binding, new Subject("bogus"), infoIndexer, readSet);
   }
 
@@ -212,11 +204,11 @@ public class TestHBaseIndexerAuthzBinding {
    */
   @Test
   public void testNoIndexer() throws Exception {
-     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
-     expectAuthException(binding, corporal1, new Indexer("bogus"), readSet);
+    HBaseIndexerAuthzConf indexerAuthzConf =
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    expectAuthException(binding, corporal1, new Indexer("bogus"), readSet);
   }
 
   /**
@@ -225,11 +217,11 @@ public class TestHBaseIndexerAuthzBinding {
   @Test
   public void testNoAction() throws Exception {
     HBaseIndexerAuthzConf indexerAuthzConf =
-      new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
     setUsableAuthzConf(indexerAuthzConf);
     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
     try {
-      binding.authorizeIndexerAction(corporal1, infoIndexer, emptySet);
+      binding.authorize(corporal1, infoIndexer, emptySet);
       Assert.fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) {
     }
@@ -241,18 +233,18 @@ public class TestHBaseIndexerAuthzBinding {
   @Test
   public void testAuthException() throws Exception {
     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
-     expectAuthException(binding, corporal1, infoIndexer, writeSet);
-     expectAuthException(binding, corporal1, infoIndexer, allSet);
-     expectAuthException(binding, corporal1, generalInfoIndexer, readSet);
-     expectAuthException(binding, corporal1, generalInfoIndexer, writeSet);
-     expectAuthException(binding, corporal1, generalInfoIndexer, allSet);
-     expectAuthException(binding, sergeant1, infoIndexer, allSet);
-     expectAuthException(binding, sergeant1, generalInfoIndexer, readSet);
-     expectAuthException(binding, sergeant1, generalInfoIndexer, writeSet);
-     expectAuthException(binding, sergeant1, generalInfoIndexer, allSet);
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    expectAuthException(binding, corporal1, infoIndexer, writeSet);
+    expectAuthException(binding, corporal1, infoIndexer, allSet);
+    expectAuthException(binding, corporal1, generalInfoIndexer, readSet);
+    expectAuthException(binding, corporal1, generalInfoIndexer, writeSet);
+    expectAuthException(binding, corporal1, generalInfoIndexer, allSet);
+    expectAuthException(binding, sergeant1, infoIndexer, allSet);
+    expectAuthException(binding, sergeant1, generalInfoIndexer, readSet);
+    expectAuthException(binding, sergeant1, generalInfoIndexer, writeSet);
+    expectAuthException(binding, sergeant1, generalInfoIndexer, allSet);
   }
 
   /**
@@ -260,51 +252,58 @@ public class TestHBaseIndexerAuthzBinding {
    */
   @Test
   public void testAuthAllowed() throws Exception {
-     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
-     binding.authorizeIndexerAction(corporal1, infoIndexer, readSet);
-     binding.authorizeIndexerAction(sergeant1, infoIndexer, readSet);
-     binding.authorizeIndexerAction(sergeant1, infoIndexer, writeSet);
-     binding.authorizeIndexerAction(general1, infoIndexer, readSet);
-     binding.authorizeIndexerAction(general1, infoIndexer, writeSet);
-     binding.authorizeIndexerAction(general1, infoIndexer, allSet);
-     binding.authorizeIndexerAction(general1, infoIndexer, allOfSet);
-     binding.authorizeIndexerAction(general1, generalInfoIndexer, readSet);
-     binding.authorizeIndexerAction(general1, generalInfoIndexer, writeSet);
-     binding.authorizeIndexerAction(general1, generalInfoIndexer, allSet);
-     binding.authorizeIndexerAction(general1, generalInfoIndexer, allOfSet);
+    HBaseIndexerAuthzConf indexerAuthzConf =
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    binding.authorize(corporal1, infoIndexer, readSet);
+    binding.authorize(sergeant1, infoIndexer, readSet);
+    binding.authorize(sergeant1, infoIndexer, writeSet);
+    binding.authorize(general1, infoIndexer, readSet);
+    binding.authorize(general1, infoIndexer, writeSet);
+    binding.authorize(general1, infoIndexer, allSet);
+    binding.authorize(general1, infoIndexer, allOfSet);
+    binding.authorize(general1, generalInfoIndexer, readSet);
+    binding.authorize(general1, generalInfoIndexer, writeSet);
+    binding.authorize(general1, generalInfoIndexer, allSet);
+    binding.authorize(general1, generalInfoIndexer, allOfSet);
   }
 
   @Test
   public void testFilterIndexers() throws Exception {
-     HBaseIndexerAuthzConf indexerAuthzConf =
-       new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
-     setUsableAuthzConf(indexerAuthzConf);
-     HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
-    LinkedList<IndexerDefinition> list = new LinkedList<IndexerDefinition>();
-    IndexerDefinition infoIndexerDefinition = getIndexerDefinition(infoIndexer);
-    IndexerDefinition generalInfoIndexerDefinition = getIndexerDefinition(generalInfoIndexer);
-    list.add(infoIndexerDefinition);
-    list.add(generalInfoIndexerDefinition);
+    HBaseIndexerAuthzConf indexerAuthzConf =
+        new HBaseIndexerAuthzConf(Resources.getResource("sentry-site.xml"));
+    setUsableAuthzConf(indexerAuthzConf);
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    LinkedList<Indexer> list = new LinkedList<Indexer>();
+    list.add(infoIndexer);
+    list.add(generalInfoIndexer);
 
-    Collection<IndexerDefinition> corpFilter = binding.filterIndexers(corporal1, list);
+    Collection<Indexer> corpFilter = binding.filterIndexers(corporal1, list);
     assertEquals(1, corpFilter.size());
-    assertTrue(corpFilter.contains(infoIndexerDefinition));
+    assertTrue(corpFilter.contains(infoIndexer));
 
-    Collection<IndexerDefinition> sergFilter = binding.filterIndexers(sergeant1, list);
+    Collection<Indexer> sergFilter = binding.filterIndexers(sergeant1, list);
     assertEquals(1, sergFilter.size());
-    assertTrue(sergFilter.contains(infoIndexerDefinition));
+    assertTrue(corpFilter.contains(infoIndexer));
 
-    Collection<IndexerDefinition> genFilter = binding.filterIndexers(general1, list);
+    Collection<Indexer> genFilter = binding.filterIndexers(general1, list);
     assertEquals(2, genFilter.size());
-    assertTrue(genFilter.contains(infoIndexerDefinition));
-    assertTrue(genFilter.contains(generalInfoIndexerDefinition));
+    assertTrue(genFilter.contains(infoIndexer));
+    assertTrue(genFilter.contains(generalInfoIndexer));
   }
 
-  private IndexerDefinition getIndexerDefinition(Indexer indexer) {
-    IndexerDefinitionBuilder builder = new IndexerDefinitionBuilder();
-    return builder.name(indexer.getName()).build();
+  @Test
+  public void testSentryGenericProviderBackendConfig() throws Exception {
+    HBaseIndexerAuthzConf indexerAuthzConf =
+      new HBaseIndexerAuthzConf(Resources.getResource("sentry-site-service.xml"));
+
+    HBaseIndexerAuthzBinding binding = new HBaseIndexerAuthzBinding(indexerAuthzConf);
+    Field f = binding.getClass().getDeclaredField("providerBackend"); //NoSuchFieldException
+    f.setAccessible(true);
+    SentryGenericProviderBackend providerBackend = (SentryGenericProviderBackend) f.get(binding);
+    assertEquals(HBASE_INDEXER, providerBackend.getComponentType());
+    assertEquals("MyService", providerBackend.getServiceName());
   }
+
 }

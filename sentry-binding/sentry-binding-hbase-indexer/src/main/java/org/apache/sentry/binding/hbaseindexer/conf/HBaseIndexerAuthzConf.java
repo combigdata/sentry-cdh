@@ -22,7 +22,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * Contains configuration entries for HBase Indexer Binding
+ */
 public class HBaseIndexerAuthzConf extends Configuration {
 
   /**
@@ -34,6 +36,7 @@ public class HBaseIndexerAuthzConf extends Configuration {
     AUTHZ_PROVIDER_RESOURCE("sentry.hbaseindexer.provider.resource", ""),
     AUTHZ_PROVIDER_BACKEND("sentry.hbaseindexer.provider.backend", "org.apache.sentry.provider.file.SimpleFileProviderBackend"),
     AUTHZ_POLICY_ENGINE("sentry.hbaseindexer.policy.engine", "org.apache.sentry.policy.engine.common.CommonPolicyEngine"),
+    AUTHZ_SERVICE_NAME("sentry.hbaseindexer.service", "KS_INDEXER-1"),
     // binding uses hbase regionserver specification to login, but hbase regionservers
     // support putting _HOST instead of fqdn and doing the translation at runtime.
     // Setting this property tells sentry how to do the translation.
@@ -68,7 +71,6 @@ public class HBaseIndexerAuthzConf extends Configuration {
   @SuppressWarnings("unused")
   private static final Logger LOG = LoggerFactory
       .getLogger(HBaseIndexerAuthzConf.class);
-  public static final String AUTHZ_SITE_FILE = "sentry-site.xml";
 
   public HBaseIndexerAuthzConf(URL hbaseIndexerAuthzSiteURL) {
     super(true);
