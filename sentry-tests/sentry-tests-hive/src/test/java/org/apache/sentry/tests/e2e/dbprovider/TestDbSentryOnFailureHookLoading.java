@@ -105,16 +105,17 @@ public class TestDbSentryOnFailureHookLoading extends AbstractTestWithDbProvider
     statement.execute("CREATE DATABASE DB_1");
     statement.execute("CREATE DATABASE DB_2");
     statement.execute("CREATE TABLE db_2.tab1(a int )");
+    statement.execute("CREATE TABLE db_2.tab2(a int )");
 
     statement.execute("CREATE ROLE all_db1");
     statement.execute("GRANT ALL ON DATABASE DB_1 TO ROLE all_db1");
     statement.execute("GRANT ROLE all_db1 TO GROUP " + USERGROUP1);
 
-    statement.execute("CREATE ROLE lock_db2_tab1");
-    statement.execute("GRANT ROLE lock_db2_tab1 TO GROUP " + USERGROUP1);
+    statement.execute("CREATE ROLE read_db2_tab1");
+    statement.execute("GRANT ROLE read_db2_tab1 TO GROUP " + USERGROUP1);
 
     statement.execute("USE db_2");
-    statement.execute("GRANT LOCK ON TABLE tab1 TO ROLE lock_db2_tab1");// To give user1 privilege to do USE db_2
+    statement.execute("GRANT SELECT ON TABLE tab1 TO ROLE read_db2_tab1");// To give user1 privilege to do USE db_2, but no access to db_2.tab2
     statement.close();
     connection.close();
 
@@ -129,7 +130,7 @@ public class TestDbSentryOnFailureHookLoading extends AbstractTestWithDbProvider
     verifyFailureHook(statement, "CREATE TABLE DB_2.TAB1(id INT)", HiveOperation.CREATETABLE, "db_2", null, false);
 
     // Failure hook for select * from table when table exist
-    verifyFailureHook(statement, "select * from db_2.tab1", HiveOperation.QUERY,
+    verifyFailureHook(statement, "select * from db_2.tab2", HiveOperation.QUERY,
         null, null, false);
 
     //Denied alter table invokes failure hook
