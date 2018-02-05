@@ -25,9 +25,9 @@ fi
 #
 # Prepare local github repository
 #
-echo "Preparing local github repository with Cloudera gerrit information ..."
-git remote add gerrit ssh://$USER_NAME@gerrit.sjc.cloudera.com:29418/sentry
-git fetch gerrit
+echo "Preparing local github repository with Cloudera gerrit/cauldron information ..."
+git remote add cauldron ssh://$USER_NAME@gerrit.sjc.cloudera.com:29418/cdh/sentry
+git fetch cauldron
 mkdir -p .git/hooks
 scp -p -P 29418 $USER_NAME@gerrit.sjc.cloudera.com:hooks/commit-msg .git/hooks/
 chmod 755 .git/hooks/commit-msg
