@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
 
 public class KafkaWildcardPrivilege implements Privilege {
 
-  private static String ALL_HOSTS = "*";
+  private static String WILDCARD_ANY = "*";
 
   public static class Factory implements PrivilegeFactory {
     @Override
@@ -113,9 +113,10 @@ public class KafkaWildcardPrivilege implements Privilege {
 
     // Host is a special resource, not declared as resource in Kafka. Each Kafka resource can be
     // authorized based on the host request originated from and to handle this, Sentry uses host as
-    // a resource. Kafka allows using '*' as wildcard for all hosts. '*' however is not a valid
-    // Kafka action.
-    if (hasHostWidCard(policyPart)) {
+    // a resource.
+    // Furthermore Kafka allows using '*' as wildcard for any hosts or consumergroups or topics. '*' however is
+    // not a valid Kafka action.
+    if (hasHostWidCard(policyPart) || hasConsumergroupWildCard(policyPart) || hasTopicWildCard(policyPart)) {
       return true;
     }
 
@@ -127,12 +128,21 @@ public class KafkaWildcardPrivilege implements Privilege {
     }
   }
 
+  private boolean hasWildcardForAuthorizable(KeyValue policyPart, KafkaAuthorizable.AuthorizableType type) {
+    return policyPart.getKey().equalsIgnoreCase(type.toString()) &&
+            policyPart.getValue().equalsIgnoreCase(WILDCARD_ANY);
+  }
+
   private boolean hasHostWidCard(KeyValue policyPart) {
-    if (policyPart.getKey().equalsIgnoreCase(KafkaAuthorizable.AuthorizableType.HOST.toString()) &&
-        policyPart.getValue().equalsIgnoreCase(ALL_HOSTS)) {
-      return true;
-    }
-    return false;
+    return hasWildcardForAuthorizable(policyPart, KafkaAuthorizable.AuthorizableType.HOST);
+  }
+
+  private boolean hasConsumergroupWildCard(KeyValue policyPart) {
+    return hasWildcardForAuthorizable(policyPart, KafkaAuthorizable.AuthorizableType.CONSUMERGROUP);
+  }
+
+  private boolean hasTopicWildCard(KeyValue policyPart) {
+    return hasWildcardForAuthorizable(policyPart, KafkaAuthorizable.AuthorizableType.TOPIC);
   }
 
   @Override

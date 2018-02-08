@@ -43,6 +43,10 @@ public class TestKafkaWildcardPrivilege {
       create(new KeyValue("HOST", "host1"), new KeyValue("TOPIC", "topic1"), new KeyValue("action", KafkaActionConstant.READ));
   private static final Privilege KAFKA_HOST1_TOPIC1_WRITE =
       create(new KeyValue("HOST", "host1"), new KeyValue("TOPIC", "topic1"), new KeyValue("action", KafkaActionConstant.WRITE));
+  private static final Privilege KAFKA_HOST1_TOPIC2_WRITE =
+          create(new KeyValue("HOST", "host1"), new KeyValue("TOPIC", "topic1"), new KeyValue("action", KafkaActionConstant.WRITE));
+  private static final Privilege KAFKA_HOST1_TOPIC_ANY_WRITE =
+          create(new KeyValue("HOST", "host1"), new KeyValue("TOPIC", "*"), new KeyValue("action", KafkaActionConstant.WRITE));
 
   private static final Privilege KAFKA_HOST1_CLUSTER1_ALL =
       create(new KeyValue("HOST", "host1"), new KeyValue("CLUSTER", "cluster1"), new KeyValue("action", KafkaActionConstant.ALL));
@@ -57,6 +61,15 @@ public class TestKafkaWildcardPrivilege {
       create(new KeyValue("HOST", "host1"), new KeyValue("GROUP", "cgroup1"), new KeyValue("action", KafkaActionConstant.READ));
   private static final Privilege KAFKA_HOST1_GROUP1_WRITE =
       create(new KeyValue("HOST", "host1"), new KeyValue("GROUP", "cgroup1"), new KeyValue("action", KafkaActionConstant.WRITE));
+
+  private static final Privilege KAFKA_HOST1_CONSUMERGROUP1_READ =
+      create(new KeyValue("HOST", "host1"), new KeyValue("CONSUMERGROUP", "consumergroup1"), new KeyValue("action", KafkaActionConstant.READ));
+  private static final Privilege KAFKA_HOST1_CONSUMERGROUP1_WRITE =
+      create(new KeyValue("HOST", "host1"), new KeyValue("CONSUMERGROUP", "consumergroup1"), new KeyValue("action", KafkaActionConstant.WRITE));
+  private static final Privilege KAFKA_HOST1_CONSUMERGROUP2_WRITE =
+          create(new KeyValue("HOST", "host1"), new KeyValue("CONSUMERGROUP", "consumergroup1"), new KeyValue("action", KafkaActionConstant.WRITE));
+  private static final Privilege KAFKA_HOST1_CONSUMERGROUP_ANY_WRITE =
+      create(new KeyValue("HOST", "host1"), new KeyValue("CONSUMERGROUP", "*"), new KeyValue("action", KafkaActionConstant.WRITE));
 
 
   private static final Privilege KAFKA_CLUSTER1_HOST1_ALL =
@@ -124,6 +137,22 @@ public class TestKafkaWildcardPrivilege {
     //consumer group
     assertTrue(KAFKA_HOST1_GROUP1_ALL.implies(KAFKA_HOST1_GROUP1_READ));
     assertTrue(KAFKA_HOST1_GROUP1_ALL.implies(KAFKA_HOST1_GROUP1_WRITE));
+  }
+
+  @Test
+  public void testConsumergroupAnyImplies() throws Exception {
+    assertTrue(KAFKA_HOST1_CONSUMERGROUP_ANY_WRITE.implies(KAFKA_HOST1_CONSUMERGROUP1_WRITE));
+    assertTrue(KAFKA_HOST1_CONSUMERGROUP_ANY_WRITE.implies(KAFKA_HOST1_CONSUMERGROUP2_WRITE));
+    assertFalse(KAFKA_HOST1_CONSUMERGROUP_ANY_WRITE.implies(KAFKA_HOST1_CONSUMERGROUP1_READ));
+    assertFalse(KAFKA_HOST1_CONSUMERGROUP1_WRITE.implies(KAFKA_HOST1_CONSUMERGROUP_ANY_WRITE));
+  }
+
+  @Test
+  public void testTopicAnyImplies() throws Exception {
+    assertTrue(KAFKA_HOST1_TOPIC_ANY_WRITE.implies(KAFKA_HOST1_TOPIC1_WRITE));
+    assertTrue(KAFKA_HOST1_TOPIC_ANY_WRITE.implies(KAFKA_HOST1_TOPIC2_WRITE));
+    assertFalse(KAFKA_HOST1_TOPIC_ANY_WRITE.implies(KAFKA_HOST1_TOPIC1_READ));
+    assertFalse(KAFKA_HOST1_TOPIC1_WRITE.implies(KAFKA_HOST1_TOPIC_ANY_WRITE));
   }
 
   @Test
