@@ -278,17 +278,23 @@ public class MetastoreAuthzBinding extends MetaStorePreEventListener {
         .getDbName(), context.getOldTable().getTableName());
 
     // if the operation requires location change, then add URI privilege check
-    String oldLocationUri;
-    String newLocationUri;
+    String oldLocationUri = null;
+    String newLocationUri = null;
     try {
-      oldLocationUri = PathUtils.parseDFSURI(warehouseDir,
-          getSdLocation(context.getOldTable().getSd()));
-      newLocationUri = PathUtils.parseDFSURI(warehouseDir,
-          getSdLocation(context.getNewTable().getSd()));
+      if (!StringUtils.isEmpty(context.getOldTable().getSd().getLocation())) {
+        oldLocationUri = PathUtils
+            .parseDFSURI(warehouseDir,
+                getSdLocation(context.getOldTable().getSd()));
+      }
+      if (!StringUtils.isEmpty(context.getNewTable().getSd().getLocation())) {
+        newLocationUri = PathUtils
+            .parseDFSURI(warehouseDir,
+                getSdLocation(context.getNewTable().getSd()));
+      }
     } catch (URISyntaxException e) {
       throw new MetaException(e.getMessage());
     }
-    if (oldLocationUri.compareTo(newLocationUri) != 0) {
+    if (!StringUtils.equals(oldLocationUri, newLocationUri)) {
       outputBuilder.addUriToOutput(getAuthServer(), newLocationUri,
           warehouseDir);
       operation = HiveOperation.ALTERTABLE_LOCATION;
