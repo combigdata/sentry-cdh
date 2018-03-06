@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DEFAULT_BRANCH=cdh6.x
+DEFAULT_BRANCH=cdh6.0.x
 : ${BUILD_BRANCH:=${DEFAULT_BRANCH}}
 set +e
 
@@ -16,8 +16,8 @@ export CDH_GBN=$(curl --silent --show-error --fail "http://builddb.infra.clouder
 if [ $? -ne 0 ]
 then
   ## no GBN for BUILD_BRANCH then use the 6.x lastest
-  echo "############# WARNING: Unable to find latest GBN for ${BUILD_BRANCH}. Using cdh6.x official by default. ##############"
-  export CDH_GBN=$(curl --silent --show-error --fail 'http://builddb.infra.cloudera.com:8080/query?product=cdh&user=jenkins&version=6.x&tag=official')
+  echo "############# WARNING: Unable to find latest GBN for ${BUILD_BRANCH}. Using cdh6.0.x official by default. ##############"
+  export CDH_GBN=$(curl --silent --show-error --fail 'http://builddb.infra.cloudera.com:8080/query?product=cdh&user=jenkins&version=6.0.x&tag=official')
 fi
 set -e
 
@@ -33,7 +33,7 @@ trap finish EXIT
 
 export BUILD_SETTINGS_FILE="${BUILD_SCRATCH_DIR}/gbn-m2-settings.xml"
 
-curl --silent --show-error --fail "http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.x/gbn-m2-settings.xml" -o "${BUILD_SETTINGS_FILE}"
+curl --silent --show-error --fail "http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.0.x/gbn-m2-settings.xml" -o "${BUILD_SETTINGS_FILE}"
 
 # replacing the environment variable is not strictly necessary but it can useful
 # if the pom is encapsulated
