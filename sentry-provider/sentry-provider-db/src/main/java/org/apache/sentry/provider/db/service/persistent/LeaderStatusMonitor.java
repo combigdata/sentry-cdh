@@ -17,8 +17,6 @@
 package org.apache.sentry.provider.db.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
@@ -32,6 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.*;
 
@@ -85,8 +85,7 @@ import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.*;
 public final class LeaderStatusMonitor
       extends LeaderSelectorListenerAdapter implements AutoCloseable {
 
-  private static final Log LOG =
-          LogFactory.getLog(LeaderStatusMonitor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(LeaderStatusMonitor.class);
 
   private static final String LEADER_SELECTOR_SUFFIX = "leader";
 
@@ -137,15 +136,15 @@ public final class LeaderStatusMonitor
       haContext = null;
       isLeader = true;
       incarnationId = "";
-      LOG.info("Leader election protocol disabled, assuming single active server");
+      LOGGER.info("Leader election protocol disabled, assuming single active server");
       return;
     }
     isSingleNodeMode = false;
     incarnationId = defaultIncarnationId;
     haContext = HAContext.getHAServerContext(conf);
 
-    LOG.info("Created LeaderStatusMonitor(incarnationId=" + incarnationId +
-        ", zkServers='" + zkServers + "')");
+    LOGGER.info("Created LeaderStatusMonitor(incarnationId={}, "
+        + "zkServers='{}')", incarnationId, zkServers);
   }
 
   /**
@@ -249,8 +248,7 @@ public final class LeaderStatusMonitor
   @Override
   public void takeLeadership(CuratorFramework client) throws Exception {
     leaderCount.incrementAndGet();
-    LOG.info("LeaderStatusMonitor: becoming active. " +
-            "leaderCount=" + leaderCount);
+    LOGGER.info("Becoming leader in Sentry HA cluster:{}", this);
     lock.lock();
     try {
       isLeader = true;
@@ -258,11 +256,11 @@ public final class LeaderStatusMonitor
       cond.await();
     } catch (InterruptedException ignored) {
       Thread.currentThread().interrupt();
-      LOG.info("LeaderStatusMonitor: interrupted");
+      LOGGER.error("takeLeadership call interrupted:" + this, ignored);
     } finally {
       isLeader = false;
       lock.unlock();
-      LOG.info("LeaderStatusMonitor: becoming standby");
+      LOGGER.info("Resigning from leader status in a Sentry HA cluster:{}", this);
     }
   }
 
@@ -277,5 +275,13 @@ public final class LeaderStatusMonitor
   private static String generateIncarnationId() {
     return ManagementFactory.getRuntimeMXBean().getName();
   }
+
+  @Override
+  public String toString() {
+    return isSingleNodeMode?"Leader election disabled":
+        String.format("{isSingleNodeMode=%b, incarnationId=%s, isLeader=%b, leaderCount=%d}",
+            isSingleNodeMode, incarnationId, isLeader, leaderCount);
+      }
+
 
 }
