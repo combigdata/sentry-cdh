@@ -33,7 +33,7 @@ trap finish EXIT
 
 export BUILD_SETTINGS_FILE="${BUILD_SCRATCH_DIR}/gbn-m2-settings.xml"
 
-curl --silent --show-error --fail "http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.x/gbn-m2-settings.xml" -o "${BUILD_SETTINGS_FILE}"
+curl --silent --show-error --fail "http://github.mtv.cloudera.com/raw/CDH/cdh/${BUILD_BRANCH}/gbn-m2-settings.xml" -o "${BUILD_SETTINGS_FILE}"
 
 # replacing the environment variable is not strictly necessary but it can useful
 # if the pom is encapsulated
