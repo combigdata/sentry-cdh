@@ -2765,7 +2765,7 @@ public class SentryStore {
     query.setFilter("this.authzSnapshotID == currentSnapshotID");
     query.declareParameters("long currentSnapshotID");
     Collection<MAuthzPathsMapping> authzToPathsMappings =
-        (Collection<MAuthzPathsMapping>) query.execute(currentSnapshotID);
+      (Collection<MAuthzPathsMapping>) query.execute(currentSnapshotID);
 
     if (authzToPathsMappings.isEmpty()) {
       return Collections.emptyMap();
