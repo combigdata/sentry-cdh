@@ -241,7 +241,7 @@ public class SolrAuthzBinding {
       }
       for (String file : HADOOP_CONF_FILES) {
         if (new File(confDirFile, file).exists()) {
-          conf.addResource(new Path(confDir, file));
+          conf.addResource(new Path(confDir, file), true);
         }
       }
     }

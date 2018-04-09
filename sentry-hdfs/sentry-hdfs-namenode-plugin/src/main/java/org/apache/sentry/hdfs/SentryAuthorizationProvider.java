@@ -108,7 +108,7 @@ public class SentryAuthorizationProvider
       // Configuration is read from hdfs-sentry.xml and NN configuration, in
       // that order of precedence.
       Configuration conf = new Configuration(this.conf);
-      conf.addResource(SentryAuthorizationConstants.CONFIG_FILE);
+      conf.addResource(SentryAuthorizationConstants.CONFIG_FILE, true);
       user = conf.get(SentryAuthorizationConstants.HDFS_USER_KEY,
           SentryAuthorizationConstants.HDFS_USER_DEFAULT);
       group = conf.get(SentryAuthorizationConstants.HDFS_GROUP_KEY,
