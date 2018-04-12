@@ -1172,11 +1172,6 @@ limitations under the License.
       <url>https://repository.apache.org/content/repositories/</url>
     </repository>
     <repository>
-      <id>cdh.cauldron.repo</id>
-      <url>http://maven.jenkins.cloudera.com:8081/artifactory/cauldron-latest-snapshot-local/</url>
-      <name>Cloudera Cauldron Repositories</name>
-    </repository>
-    <repository>
       <id>glassfish-repo-archive.repo</id>
       <url>https://mvnrepository.com/artifact/org.glassfish/javax.el/</url>
       <name>Glassfish repository</name>
