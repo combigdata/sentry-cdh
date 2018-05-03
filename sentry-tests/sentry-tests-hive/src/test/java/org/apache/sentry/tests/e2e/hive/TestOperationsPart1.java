@@ -605,4 +605,32 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement.close();
     connection.close();
   }
+
+  /*
+    Test alter rename table when user has all on database
+    when current database is different
+   */
+  @Test
+  public void testAlterRenameTableWhenCurrentDatabaseIsDifferent() throws Exception{
+    adminCreate(DB1, null);
+    adminCreate(DB2, null);
+    policyFile
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addRolesToGroup(USERGROUP1, "all_db1");
+
+    writePolicyFile(policyFile);
+
+    Connection connection;
+    Statement statement;
+    connection = context.createConnection(ADMIN1);
+    statement = context.createStatement(connection);
+    statement.execute("USE " +DB2);
+
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+    statement.execute("CREATE TABLE " + DB1 + ".tb1(a int)");
+    statement.execute("ALTER TABLE "  + DB1 + ".tb1 RENAME TO tb2");
+    statement.close();
+    connection.close();
+  }
 }
