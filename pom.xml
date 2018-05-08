@@ -368,6 +368,10 @@ limitations under the License.
         <version>${hive.version}</version>
         <exclusions>
           <exclusion>
+            <groupId>javax.transaction</groupId>
+            <artifactId>transaction-api</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.eclipse.jetty.aggregate</groupId>
             <artifactId>jetty-all</artifactId>
           </exclusion>
@@ -789,6 +793,10 @@ limitations under the License.
           <exclusion>
             <groupId>javax.jms</groupId>
             <artifactId>jms</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.transaction</groupId>
+            <artifactId>transaction-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
