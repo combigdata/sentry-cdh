@@ -84,6 +84,12 @@ limitations under the License.
       <groupId>org.datanucleus</groupId>
       <artifactId>javax.jdo</artifactId>
       <version>${datanucleus-jdo.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.transaction</groupId>
+          <artifactId>transaction-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 </project>
