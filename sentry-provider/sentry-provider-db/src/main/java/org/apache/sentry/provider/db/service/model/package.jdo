@@ -42,7 +42,29 @@
       <field name="roles" mapped-by="groups">
          <collection element-type="org.apache.sentry.provider.db.service.model.MSentryRole"/>
       </field>
-        
+    </class>
+
+    <class name="MSentryUser" identity-type="datastore" table="SENTRY_USER" detachable="true">
+      <datastore-identity>
+        <column name="USER_ID"/>
+      </datastore-identity>
+      <field name="userName">
+        <column name="USER_NAME" length="128" jdbc-type="VARCHAR"/>
+        <index name="SentryUserName" unique="true"/>
+      </field>
+      <field name = "createTime">
+        <column name = "CREATE_TIME" jdbc-type="BIGINT"/>
+      </field>
+
+      <field name = "privileges" table="SENTRY_USER_DB_PRIVILEGE_MAP" default-fetch-group="true">
+        <collection element-type="org.apache.sentry.provider.db.service.model.MSentryPrivilege"/>
+          <join>
+            <column name="USER_ID"/>
+          </join>
+          <element>
+            <column name="DB_PRIVILEGE_ID"/>
+          </element>
+      </field>
     </class>
     
     <class name="MSentryRole" identity-type="datastore" table="SENTRY_ROLE" detachable="true">  
@@ -129,6 +151,9 @@
       </field>
       <field name="roles" mapped-by="privileges">
          <collection element-type="org.apache.sentry.provider.db.service.model.MSentryRole"/>
+      </field>
+      <field name="users" mapped-by="privileges">
+        <collection element-type="org.apache.sentry.provider.db.service.model.MSentryUser"/>
       </field>
     </class>
 
