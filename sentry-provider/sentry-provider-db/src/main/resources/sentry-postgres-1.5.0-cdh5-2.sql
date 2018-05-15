@@ -121,7 +121,7 @@ ALTER TABLE ONLY "SENTRY_ROLE_GROUP_MAP"
   ADD CONSTRAINT "SEN_ROLE_GROUP_MAP_SEN_GRP_FK"
   FOREIGN KEY ("GROUP_ID") REFERENCES "SENTRY_GROUP"("GROUP_ID") DEFERRABLE;
 
-INSERT INTO "SENTRY_VERSION" ("VER_ID", "SCHEMA_VERSION", "VERSION_COMMENT") VALUES (1, '1.5.0-cdh5', 'Sentry release version 1.5.0-cdh5');
+INSERT INTO "SENTRY_VERSION" ("VER_ID", "SCHEMA_VERSION", "VERSION_COMMENT") VALUES (1, '1.5.0-cdh5-2', 'Sentry release version 1.5.0-cdh5-2');
 
 -- Generic Model
 -- Table SENTRY_GM_PRIVILEGE for classes [org.apache.sentry.provider.db.service.model.MSentryGMPrivilege]
