@@ -243,6 +243,12 @@ limitations under the License.
       <version>${pig.version}</version>
       <classifier>h2</classifier>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
