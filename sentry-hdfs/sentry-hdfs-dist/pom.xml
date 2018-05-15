@@ -75,7 +75,7 @@ limitations under the License.
                   <include>org.apache.sentry:sentry-hdfs-service</include>
                   <include>org.apache.commons:commons-pool2</include>
                   <include>org.apache.thrift:libthrift</include>
-                  <include>commons-httpclient:commons-httpclient</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
                 </includes>
               </artifactSet>
             </configuration>

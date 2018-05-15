@@ -64,7 +64,6 @@ limitations under the License.
     <commons-pool2.version>2.4.2</commons-pool2.version>
     <commons.lang.version>${cdh.commons-lang.version}</commons.lang.version>
     <commons.logging.version>1.2</commons.logging.version>
-    <commons-httpclient.version>${cdh.commons-httpclient.version}</commons-httpclient.version>
     <curator.version>2.11.1</curator.version>
     <derby.version>${cdh.derby.version}</derby.version>
     <easymock.version>3.0</easymock.version>
@@ -491,6 +490,10 @@ limitations under the License.
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-web</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>commons-httpclient</groupId>
+            <artifactId>commons-httpclient</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -505,6 +508,10 @@ limitations under the License.
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-httpclient</groupId>
+            <artifactId>commons-httpclient</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -784,6 +791,11 @@ limitations under the License.
             <artifactId>jms</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
