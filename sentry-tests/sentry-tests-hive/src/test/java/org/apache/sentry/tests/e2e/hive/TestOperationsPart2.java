@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.sentry.provider.file.PolicyFile;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -455,5 +456,90 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
             "LOCATION '" + indexLocation + "'");
     statement.close();
     connection.close();
+  }
+
+  /*
+  1. HiveOperation.ALTERTABLE_RENAME
+  */
+  @Test
+  public void renameTable() throws Exception {
+    adminCreate(DB1, "TAB_1");
+    adminCreate(DB2, "TAB_3");
+    adminCreate(DB3, null);
+    adminCreate(DB4, null);
+    adminCreate(DB5, null);
+
+    Connection connection = context.createConnection(ADMIN1);
+    Statement statement = context.createStatement(connection);
+    exec(statement, "CREATE table  " + DB1 + ".TAB_2 (a string)");
+    exec(statement, "CREATE table  " + DB3 + ".TAB_3 (a string)");
+    statement.close();
+    connection.close();
+
+    policyFile
+            .addRolesToGroup(USERGROUP1, "all_db1")
+            .addRolesToGroup(USERGROUP1, "insert_db2")
+            .addRolesToGroup(USERGROUP1, "create_db3")
+            .addRolesToGroup(USERGROUP1, "select_db4")
+            .addPermissionsToRole("all_db1", "server=server1->db=" + DB1)
+            .addPermissionsToRole("insert_db2", "server=server1->db=" + DB2 + "->action=insert")
+            .addPermissionsToRole("create_db3", "server=server1->db=" + DB3 + "->action=all")
+            .addPermissionsToRole("select_db4", "server=server1->db=" + DB4 + "->action=select")
+
+            .setUserGroupMapping(StaticUserGroup.getStaticMapping());
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+
+    // user1 haven't create permission with db_4, can't move table to db_2
+    exec(statement, "use " + DB1);
+    try {
+      exec(statement, "alter table TAB_1 rename to " + DB4 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+
+    try {
+      // test with the format of table name: db.table
+      exec(statement, "alter table " + DB1 + ".TAB_1 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+
+    // user1 haven't create permission with db_2, can't move table from db_2
+    exec(statement, "use " + DB2);
+    try {
+      exec(statement, "alter table TAB_3 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+    try {
+      // test with the format of table name: db.table
+      exec(statement, "alter table " + DB2 + ".TAB_3 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+
+    // user1 have all permission with db_1 and create permission with db_3, alter_table_rename pass
+    exec(statement, "use " + DB1);
+    exec(statement, "alter table TAB_1 rename to " + DB3 + ".TAB_1");
+    exec(statement, "alter table " + DB1 + ".TAB_2 rename to " + DB3 + ".TAB_2");
+
+    // user1 has insert permission with db_2 and all permission with db_3, alter_table_rename fail
+    exec(statement, "use " + DB2);
+    try {
+      exec(statement, "alter table TAB_3 rename to " + DB3 + ".TAB_3");
+    } catch (Exception e) {
+      //ignore the notification
+    }
+
+    // user1 has all on DB2, so alter_table_rename should pass
+    exec(statement, "use " + DB3);
+    exec(statement, "alter table TAB_3 rename to TAB_4");
   }
 }

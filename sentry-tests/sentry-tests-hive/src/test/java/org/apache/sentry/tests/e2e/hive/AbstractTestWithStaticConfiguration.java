@@ -119,6 +119,8 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
       DB1 = "db_1",
       DB2 = "db_2",
       DB3 = "db_3",
+      DB4 = "db_4",
+      DB5 = "db_5",
       TBL1 = "tb_1",
       TBL2 = "tb_2",
       TBL3 = "tb_3",
