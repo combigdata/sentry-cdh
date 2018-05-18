@@ -155,12 +155,12 @@ public class TestDbPrivilegeCleanupOnDrop extends
 
   /**
    * rename table and verify that the no privileges are referring to it old table
-   * verify that the same privileges are created for the new table name
+   * verify that the same privileges are created for the new table name within the same DB
    *
    * @throws Exception
    */
   @Test
-  public void testRenameTables() throws Exception {
+  public void testRenameTablesWithinDB() throws Exception {
     Connection connection = context.createConnection(ADMIN1);
     Statement statement = context.createStatement(connection);
 
@@ -193,6 +193,65 @@ public class TestDbPrivilegeCleanupOnDrop extends
         tableName1 + renameTag);
     verifyTablePrivilegeExist(statement, Lists.newArrayList("all_tbl2"),
         tableName2 + renameTag);
+
+    statement.close();
+    connection.close();
+  }
+
+  /**
+   * rename table and verify that the no privileges are referring to it old table
+   * verify that the same privileges are created for the new table name at different DB
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testRenameTablesCrossDB() throws Exception {
+    Connection connection = context.createConnection(ADMIN1);
+    Statement statement = context.createStatement(connection);
+
+    String[] dbNames = new String[]{DB1, DB2};
+    String[] roles = new String[]{"admin_role", "read_db1", "all_db1", "select_tbl1",
+        "insert_tbl1", "all_tbl1", "all_tbl2", "all_prod"};
+
+    // create required roles
+    setupRoles(statement);
+
+    // create test DBs and Tables
+    statement.execute("CREATE DATABASE " + DB1);
+    statement.execute("CREATE DATABASE " + DB2);
+    statement.execute("create table " + DB2 + "." + tableName1
+        + " (under_col int comment 'the under column', value string)");
+
+    // setup privileges for USER1
+    statement.execute("GRANT ALL ON DATABASE " + DB1 + " TO ROLE all_db1");
+    statement.execute("GRANT SELECT ON DATABASE " + DB1
+        + " TO ROLE read_db1");
+    statement.execute("GRANT ALL ON DATABASE " + DB2 + " TO ROLE all_prod");
+    statement.execute("USE " + DB2);
+    statement.execute("GRANT SELECT ON TABLE " + tableName1
+        + " TO ROLE select_tbl1");
+    statement.execute("GRANT INSERT ON TABLE " + tableName1
+        + " TO ROLE insert_tbl1");
+    statement.execute("GRANT ALL ON TABLE " + tableName1 + " TO ROLE all_tbl1");
+
+    // verify privileges on the created tables
+    verifyTablePrivilegeExist(statement,
+        Lists.newArrayList("select_tbl1", "insert_tbl1", "all_tbl1"),
+        DB2 + "." + tableName1);
+
+    // rename table across the DB
+    statement.execute("ALTER TABLE " + DB2 + "." + tableName1 + " RENAME TO "
+        + DB1 + "." + tableName1 + renameTag);
+
+    // verify privileges removed for old table
+    List<String> rolesPersisted = getRoles(statement);
+    verifyIfAllPrivilegeAreDropped(statement, rolesPersisted, DB2 + "." + tableName1,
+        SHOW_GRANT_TABLE_POSITION);
+
+    // verify privileges created for new table
+    verifyTablePrivilegeExist(statement,
+        Lists.newArrayList("select_tbl1", "insert_tbl1", "all_tbl1"),
+        DB1 + "." + tableName1 + renameTag);
 
     statement.close();
     connection.close();
@@ -366,5 +425,20 @@ public class TestDbPrivilegeCleanupOnDrop extends
       roleList.add(resultSet.getString(1));
     }
     return roleList;
+  }
+
+  // verify given table/DB has no longer permissions
+  protected void verifyIfAllPrivilegeAreDropped(Statement statement, List<String> roles,
+      String objectName, int resultPos) throws Exception {
+    for (String roleName : roles) {
+      ResultSet resultSet = statement.executeQuery("SHOW GRANT ROLE "
+          + roleName);
+      while (resultSet.next()) {
+        String returned = resultSet.getString(resultPos);
+        assertFalse("value " + objectName + " shouldn't be detected, but actually " + returned + " is found from resultSet",
+            objectName.equalsIgnoreCase(returned));
+      }
+      resultSet.close();
+    }
   }
 }
