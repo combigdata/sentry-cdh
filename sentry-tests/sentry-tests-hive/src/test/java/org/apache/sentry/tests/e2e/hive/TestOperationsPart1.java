@@ -616,7 +616,8 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     adminCreate(DB2, null);
     policyFile
         .addPermissionsToRole("all_db1", privileges.get("all_db1"))
-        .addRolesToGroup(USERGROUP1, "all_db1");
+        .addPermissionsToRole("all_db1", privileges.get("all_db2"))
+            .addRolesToGroup(USERGROUP1, "all_db1");
 
     writePolicyFile(policyFile);
 
@@ -629,7 +630,7 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     connection = context.createConnection(USER1_1);
     statement = context.createStatement(connection);
     statement.execute("CREATE TABLE " + DB1 + ".tb1(a int)");
-    statement.execute("ALTER TABLE "  + DB1 + ".tb1 RENAME TO tb2");
+    statement.execute("ALTER TABLE "  + DB1 + ".tb1 RENAME TO "+ DB2 + ".tb2");
     statement.close();
     connection.close();
   }
