@@ -49,6 +49,7 @@ import org.apache.sentry.provider.db.service.thrift.validator.GrantPrivilegeRequ
 import org.apache.sentry.provider.db.service.thrift.validator.RevokePrivilegeRequestValidator;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.ConfUtilties;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.sentry.service.thrift.ServiceConstants.ThriftConstants;
 import org.apache.sentry.service.thrift.Status;
@@ -628,7 +629,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       }
       if (request.isSetAuthorizableHierarchy()) {
         TSentryAuthorizable authorizableHierarchy = request.getAuthorizableHierarchy();
-        privilegeSet = sentryStore.getTSentryPrivileges(Sets.newHashSet(request.getRoleName()), authorizableHierarchy);
+        privilegeSet = sentryStore.getTSentryPrivileges(SentryEntityType.ROLE, Sets.newHashSet(request.getRoleName()), authorizableHierarchy);
       } else {
         privilegeSet = sentryStore.getAllTSentryPrivilegesByRoleName(request.getRoleName());
       }
@@ -667,12 +668,16 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     response.setPrivileges(new HashSet<String>());
     try {
       validateClientVersion(request.getProtocol_version());
+      // TODO: request should have new function getUsers() and it should be used as input
+      // instead of Sets.<String>newHashSet()
       Set<String> privilegesForProvider = sentryStore.listSentryPrivilegesForProvider(
-          request.getGroups(), request.getRoleSet(), request.getAuthorizableHierarchy());
+          request.getGroups(), Sets.<String>newHashSet(), request.getRoleSet(), request.getAuthorizableHierarchy());
       response.setPrivileges(privilegesForProvider);
       if (((privilegesForProvider == null)||(privilegesForProvider.size() == 0))&&(request.getAuthorizableHierarchy() != null)) {
+        // TODO: request should have new function getUsers() and it should be used as input
+        // instead of Sets.<String>newHashSet()
         if (sentryStore.hasAnyServerPrivileges(
-            request.getGroups(), request.getRoleSet(), request.getAuthorizableHierarchy().getServer())) {
+            request.getGroups(), Sets.<String>newHashSet(), request.getRoleSet(), request.getAuthorizableHierarchy().getServer())) {
 
           // REQUIRED for ensuring 'default' Db is accessible by any user
           // with privileges to atleast 1 object with the specific server as root
@@ -864,6 +869,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
         authRoleMap.put(authorizable, sentryStore
             .listSentryPrivilegesByAuthorizable(requestedGroups,
                 request.getRoleSet(), authorizable, inAdminGroups(memberGroups)));
+
+        // TODO: add privileges associated with user by calling listSentryPrivilegesByAuthorizableForUser
       }
       response.setPrivilegesMapByAuth(authRoleMap);
       response.setStatus(Status.OK());

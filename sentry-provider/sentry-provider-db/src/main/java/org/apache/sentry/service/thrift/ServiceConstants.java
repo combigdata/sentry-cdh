@@ -315,4 +315,9 @@ public class ServiceConstants {
 
   public static final String SENTRY_ZK_JAAS_NAME = "Sentry";
   public static final String CURRENT_INCARNATION_ID_KEY = "current.incarnation.key";
+
+  public enum SentryEntityType {
+    ROLE,
+    USER
+  }
 }
