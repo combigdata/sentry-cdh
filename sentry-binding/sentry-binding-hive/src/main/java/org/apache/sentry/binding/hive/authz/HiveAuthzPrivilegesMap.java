@@ -104,6 +104,15 @@ public class HiveAuthzPrivilegesMap {
         setOperationType(HiveOperationType.DDL).
         build();
 
+    // in CDH5 the hive command "ALTER TABLE EXCHANGE PARTITION" has empty input and
+    // both source table and destination table are in output. If we specify the input required
+    // privileges with empty input, exception will be thrown in HiveAuthzBinding.authorize
+    HiveAuthzPrivileges alterTableExchangePrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
+        addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
+        setOperationScope(HiveOperationScope.TABLE).
+        setOperationType(HiveOperationType.DDL).
+        build();
+
     /* Currently Hive treats select/insert/analyze as Query
      * select = select on table
      * insert = insert on table /all on uri
@@ -249,6 +258,7 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_LOCATION, alterTableAndUriPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERPARTITION_LOCATION, alterTableAndUriPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTBLPART_SKEWED_LOCATION, alterTableAndUriPrivilege);//TODO: Needs test case
+    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_EXCHANGEPARTITION, alterTableExchangePrivilege);
 
     // MSCK REPAIR TABLE <table name> / ALTER TABLE RECOVER PARTITIONS <tableName>
     hiveAuthzStmtPrivMap.put(HiveOperation.MSCK, alterTablePrivilege);
