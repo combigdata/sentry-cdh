@@ -23,6 +23,7 @@ import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -293,16 +294,23 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
     PrincipalDesc principalDesc = desc.getPrincipalDesc();
     PrivilegeObjectDesc hiveObjectDesc = desc.getHiveObj();
     String principalName = principalDesc.getName();
-    Set<TSentryPrivilege> privileges;
+    Set<TSentryPrivilege> privileges = Collections.emptySet();
 
     try {
-      if (principalDesc.getType() != PrincipalType.ROLE) {
+      if (principalDesc.getType() != PrincipalType.ROLE && principalDesc.getType() != PrincipalType.USER) {
         String msg = SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principalDesc.getType();
         throw new HiveException(msg);
       }
 
       if (hiveObjectDesc == null) {
-        privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, null);
+        switch (principalDesc.getType()) {
+          case ROLE:
+            privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, null);
+            break;
+          case USER:
+            privileges = sentryClient.listPrivilegesByUserName(subject, principalName, null);
+            break;
+        }
       } else {
         SentryHivePrivilegeObjectDesc privSubjectDesc = toSentryHivePrivilegeObjectDesc(hiveObjectDesc);
         List<Authorizable> authorizableHeirarchy = toAuthorizable(privSubjectDesc);
@@ -310,11 +318,25 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
           List<List<Authorizable>> ps = parseColumnToAuthorizable(authorizableHeirarchy, privSubjectDesc);
           ImmutableSet.Builder<TSentryPrivilege> pbuilder = new ImmutableSet.Builder<TSentryPrivilege>();
           for (List<Authorizable> p : ps) {
-            pbuilder.addAll(sentryClient.listPrivilegesByRoleName(subject, principalName, p));
+            switch (principalDesc.getType()) {
+              case ROLE:
+                pbuilder.addAll(sentryClient.listPrivilegesByRoleName(subject, principalName, p));
+                break;
+              case USER:
+                pbuilder.addAll(sentryClient.listPrivilegesByUserName(subject, principalName, p));
+                break;
+            }
           }
           privileges = pbuilder.build();
         } else {
-          privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, authorizableHeirarchy);
+          switch (principalDesc.getType()) {
+            case ROLE:
+              privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, authorizableHeirarchy);
+              break;
+            case USER:
+              privileges = sentryClient.listPrivilegesByUserName(subject, principalName, authorizableHeirarchy);
+              break;
+          }
         }
       }
       writeToFile(writeGrantInfo(privileges, principalName), desc.getResFile());
