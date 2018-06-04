@@ -40,6 +40,7 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
 
   private static final org.apache.thrift.protocol.TField STATUS_FIELD_DESC = new org.apache.thrift.protocol.TField("status", org.apache.thrift.protocol.TType.STRUCT, (short)1);
   private static final org.apache.thrift.protocol.TField PRIVILEGES_MAP_BY_AUTH_FIELD_DESC = new org.apache.thrift.protocol.TField("privilegesMapByAuth", org.apache.thrift.protocol.TType.MAP, (short)2);
+  private static final org.apache.thrift.protocol.TField PRIVILEGES_MAP_BY_AUTH_FOR_USERS_FIELD_DESC = new org.apache.thrift.protocol.TField("privilegesMapByAuthForUsers", org.apache.thrift.protocol.TType.MAP, (short)3);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -49,11 +50,13 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
 
   private org.apache.sentry.service.thrift.TSentryResponseStatus status; // required
   private Map<TSentryAuthorizable,TSentryPrivilegeMap> privilegesMapByAuth; // optional
+  private Map<TSentryAuthorizable,TSentryPrivilegeMap> privilegesMapByAuthForUsers; // optional
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
     STATUS((short)1, "status"),
-    PRIVILEGES_MAP_BY_AUTH((short)2, "privilegesMapByAuth");
+    PRIVILEGES_MAP_BY_AUTH((short)2, "privilegesMapByAuth"),
+    PRIVILEGES_MAP_BY_AUTH_FOR_USERS((short)3, "privilegesMapByAuthForUsers");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -72,6 +75,8 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
           return STATUS;
         case 2: // PRIVILEGES_MAP_BY_AUTH
           return PRIVILEGES_MAP_BY_AUTH;
+        case 3: // PRIVILEGES_MAP_BY_AUTH_FOR_USERS
+          return PRIVILEGES_MAP_BY_AUTH_FOR_USERS;
         default:
           return null;
       }
@@ -112,13 +117,17 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
   }
 
   // isset id assignments
-  private static final _Fields optionals[] = {_Fields.PRIVILEGES_MAP_BY_AUTH};
+  private static final _Fields optionals[] = {_Fields.PRIVILEGES_MAP_BY_AUTH,_Fields.PRIVILEGES_MAP_BY_AUTH_FOR_USERS};
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
     tmpMap.put(_Fields.STATUS, new org.apache.thrift.meta_data.FieldMetaData("status", org.apache.thrift.TFieldRequirementType.REQUIRED, 
         new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.sentry.service.thrift.TSentryResponseStatus.class)));
     tmpMap.put(_Fields.PRIVILEGES_MAP_BY_AUTH, new org.apache.thrift.meta_data.FieldMetaData("privilegesMapByAuth", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
+            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TSentryAuthorizable.class), 
+            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TSentryPrivilegeMap.class))));
+    tmpMap.put(_Fields.PRIVILEGES_MAP_BY_AUTH_FOR_USERS, new org.apache.thrift.meta_data.FieldMetaData("privilegesMapByAuthForUsers", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
         new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
             new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TSentryAuthorizable.class), 
             new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TSentryPrivilegeMap.class))));
@@ -158,6 +167,21 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
       }
       this.privilegesMapByAuth = __this__privilegesMapByAuth;
     }
+    if (other.isSetPrivilegesMapByAuthForUsers()) {
+      Map<TSentryAuthorizable,TSentryPrivilegeMap> __this__privilegesMapByAuthForUsers = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(other.privilegesMapByAuthForUsers.size());
+      for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> other_element : other.privilegesMapByAuthForUsers.entrySet()) {
+
+        TSentryAuthorizable other_element_key = other_element.getKey();
+        TSentryPrivilegeMap other_element_value = other_element.getValue();
+
+        TSentryAuthorizable __this__privilegesMapByAuthForUsers_copy_key = new TSentryAuthorizable(other_element_key);
+
+        TSentryPrivilegeMap __this__privilegesMapByAuthForUsers_copy_value = new TSentryPrivilegeMap(other_element_value);
+
+        __this__privilegesMapByAuthForUsers.put(__this__privilegesMapByAuthForUsers_copy_key, __this__privilegesMapByAuthForUsers_copy_value);
+      }
+      this.privilegesMapByAuthForUsers = __this__privilegesMapByAuthForUsers;
+    }
   }
 
   public TListSentryPrivilegesByAuthResponse deepCopy() {
@@ -168,6 +192,7 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
   public void clear() {
     this.status = null;
     this.privilegesMapByAuth = null;
+    this.privilegesMapByAuthForUsers = null;
   }
 
   public org.apache.sentry.service.thrift.TSentryResponseStatus getStatus() {
@@ -227,6 +252,40 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
     }
   }
 
+  public int getPrivilegesMapByAuthForUsersSize() {
+    return (this.privilegesMapByAuthForUsers == null) ? 0 : this.privilegesMapByAuthForUsers.size();
+  }
+
+  public void putToPrivilegesMapByAuthForUsers(TSentryAuthorizable key, TSentryPrivilegeMap val) {
+    if (this.privilegesMapByAuthForUsers == null) {
+      this.privilegesMapByAuthForUsers = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>();
+    }
+    this.privilegesMapByAuthForUsers.put(key, val);
+  }
+
+  public Map<TSentryAuthorizable,TSentryPrivilegeMap> getPrivilegesMapByAuthForUsers() {
+    return this.privilegesMapByAuthForUsers;
+  }
+
+  public void setPrivilegesMapByAuthForUsers(Map<TSentryAuthorizable,TSentryPrivilegeMap> privilegesMapByAuthForUsers) {
+    this.privilegesMapByAuthForUsers = privilegesMapByAuthForUsers;
+  }
+
+  public void unsetPrivilegesMapByAuthForUsers() {
+    this.privilegesMapByAuthForUsers = null;
+  }
+
+  /** Returns true if field privilegesMapByAuthForUsers is set (has been assigned a value) and false otherwise */
+  public boolean isSetPrivilegesMapByAuthForUsers() {
+    return this.privilegesMapByAuthForUsers != null;
+  }
+
+  public void setPrivilegesMapByAuthForUsersIsSet(boolean value) {
+    if (!value) {
+      this.privilegesMapByAuthForUsers = null;
+    }
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case STATUS:
@@ -245,6 +304,14 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
       }
       break;
 
+    case PRIVILEGES_MAP_BY_AUTH_FOR_USERS:
+      if (value == null) {
+        unsetPrivilegesMapByAuthForUsers();
+      } else {
+        setPrivilegesMapByAuthForUsers((Map<TSentryAuthorizable,TSentryPrivilegeMap>)value);
+      }
+      break;
+
     }
   }
 
@@ -255,6 +322,9 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
 
     case PRIVILEGES_MAP_BY_AUTH:
       return getPrivilegesMapByAuth();
+
+    case PRIVILEGES_MAP_BY_AUTH_FOR_USERS:
+      return getPrivilegesMapByAuthForUsers();
 
     }
     throw new IllegalStateException();
@@ -271,6 +341,8 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
       return isSetStatus();
     case PRIVILEGES_MAP_BY_AUTH:
       return isSetPrivilegesMapByAuth();
+    case PRIVILEGES_MAP_BY_AUTH_FOR_USERS:
+      return isSetPrivilegesMapByAuthForUsers();
     }
     throw new IllegalStateException();
   }
@@ -306,6 +378,15 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
         return false;
     }
 
+    boolean this_present_privilegesMapByAuthForUsers = true && this.isSetPrivilegesMapByAuthForUsers();
+    boolean that_present_privilegesMapByAuthForUsers = true && that.isSetPrivilegesMapByAuthForUsers();
+    if (this_present_privilegesMapByAuthForUsers || that_present_privilegesMapByAuthForUsers) {
+      if (!(this_present_privilegesMapByAuthForUsers && that_present_privilegesMapByAuthForUsers))
+        return false;
+      if (!this.privilegesMapByAuthForUsers.equals(that.privilegesMapByAuthForUsers))
+        return false;
+    }
+
     return true;
   }
 
@@ -322,6 +403,11 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
     list.add(present_privilegesMapByAuth);
     if (present_privilegesMapByAuth)
       list.add(privilegesMapByAuth);
+
+    boolean present_privilegesMapByAuthForUsers = true && (isSetPrivilegesMapByAuthForUsers());
+    list.add(present_privilegesMapByAuthForUsers);
+    if (present_privilegesMapByAuthForUsers)
+      list.add(privilegesMapByAuthForUsers);
 
     return list.hashCode();
   }
@@ -350,6 +436,16 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
     }
     if (isSetPrivilegesMapByAuth()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.privilegesMapByAuth, other.privilegesMapByAuth);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = Boolean.valueOf(isSetPrivilegesMapByAuthForUsers()).compareTo(other.isSetPrivilegesMapByAuthForUsers());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetPrivilegesMapByAuthForUsers()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.privilegesMapByAuthForUsers, other.privilegesMapByAuthForUsers);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -388,6 +484,16 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
         sb.append("null");
       } else {
         sb.append(this.privilegesMapByAuth);
+      }
+      first = false;
+    }
+    if (isSetPrivilegesMapByAuthForUsers()) {
+      if (!first) sb.append(", ");
+      sb.append("privilegesMapByAuthForUsers:");
+      if (this.privilegesMapByAuthForUsers == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.privilegesMapByAuthForUsers);
       }
       first = false;
     }
@@ -453,21 +559,43 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
           case 2: // PRIVILEGES_MAP_BY_AUTH
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map122 = iprot.readMapBegin();
-                struct.privilegesMapByAuth = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map122.size);
-                TSentryAuthorizable _key123;
-                TSentryPrivilegeMap _val124;
-                for (int _i125 = 0; _i125 < _map122.size; ++_i125)
+                org.apache.thrift.protocol.TMap _map130 = iprot.readMapBegin();
+                struct.privilegesMapByAuth = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map130.size);
+                TSentryAuthorizable _key131;
+                TSentryPrivilegeMap _val132;
+                for (int _i133 = 0; _i133 < _map130.size; ++_i133)
                 {
-                  _key123 = new TSentryAuthorizable();
-                  _key123.read(iprot);
-                  _val124 = new TSentryPrivilegeMap();
-                  _val124.read(iprot);
-                  struct.privilegesMapByAuth.put(_key123, _val124);
+                  _key131 = new TSentryAuthorizable();
+                  _key131.read(iprot);
+                  _val132 = new TSentryPrivilegeMap();
+                  _val132.read(iprot);
+                  struct.privilegesMapByAuth.put(_key131, _val132);
                 }
                 iprot.readMapEnd();
               }
               struct.setPrivilegesMapByAuthIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
+          case 3: // PRIVILEGES_MAP_BY_AUTH_FOR_USERS
+            if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
+              {
+                org.apache.thrift.protocol.TMap _map134 = iprot.readMapBegin();
+                struct.privilegesMapByAuthForUsers = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map134.size);
+                TSentryAuthorizable _key135;
+                TSentryPrivilegeMap _val136;
+                for (int _i137 = 0; _i137 < _map134.size; ++_i137)
+                {
+                  _key135 = new TSentryAuthorizable();
+                  _key135.read(iprot);
+                  _val136 = new TSentryPrivilegeMap();
+                  _val136.read(iprot);
+                  struct.privilegesMapByAuthForUsers.put(_key135, _val136);
+                }
+                iprot.readMapEnd();
+              }
+              struct.setPrivilegesMapByAuthForUsersIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
@@ -495,10 +623,25 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
           oprot.writeFieldBegin(PRIVILEGES_MAP_BY_AUTH_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.STRUCT, struct.privilegesMapByAuth.size()));
-            for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter126 : struct.privilegesMapByAuth.entrySet())
+            for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter138 : struct.privilegesMapByAuth.entrySet())
             {
-              _iter126.getKey().write(oprot);
-              _iter126.getValue().write(oprot);
+              _iter138.getKey().write(oprot);
+              _iter138.getValue().write(oprot);
+            }
+            oprot.writeMapEnd();
+          }
+          oprot.writeFieldEnd();
+        }
+      }
+      if (struct.privilegesMapByAuthForUsers != null) {
+        if (struct.isSetPrivilegesMapByAuthForUsers()) {
+          oprot.writeFieldBegin(PRIVILEGES_MAP_BY_AUTH_FOR_USERS_FIELD_DESC);
+          {
+            oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.STRUCT, struct.privilegesMapByAuthForUsers.size()));
+            for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter139 : struct.privilegesMapByAuthForUsers.entrySet())
+            {
+              _iter139.getKey().write(oprot);
+              _iter139.getValue().write(oprot);
             }
             oprot.writeMapEnd();
           }
@@ -527,14 +670,27 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
       if (struct.isSetPrivilegesMapByAuth()) {
         optionals.set(0);
       }
-      oprot.writeBitSet(optionals, 1);
+      if (struct.isSetPrivilegesMapByAuthForUsers()) {
+        optionals.set(1);
+      }
+      oprot.writeBitSet(optionals, 2);
       if (struct.isSetPrivilegesMapByAuth()) {
         {
           oprot.writeI32(struct.privilegesMapByAuth.size());
-          for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter127 : struct.privilegesMapByAuth.entrySet())
+          for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter140 : struct.privilegesMapByAuth.entrySet())
           {
-            _iter127.getKey().write(oprot);
-            _iter127.getValue().write(oprot);
+            _iter140.getKey().write(oprot);
+            _iter140.getValue().write(oprot);
+          }
+        }
+      }
+      if (struct.isSetPrivilegesMapByAuthForUsers()) {
+        {
+          oprot.writeI32(struct.privilegesMapByAuthForUsers.size());
+          for (Map.Entry<TSentryAuthorizable, TSentryPrivilegeMap> _iter141 : struct.privilegesMapByAuthForUsers.entrySet())
+          {
+            _iter141.getKey().write(oprot);
+            _iter141.getValue().write(oprot);
           }
         }
       }
@@ -546,23 +702,40 @@ public class TListSentryPrivilegesByAuthResponse implements org.apache.thrift.TB
       struct.status = new org.apache.sentry.service.thrift.TSentryResponseStatus();
       struct.status.read(iprot);
       struct.setStatusIsSet(true);
-      BitSet incoming = iprot.readBitSet(1);
+      BitSet incoming = iprot.readBitSet(2);
       if (incoming.get(0)) {
         {
-          org.apache.thrift.protocol.TMap _map128 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.privilegesMapByAuth = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map128.size);
-          TSentryAuthorizable _key129;
-          TSentryPrivilegeMap _val130;
-          for (int _i131 = 0; _i131 < _map128.size; ++_i131)
+          org.apache.thrift.protocol.TMap _map142 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.privilegesMapByAuth = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map142.size);
+          TSentryAuthorizable _key143;
+          TSentryPrivilegeMap _val144;
+          for (int _i145 = 0; _i145 < _map142.size; ++_i145)
           {
-            _key129 = new TSentryAuthorizable();
-            _key129.read(iprot);
-            _val130 = new TSentryPrivilegeMap();
-            _val130.read(iprot);
-            struct.privilegesMapByAuth.put(_key129, _val130);
+            _key143 = new TSentryAuthorizable();
+            _key143.read(iprot);
+            _val144 = new TSentryPrivilegeMap();
+            _val144.read(iprot);
+            struct.privilegesMapByAuth.put(_key143, _val144);
           }
         }
         struct.setPrivilegesMapByAuthIsSet(true);
+      }
+      if (incoming.get(1)) {
+        {
+          org.apache.thrift.protocol.TMap _map146 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.privilegesMapByAuthForUsers = new HashMap<TSentryAuthorizable,TSentryPrivilegeMap>(2*_map146.size);
+          TSentryAuthorizable _key147;
+          TSentryPrivilegeMap _val148;
+          for (int _i149 = 0; _i149 < _map146.size; ++_i149)
+          {
+            _key147 = new TSentryAuthorizable();
+            _key147.read(iprot);
+            _val148 = new TSentryPrivilegeMap();
+            _val148.read(iprot);
+            struct.privilegesMapByAuthForUsers.put(_key147, _val148);
+          }
+        }
+        struct.setPrivilegesMapByAuthForUsersIsSet(true);
       }
     }
   }
