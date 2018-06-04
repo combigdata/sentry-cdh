@@ -56,7 +56,8 @@ public class TestDbPrivilegeCleanupOnDrop extends
   private final static String tableName4 = "tb_4";
   private final static String renameTag = "_new";
 
-  static final long WAIT_FOR_NOTIFICATION_PROCESSING = 10000;
+  static long HMSFOLLOWER_INTERVAL_MILLS = 50;
+  static long WAIT_FOR_NOTIFICATION_PROCESSING = 10000;
 
   @BeforeClass
   public static void setupTestStaticConfiguration() throws Exception {
@@ -64,6 +65,9 @@ public class TestDbPrivilegeCleanupOnDrop extends
     if (!setMetastoreListener) {
       setMetastoreListener = true;
     }
+
+    HMSFOLLOWER_INTERVAL_MILLS = 2000;
+    WAIT_FOR_NOTIFICATION_PROCESSING = HMSFOLLOWER_INTERVAL_MILLS * 3;
     AbstractTestWithStaticConfiguration.setupTestStaticConfiguration();
   }
 
@@ -289,6 +293,52 @@ public class TestDbPrivilegeCleanupOnDrop extends
     ResultSet resultSet = statement.executeQuery("SHOW GRANT ROLE user_role");
     // user_role will revoke all privilege from table t2
     assertRemainingRows(resultSet, 0);
+
+    statement.close();
+    connection.close();
+  }
+
+  /**
+   * add single privilege, rename table within the same DB and verify privilege moved to
+   * new table name right away
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testRenameTablesWithinDBSinglePrivilege() throws Exception {
+    Connection connection = context.createConnection(ADMIN1);
+    Statement statement = context.createStatement(connection);
+
+    String[] dbNames = new String[]{DB1, DB2};
+
+    // create required roles
+    setupRoles(statement);
+
+    // create test DBs and Tables
+    statement.execute("CREATE DATABASE " + DB1);
+    statement.execute("CREATE DATABASE " + DB2);
+    statement.execute("create table " + DB2 + "." + tableName1
+        + " (under_col int comment 'the under column', value string)");
+
+    // setup privileges for USER1
+    statement.execute("GRANT ALL ON DATABASE " + DB1 + " TO ROLE all_db1");
+    statement.execute("GRANT SELECT ON DATABASE " + DB1
+        + " TO ROLE read_db1");
+    statement.execute("GRANT ALL ON DATABASE " + DB2 + " TO ROLE all_prod");
+    statement.execute("USE " + DB2);
+
+    // grant priviledges
+    statement.execute("GRANT SELECT ON TABLE " + tableName1
+        + " TO ROLE select_tbl1");
+
+    // rename table
+    statement.execute("ALTER TABLE " + tableName1 + " RENAME TO " +
+        tableName1 + renameTag);
+
+    // verify privileges created for new table
+    verifyTablePrivilegeExist(statement,
+        Lists.newArrayList("select_tbl1"),
+        tableName1 + renameTag);
 
     statement.close();
     connection.close();
