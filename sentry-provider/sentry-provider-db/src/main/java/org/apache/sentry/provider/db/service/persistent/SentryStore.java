@@ -1224,7 +1224,22 @@ public class SentryStore {
     for (MSentryPrivilege childPriv : privilegeGraph) {
       revokePrivilegeFromUser(pm, tPrivilege, mUser, childPriv);
     }
-    pm.makePersistent(mUser);
+
+    persistUser(pm, mUser);
+  }
+
+  /**
+   * If user is stale, delete it from database. Otherwise, persist the user
+   * @param pm persistence manager
+   * @param user user to persist
+   */
+  private void persistUser(PersistenceManager pm, MSentryUser user) {
+    if (isUserStale(user)) {
+      pm.deletePersistent(user);
+      return;
+    }
+
+    pm.makePersistent(user);
   }
 
   /**
@@ -1414,6 +1429,14 @@ public class SentryStore {
         revokeUserPartial(pm, mUser, currentPrivilege, persistedPriv, addActions);
       }
     }
+  }
+
+  private boolean isUserStale(MSentryUser user) {
+    if (user.getPrivileges().isEmpty()) {
+      return true;
+    }
+
+    return false;
   }
 
   private boolean isPrivilegeStall(MSentryPrivilege privilege) {

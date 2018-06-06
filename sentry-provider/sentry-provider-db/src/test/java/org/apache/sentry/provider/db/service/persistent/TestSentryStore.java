@@ -3478,11 +3478,8 @@ public class TestSentryStore extends org.junit.Assert {
 
     privilege.setAction(AccessConstants.INSERT);
     sentryStore.alterSentryUserRevokePrivilege(grantor, userName, privilege);
-    user = sentryStore.getMSentryUserByName(userName);
-    privileges = user.getPrivileges();
-    assertEquals(privileges.toString(), 0, privileges.size());
-
-    sentryStore.dropSentryUser(userName);
+    user = sentryStore.getMSentryUserByName(userName, false);
+    assertNull(user);
   }
 
   /**
@@ -3636,6 +3633,11 @@ public class TestSentryStore extends org.junit.Assert {
     privileges = user.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
 
-    sentryStore.dropSentryUser(userName);
+    privilege.setAction(AccessConstants.SELECT);
+    sentryStore.alterSentryUserRevokePrivilege(grantor, userName, privilege);
+    // after having ALL and revoking INSERT and SELECT, we should have NO privileges
+    // user should be removed automatically
+    user = sentryStore.getMSentryUserByName(userName, false);
+    assertNull(user);
   }
 }
