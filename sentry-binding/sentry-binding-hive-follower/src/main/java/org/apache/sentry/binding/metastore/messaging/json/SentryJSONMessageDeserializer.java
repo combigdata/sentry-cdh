@@ -50,6 +50,15 @@ public class SentryJSONMessageDeserializer extends MessageDeserializer {
     }
   }
 
+  @Override
+  public SentryJSONAlterDatabaseMessage getAlterDatabaseMessage(String messageBody) {
+    try {
+      return mapper.readValue(messageBody, SentryJSONAlterDatabaseMessage.class);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Could not construct SentryJSONAlterDatabaseMessage: ", e);
+    }
+  }
+
   /**
    * Method to de-serialize DropDatabaseMessage instance.
    */
