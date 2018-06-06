@@ -58,6 +58,11 @@ public class SentryJSONMessageFactory extends MessageFactory {
             now(), db.getLocationUri());
     }
 
+    public SentryJSONAlterDatabaseMessage buildAlterDatabaseMessage(Database before, Database after) {
+        return new SentryJSONAlterDatabaseMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, before,
+            after, now());
+    }
+
     public SentryJSONDropDatabaseMessage buildDropDatabaseMessage(Database db) {
         return new SentryJSONDropDatabaseMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, db.getName(),
             now(), db.getLocationUri());
