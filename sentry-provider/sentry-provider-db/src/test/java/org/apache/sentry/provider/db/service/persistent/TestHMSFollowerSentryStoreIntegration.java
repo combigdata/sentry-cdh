@@ -36,6 +36,7 @@ import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
+import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.HiveSimpleConnectionFactory;
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.service.thrift.HMSFollower;
@@ -213,11 +214,11 @@ public class TestHMSFollowerSentryStoreIntegration {
     privilege_server.setServerName(serverName1);
     privilege_server.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1, null);
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_2);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_server);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_3);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1_2, null);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege_server, null);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1_3, null);
 
     // Create notification events to drop the table
     StorageDescriptor sd = new StorageDescriptor();
@@ -273,11 +274,11 @@ public class TestHMSFollowerSentryStoreIntegration {
     privilege_server.setServerName(serverName1);
     privilege_server.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1, null);
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_2);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_server);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_3);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1_2, null);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege_server, null);
+    sentryStore.alterSentryGrantPrivilege(grantor, ServiceConstants.SentryEntityType.ROLE, roleName1, privilege1_3, null);
 
     // Create notification events to drop the database
     NotificationEvent notificationEvent = new NotificationEvent(1, 0, EventType.DROP_DATABASE.toString(),
