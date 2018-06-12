@@ -85,7 +85,7 @@ limitations under the License.
     <solr.version>${cdh.solr.version}</solr.version>
     <zookeeper.version>${cdh.zookeeper.version}</zookeeper.version>
     <pig.version>${cdh.pig.version}</pig.version>
-    <jackson.version>1.8.8</jackson.version>
+    <jackson.version>${cdh.jackson.version}</jackson.version>
     <metrics.version>3.0.2</metrics.version>
     <jettyVersion>7.6.16.v20140903</jettyVersion>
     <joda-time.version>2.5</joda-time.version>
