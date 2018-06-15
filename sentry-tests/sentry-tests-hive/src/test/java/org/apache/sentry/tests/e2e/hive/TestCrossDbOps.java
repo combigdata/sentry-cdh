@@ -76,8 +76,9 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
   /*
    * Admin creates DB_1, DB2, tables (tab_1 ) and (tab_2, tab_3) in DB_1 and
    * DB_2 respectively. User user1 has select on DB_1.tab_1, insert on
-   * DB2.tab_2 User user2 has select on DB2.tab_3 Test show database and show
-   * tables for both user1 and user2
+   * DB2.tab_2 User user2 has select on DB2.tab_3, User user3 has create on DB_1, alter
+   * in DB2.tab_2, drop in DB2.tab_3. Test show database and show
+   * tables for all user1, user2 and user3
    */
   @Test
   public void testShowDatabasesAndShowTables() throws Exception {
@@ -97,9 +98,13 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
     policyFile
             .addRolesToGroup(USERGROUP1, "select_tab1", "insert_tab2")
             .addRolesToGroup(USERGROUP2, "select_tab3")
+            .addRolesToGroup(USERGROUP3, "create_db1", "alter_tab2", "drop_tab3")
             .addPermissionsToRole("select_tab1",  "server=server1->db=" + DB1 + "->table=tab1->action=select")
             .addPermissionsToRole("select_tab3", "server=server1->db=" + DB2 + "->table=tab3->action=select")
             .addPermissionsToRole("insert_tab2", "server=server1->db=" + DB2 + "->table=tab2->action=insert")
+            .addPermissionsToRole("create_db1", "server=server1->db=" + DB1 + "->action=create")
+            .addPermissionsToRole("alter_tab2", "server=server1->db=" + DB2 + "->table=tab2->action=alter")
+            .addPermissionsToRole("drop_tab3", "server=server1->db=" + DB2 + "->table=tab3->action=drop")
             .setUserGroupMapping(StaticUserGroup.getStaticMapping());
     writePolicyFile(policyFile);
 
@@ -117,6 +122,20 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
 
       pRset = new PrivilegeResultSet(statement, "SHOW GRANT ROLE select_tab3 ON DATABASE " + DB2);
       LOGGER.info("SHOW GRANT ROLE select_tab3 ON DATABASE " + DB2 + " : " + pRset.toString());
+      pRset.verifyResultSetColumn("database", DB2);
+      pRset.verifyResultSetColumn("table", "tab3");
+
+      pRset = new PrivilegeResultSet(statement, "SHOW GRANT ROLE create_db1 ON DATABASE " + DB1);
+      LOGGER.info("SHOW GRANT ROLE create_db1 ON DATABASE " + DB1 + " : " + pRset.toString());
+      pRset.verifyResultSetColumn("database", DB1);
+
+      pRset = new PrivilegeResultSet(statement, "SHOW GRANT ROLE alter_tab2 ON DATABASE " + DB2);
+      LOGGER.info("SHOW GRANT ROLE alter_tab2 ON DATABASE " + DB2 + " : " + pRset.toString());
+      pRset.verifyResultSetColumn("database", DB2);
+      pRset.verifyResultSetColumn("table", "tab2");
+
+      pRset = new PrivilegeResultSet(statement, "SHOW GRANT ROLE drop_tab3 ON DATABASE " + DB2);
+      LOGGER.info("SHOW GRANT ROLE drop_tab3 ON DATABASE " + DB2 + " : " + pRset.toString());
       pRset.verifyResultSetColumn("database", DB2);
       pRset.verifyResultSetColumn("table", "tab3");
     }
@@ -166,6 +185,26 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
     } catch (SQLException e) {
       context.verifyAuthzException(e);
     }
+
+    context.close();
+
+    // test show databases and show tables for user3_1
+    conn = context.createConnection(USER3_1);
+    stmt = context.createStatement(conn);
+
+    pRset = new PrivilegeResultSet(stmt, "SHOW DATABASES");
+    pRset.verifyResultSetColumn("database_name", DB1);
+    pRset.verifyResultSetColumn("database_name", DB2);
+
+    // test show tables
+    stmt.execute("USE " + DB2);
+    pRset = new PrivilegeResultSet(stmt, "SHOW TABLES");
+    pRset.verifyResultSetColumn("tab_name", "tab2");
+    pRset.verifyResultSetColumn("tab_name", "tab3");
+
+    // Verify the user can use the database displayed
+    stmt.execute("USE " + DB1);
+    stmt.execute("USE " + DB2);
 
     context.close();
   }
