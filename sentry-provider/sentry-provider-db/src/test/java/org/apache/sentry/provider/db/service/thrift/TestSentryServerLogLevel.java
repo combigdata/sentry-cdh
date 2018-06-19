@@ -82,8 +82,14 @@ public class TestSentryServerLogLevel extends SentryServiceIntegrationBase {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     Assert.assertEquals(HttpURLConnection.HTTP_OK, conn.getResponseCode());
     String response = IOUtils.toString(conn.getInputStream());
-    Assert.assertTrue(response.contains("INFO"));
-    Assert.assertEquals("INFO", getLogLevel(CLASS_NAME));
+    boolean containsInfo = response.contains("INFO");
+    boolean containDebug = response.contains("DEBUG");
+    Assert.assertTrue(containsInfo || containDebug);
+    if (containDebug) {
+      Assert.assertEquals("DEBUG", getLogLevel(CLASS_NAME));
+    } else {
+      Assert.assertEquals("INFO", getLogLevel(CLASS_NAME));
+    }
   }
 
   /**

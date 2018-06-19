@@ -32,17 +32,31 @@ import org.junit.Test;
 public class TestDBWildcardPrivilege {
 
   private static final String ALL = AccessConstants.ALL;
+  private static final String ACTION_ALL = AccessConstants.ACTION_ALL;
+  private static final String OWNER = AccessConstants.OWNER;
 
   private static final Privilege ROLE_SERVER_SERVER1_DB_ALL =
       create(new KeyValue("server", "server1"), new KeyValue("db", ALL));
+  private static final Privilege ROLE_SERVER_SERVER1_DB_ACTION_ALL =
+      create(new KeyValue("server", "server1"), new KeyValue("db", ACTION_ALL));
+  private static final Privilege ROLE_SERVER_SERVER1_DB_OWNER =
+      create(new KeyValue("server", "server1"), new KeyValue("db", OWNER));
   private static final Privilege ROLE_SERVER_SERVER1_DB_DB1 =
       create(new KeyValue("server", "server1"), new KeyValue("db", "db1"));
   private static final Privilege ROLE_SERVER_SERVER2_DB_ALL =
       create(new KeyValue("server", "server2"), new KeyValue("db", ALL));
+  private static final Privilege ROLE_SERVER_SERVER2_DB_ACTION_ALL =
+      create(new KeyValue("server", "server2"), new KeyValue("db", ACTION_ALL));
+  private static final Privilege ROLE_SERVER_SERVER2_DB_OWNER =
+      create(new KeyValue("server", "server2"), new KeyValue("db", OWNER));
   private static final Privilege ROLE_SERVER_SERVER2_DB_DB1 =
       create(new KeyValue("server", "server2"), new KeyValue("db", "db1"));
   private static final Privilege ROLE_SERVER_ALL_DB_ALL =
       create(new KeyValue("server", ALL), new KeyValue("db", ALL));
+  private static final Privilege ROLE_SERVER_ALL_DB_ACTION_ALL =
+      create(new KeyValue("server", ALL), new KeyValue("db", ACTION_ALL));
+  private static final Privilege ROLE_SERVER_ALL_DB_OWNER =
+      create(new KeyValue("server", ALL), new KeyValue("db", OWNER));
   private static final Privilege ROLE_SERVER_ALL_DB_DB1 =
       create(new KeyValue("server", ALL), new KeyValue("db", "db1"));
 
@@ -54,6 +68,10 @@ public class TestDBWildcardPrivilege {
           "hdfs://namenode:8020/path/to/uri2/"));
   private static final Privilege ROLE_SERVER_SERVER1_URI_ALL =
       create(new KeyValue("server", "server1"), new KeyValue("uri", ALL));
+  private static final Privilege ROLE_SERVER_SERVER1_URI_ACTION_ALL =
+      create(new KeyValue("server", "server1"), new KeyValue("uri", ACTION_ALL));
+  private static final Privilege ROLE_SERVER_SERVER1_URI_OWNER =
+      create(new KeyValue("server", "server1"), new KeyValue("uri", OWNER));
 
 
   private static final Privilege ROLE_SERVER_SERVER1 =
@@ -105,11 +123,31 @@ public class TestDBWildcardPrivilege {
     assertTrue(ROLE_SERVER_SERVER1_DB_ALL.implies(REQUEST_SERVER1_DB2));
     assertFalse(ROLE_SERVER_SERVER1_DB_ALL.implies(REQUEST_SERVER2_DB2));
 
+    assertTrue(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB1));
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB1));
+    assertTrue(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB2));
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB2));
+
+    assertTrue(ROLE_SERVER_SERVER1_DB_OWNER.implies(REQUEST_SERVER1_DB1));
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.implies(REQUEST_SERVER2_DB1));
+    assertTrue(ROLE_SERVER_SERVER1_DB_OWNER.implies(REQUEST_SERVER1_DB2));
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.implies(REQUEST_SERVER2_DB2));
+
     // test inverse
     assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER1_DB_ALL));
     assertFalse(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER1_DB_ALL));
     assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER1_DB_ALL));
     assertFalse(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER1_DB_ALL));
+
+    assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER1_DB_ACTION_ALL));
+    assertFalse(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER1_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER1_DB_ACTION_ALL));
+    assertFalse(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER1_DB_ACTION_ALL));
+
+    assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER1_DB_OWNER));
+    assertFalse(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER1_DB_OWNER));
+    assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER1_DB_OWNER));
+    assertFalse(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER1_DB_OWNER));
 
     // ROLE_SERVER_SERVER1_DB_DB1
     assertTrue(ROLE_SERVER_SERVER1_DB_DB1.implies(REQUEST_SERVER1_DB1));
@@ -129,11 +167,31 @@ public class TestDBWildcardPrivilege {
     assertFalse(ROLE_SERVER_SERVER2_DB_ALL.implies(REQUEST_SERVER1_DB2));
     assertTrue(ROLE_SERVER_SERVER2_DB_ALL.implies(REQUEST_SERVER2_DB2));
 
+    assertFalse(ROLE_SERVER_SERVER2_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB1));
+    assertTrue(ROLE_SERVER_SERVER2_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB1));
+    assertFalse(ROLE_SERVER_SERVER2_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB2));
+    assertTrue(ROLE_SERVER_SERVER2_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB2));
+
+    assertFalse(ROLE_SERVER_SERVER2_DB_OWNER.implies(REQUEST_SERVER1_DB1));
+    assertTrue(ROLE_SERVER_SERVER2_DB_OWNER.implies(REQUEST_SERVER2_DB1));
+    assertFalse(ROLE_SERVER_SERVER2_DB_OWNER.implies(REQUEST_SERVER1_DB2));
+    assertTrue(ROLE_SERVER_SERVER2_DB_OWNER.implies(REQUEST_SERVER2_DB2));
+
     // test inverse
     assertFalse(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER2_DB_ALL));
     assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER2_DB_ALL));
     assertFalse(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER2_DB_ALL));
     assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER2_DB_ALL));
+
+    assertFalse(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER2_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER2_DB_ACTION_ALL));
+    assertFalse(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER2_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER2_DB_ACTION_ALL));
+
+    assertFalse(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_SERVER2_DB_OWNER));
+    assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_SERVER2_DB_OWNER));
+    assertFalse(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_SERVER2_DB_OWNER));
+    assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_SERVER2_DB_OWNER));
 
     // ROLE_SERVER_SERVER2_DB_DB1
     assertFalse(ROLE_SERVER_SERVER2_DB_DB1.implies(REQUEST_SERVER1_DB1));
@@ -152,11 +210,31 @@ public class TestDBWildcardPrivilege {
     assertTrue(ROLE_SERVER_ALL_DB_ALL.implies(REQUEST_SERVER1_DB2));
     assertTrue(ROLE_SERVER_ALL_DB_ALL.implies(REQUEST_SERVER2_DB2));
 
+    assertTrue(ROLE_SERVER_ALL_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB1));
+    assertTrue(ROLE_SERVER_ALL_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB1));
+    assertTrue(ROLE_SERVER_ALL_DB_ACTION_ALL.implies(REQUEST_SERVER1_DB2));
+    assertTrue(ROLE_SERVER_ALL_DB_ACTION_ALL.implies(REQUEST_SERVER2_DB2));
+
+    assertTrue(ROLE_SERVER_ALL_DB_OWNER.implies(REQUEST_SERVER1_DB1));
+    assertTrue(ROLE_SERVER_ALL_DB_OWNER.implies(REQUEST_SERVER2_DB1));
+    assertTrue(ROLE_SERVER_ALL_DB_OWNER.implies(REQUEST_SERVER1_DB2));
+    assertTrue(ROLE_SERVER_ALL_DB_OWNER.implies(REQUEST_SERVER2_DB2));
+
     // test inverse
     assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_ALL_DB_ALL));
     assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_ALL_DB_ALL));
     assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_ALL_DB_ALL));
     assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_ALL_DB_ALL));
+
+    assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_ALL_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_ALL_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_ALL_DB_ACTION_ALL));
+    assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_ALL_DB_ACTION_ALL));
+
+    assertTrue(REQUEST_SERVER1_DB1.implies(ROLE_SERVER_ALL_DB_OWNER));
+    assertTrue(REQUEST_SERVER2_DB1.implies(ROLE_SERVER_ALL_DB_OWNER));
+    assertTrue(REQUEST_SERVER1_DB2.implies(ROLE_SERVER_ALL_DB_OWNER));
+    assertTrue(REQUEST_SERVER2_DB2.implies(ROLE_SERVER_ALL_DB_OWNER));
 
     // ROLE_SERVER_ALL_DB_DB1
     assertTrue(ROLE_SERVER_ALL_DB_DB1.implies(REQUEST_SERVER1_DB1));
@@ -183,6 +261,12 @@ public class TestDBWildcardPrivilege {
     assertFalse(ROLE_SERVER_SERVER1_URI_URI2.implies(REQUEST_SERVER1_URI1));
     assertFalse(REQUEST_SERVER2_DB2.implies(REQUEST_SERVER1_URI1));
     assertFalse(ROLE_SERVER_ALL_DB_DB1.implies(REQUEST_SERVER1_URI1));
+
+    assertTrue(ROLE_SERVER_SERVER1_URI_ACTION_ALL.implies(REQUEST_SERVER1_URI1));
+    assertTrue(ROLE_SERVER_SERVER1_URI_ACTION_ALL.implies(REQUEST_SERVER1_URI2));
+    assertTrue(ROLE_SERVER_SERVER1_URI_OWNER.implies(REQUEST_SERVER1_URI1));
+    assertTrue(ROLE_SERVER_SERVER1_URI_OWNER.implies(REQUEST_SERVER1_URI2));
+
     // test inverse
     assertTrue(REQUEST_SERVER1_URI1.implies(ROLE_SERVER_SERVER1_URI_ALL));
     assertTrue(REQUEST_SERVER1_URI2.implies(ROLE_SERVER_SERVER1_URI_ALL));
@@ -191,6 +275,11 @@ public class TestDBWildcardPrivilege {
     assertFalse(REQUEST_SERVER1_URI2.implies(ROLE_SERVER_SERVER1_URI_URI1));
     assertFalse(REQUEST_SERVER1_URI2.implies(ROLE_SERVER_SERVER1_URI_URI2));
     assertFalse(REQUEST_SERVER1_URI1.implies(ROLE_SERVER_SERVER1_URI_URI2));
+
+    assertTrue(REQUEST_SERVER1_URI1.implies(ROLE_SERVER_SERVER1_URI_ACTION_ALL));
+    assertTrue(REQUEST_SERVER1_URI2.implies(ROLE_SERVER_SERVER1_URI_ACTION_ALL));
+    assertTrue(REQUEST_SERVER1_URI1.implies(ROLE_SERVER_SERVER1_URI_OWNER));
+    assertTrue(REQUEST_SERVER1_URI2.implies(ROLE_SERVER_SERVER1_URI_OWNER));
   };
   @Test
   public void testUnexpected() throws Exception {
@@ -207,6 +296,22 @@ public class TestDBWildcardPrivilege {
 
     assertEquals(ROLE_SERVER_SERVER1_DB_ALL.hashCode(),
         create(ROLE_SERVER_SERVER1_DB_ALL.toString()).hashCode());
+
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(null));
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.implies(p));
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.equals(null));
+    assertFalse(ROLE_SERVER_SERVER1_DB_ACTION_ALL.equals(p));
+
+    assertEquals(ROLE_SERVER_SERVER1_DB_ACTION_ALL.hashCode(),
+        create(ROLE_SERVER_SERVER1_DB_ACTION_ALL.toString()).hashCode());
+
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.implies(null));
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.implies(p));
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.equals(null));
+    assertFalse(ROLE_SERVER_SERVER1_DB_OWNER.equals(p));
+
+    assertEquals(ROLE_SERVER_SERVER1_DB_OWNER.hashCode(),
+        create(ROLE_SERVER_SERVER1_DB_OWNER.toString()).hashCode());
   }
   @Test(expected=IllegalArgumentException.class)
   public void testNullString() throws Exception {

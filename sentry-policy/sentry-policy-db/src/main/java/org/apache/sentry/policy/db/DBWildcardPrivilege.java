@@ -107,7 +107,7 @@ public class DBWildcardPrivilege implements Privilege {
     // all of the other parts are wildcards
     for (; index < parts.size(); index++) {
       KeyValue part = parts.get(index);
-      if (!part.getValue().equals(AccessConstants.ALL)) {
+      if (!isPrivilegeActionAll(part)) {
         return false;
       }
     }
@@ -115,14 +115,29 @@ public class DBWildcardPrivilege implements Privilege {
     return true;
   }
 
+  /**
+   * Check if the action part in a privilege is ALL. Owner privilege is
+   * treated as ALL for authorization
+   * @param actionPart it must be the action of a privilege
+   * @return true if the action is ALL; false otherwise
+   */
+  private boolean isPrivilegeActionAll(KeyValue actionPart) {
+    if (actionPart.getValue().equals(AccessConstants.ALL) ||
+        actionPart.getValue().equalsIgnoreCase(AccessConstants.ACTION_ALL) ||
+        actionPart.getValue().equalsIgnoreCase(AccessConstants.OWNER)) {
+      return true;
+    }
+
+    return false;
+  }
+
   private boolean impliesKeyValue(KeyValue policyPart, KeyValue requestPart) {
     Preconditions.checkState(policyPart.getKey().equalsIgnoreCase(requestPart.getKey()),
         "Please report, this method should not be called with two different keys");
-    if(policyPart.getValue().equals(AccessConstants.ALL) ||
-        policyPart.getValue().equalsIgnoreCase("ALL")) {
+    if(isPrivilegeActionAll(policyPart)) {
       return true;
     } else if (!ProviderConstants.PRIVILEGE_NAME.equalsIgnoreCase(policyPart.getKey())
-        && AccessConstants.ALL.equalsIgnoreCase(requestPart.getValue())) {
+        && isPrivilegeActionAll(requestPart)) {
       /* privilege request is to match with any object of given type */
       return true;
     } else if (!ProviderConstants.PRIVILEGE_NAME.equalsIgnoreCase(policyPart.getKey())
