@@ -908,4 +908,15 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
       transport = null;
     }
   }
+
+  public long notifyHmsNotification(TSentryHmsEventNotification request)
+          throws SentryUserException {
+    try {
+      TSentryHmsEventNotificationResponse response = client.sentry_notify_hms_event(request);
+      Status.throwIfNotOk(response.getStatus());
+      return response.getId();
+    } catch (TException e) {
+      throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
+    }
+  }
 }
