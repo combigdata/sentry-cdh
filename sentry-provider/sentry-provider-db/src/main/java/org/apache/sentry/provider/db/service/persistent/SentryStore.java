@@ -43,6 +43,12 @@ import javax.jdo.Query;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
+import org.apache.sentry.service.thrift.SentryOwnerInfo;
+import org.apache.sentry.provider.db.SentryAccessDeniedException;
+import org.apache.sentry.provider.db.SentryAlreadyExistsException;
+import org.apache.sentry.provider.db.SentryGrantDeniedException;
+import org.apache.sentry.provider.db.SentryInvalidInputException;
+import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.core.common.utils.PathUtils;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
@@ -50,11 +56,6 @@ import org.apache.sentry.hdfs.PathsUpdate;
 import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.hdfs.UpdateableAuthzPaths;
 import org.apache.sentry.provider.common.ProviderConstants;
-import org.apache.sentry.provider.db.SentryAccessDeniedException;
-import org.apache.sentry.provider.db.SentryAlreadyExistsException;
-import org.apache.sentry.provider.db.SentryGrantDeniedException;
-import org.apache.sentry.provider.db.SentryInvalidInputException;
-import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.service.model.MAuthzPathsMapping;
 import org.apache.sentry.provider.db.service.model.MAuthzPathsSnapshotId;
 import org.apache.sentry.provider.db.service.model.MSentryChange;
@@ -180,9 +181,9 @@ public class SentryStore {
   // to make query usable post-commit
   private static final String LOAD_RESULTS_AT_COMMIT = "datanucleus.query.loadResultsAtCommit";
 
-  private final PersistenceManagerFactory pmf;
+  private PersistenceManagerFactory pmf;
   private Configuration conf;
-  private final TransactionManager tm;
+  private TransactionManager tm;
 
   // When it is true, execute DeltaTransactionBlock to persist delta changes.
   // When it is false, do not execute DeltaTransactionBlock
@@ -197,8 +198,9 @@ public class SentryStore {
    * <p>
    * Keeping it here isn't ideal but serves the purpose until we find a better home.
    */
-  private final CounterWait counterWait;
+  private CounterWait counterWait;
 
+  private boolean ownerPrivilegeWithGrant;
   public static Properties getDataNucleusProperties(Configuration conf)
       throws SentryConfigurationException, IOException {
     Properties prop = new Properties();
@@ -278,6 +280,8 @@ public class SentryStore {
     long notificationTimeout = conf.getInt(ServerConfig.SENTRY_NOTIFICATION_SYNC_TIMEOUT_MS,
             ServerConfig.SENTRY_NOTIFICATION_SYNC_TIMEOUT_DEFAULT);
     counterWait = new CounterWait(notificationTimeout, TimeUnit.MILLISECONDS);
+    ownerPrivilegeWithGrant = conf.getBoolean(ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
+            ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT_DEFAULT);
   }
 
   public void setPersistUpdateDeltas(boolean persistUpdateDeltas) {
@@ -817,7 +821,8 @@ public class SentryStore {
       if(type == SentryEntityType.ROLE) {
         throw noSuchRole(entityName);
       } else if(type == SentryEntityType.USER) {
-        throw noSuchUser(entityName);
+        // User might not exist. Creating one.
+        mEntity = new MSentryUser(entityName, System.currentTimeMillis());
       }
     }
 
@@ -826,8 +831,9 @@ public class SentryStore {
       throw new SentryInvalidInputException("cannot grant URI privileges to Null or EMPTY location");
     }
 
-    if (!isNULL(privilege.getColumnName()) || !isNULL(privilege.getTableName())
-        || !isNULL(privilege.getDbName())) {
+    if ((!isNULL(privilege.getColumnName()) || !isNULL(privilege.getTableName())
+        || !isNULL(privilege.getDbName()))
+        && !AccessConstants.OWNER.equalsIgnoreCase(privilege.getAction())) {
       // If Grant is for ALL and Either INSERT/SELECT already exists..
       // need to remove it and GRANT ALL..
       if (AccessConstants.ALL.equalsIgnoreCase(privilege.getAction())
@@ -899,6 +905,38 @@ public class SentryStore {
     for (TSentryPrivilege privilege : privileges) {
       alterSentryGrantPrivilege(grantorPrincipal, SentryEntityType.USER, userName, privilege, null);
     }
+  }
+
+  /**
+   * Alter a give sentry user/role to set owner privilege, as well as persist the corresponding
+   * permission change to MSentryPermChange table in a single transaction.
+   * Creates User, if it is not already there.
+   * Internally calls alterSentryGrantPrivilege.
+   * @param entityName Entity name to which permissions should be granted.
+   * @param entityType Entity Type
+   * @param privilege Privilege to be granted
+   * @param update DeltaTransactionBlock
+   * @throws Exception
+   */
+  public void alterSentryGrantOwnerPrivilege(final String entityName, final SentryEntityType entityType,
+                                              final TSentryPrivilege privilege,
+                                              final Update update) throws Exception {
+    execute(update, new TransactionBlock<Object>() {
+      public Object execute(PersistenceManager pm) throws Exception {
+        pm.setDetachAllOnCommit(false); // No need to detach objects
+        String trimmedEntityName = trimAndLower(entityName);
+
+        // Alter sentry Role and grant Privilege.
+        MSentryPrivilege mPrivilege = alterSentryGrantPrivilegeCore(pm, entityType,
+            trimmedEntityName, privilege);
+
+        if (mPrivilege != null) {
+          // update the privilege to be the one actually updated.
+          convertToTSentryPrivilege(mPrivilege, privilege);
+        }
+        return null;
+      }
+    });
   }
 
   /**
@@ -1113,7 +1151,7 @@ public class SentryStore {
       privilegeGraph.add(mFalse);
     }
     // Get the privilege graph
-    populateChildren(pm, SentryEntityType.ROLE, Sets.newHashSet(entityName), mPrivilege, privilegeGraph);
+    populateChildren(pm, type, Sets.newHashSet(entityName), mPrivilege, privilegeGraph);
     for (MSentryPrivilege childPriv : privilegeGraph) {
       revokePrivilege(pm, tPrivilege, mEntity, childPriv);
     }
@@ -1922,6 +1960,46 @@ public class SentryStore {
         }
       });
   }
+  /**
+   * List the Owner privileges for an authorizable
+   * @param pm persistance manager
+   * @param authHierarchy Authorizable
+   * @return privilege list
+   * @throws Exception
+   */
+  private List<MSentryPrivilege> getMSentryOwnerPrivilegesByAuth(PersistenceManager pm,
+      final TSentryAuthorizable
+      authHierarchy) throws Exception {
+    Query query = pm.newQuery(MSentryPrivilege.class);
+    QueryParamBuilder paramBuilder = QueryParamBuilder.newQueryParamBuilder();
+    if (authHierarchy.getServer() != null) {
+      paramBuilder.add(SERVER_NAME, authHierarchy.getServer());
+      if (authHierarchy.getDb() != null) {
+        paramBuilder.add(DB_NAME, authHierarchy.getDb()).addNull(URI);
+        if (authHierarchy.getTable() != null) {
+          paramBuilder.add(TABLE_NAME, authHierarchy.getTable());
+        } else {
+          paramBuilder.addNull(TABLE_NAME);
+        }
+      } else if (authHierarchy.getUri() != null) {
+        paramBuilder.addNotNull(URI)
+                .addNull(DB_NAME)
+                .addCustomParam("(:authURI.startsWith(URI))", "authURI", authHierarchy.getUri());
+      } else {
+        paramBuilder.addNull(DB_NAME)
+                .addNull(URI);
+      }
+      paramBuilder.add(ACTION, AccessConstants.OWNER);
+    } else {
+      // if no server, then return empty result
+      return Collections.emptyList();
+    }
+    query.setFilter(paramBuilder.toString());
+    @SuppressWarnings("unchecked")
+    List<MSentryPrivilege> result = (List<MSentryPrivilege>) query.
+            executeWithMap(paramBuilder.getArguments());
+    return result;
+  }
 
   private Set<MSentryPrivilege> getMSentryPrivilegesByUserName(String userName)
       throws Exception {
@@ -1985,6 +2063,34 @@ public class SentryStore {
       }
     }
     return new TSentryPrivilegeMap(resultPrivilegeMap);
+  }
+
+  /**
+   * List the Owners for an authorizable
+   * @param authorizable Authorizable
+   * @return List of owner for an authorizable
+   * @throws Exception
+   */
+  public List<SentryOwnerInfo> listOwnersByAuthorizable(final TSentryAuthorizable authorizable)
+          throws Exception {
+    final List<SentryOwnerInfo> ownerInfolist = new ArrayList<>();
+    return tm.executeTransaction(
+        new TransactionBlock<List<SentryOwnerInfo>>() {
+          @Override
+          public List<SentryOwnerInfo> execute(PersistenceManager pm) throws Exception {
+            List<MSentryPrivilege> mSentryPrivileges =
+                getMSentryOwnerPrivilegesByAuth(pm, authorizable);
+            for (MSentryPrivilege priv : mSentryPrivileges) {
+              for (PrivilegeEntity user : priv.getUsers()) {
+                ownerInfolist.add(new SentryOwnerInfo(user.getType(), user.getEntityName()));
+              }
+              for (PrivilegeEntity role : priv.getRoles()) {
+                ownerInfolist.add(new SentryOwnerInfo(role.getType(), role.getEntityName()));
+              }
+            }
+            return ownerInfolist;
+          }
+        });
   }
 
   /**
@@ -2517,6 +2623,83 @@ public class SentryStore {
         return null;
       }
     });
+  }
+
+  /**
+   * Updates the owner privileges by revoking owner privileges to an authorizable and adding new
+   * privilege based on the arguments provided.
+   * @param tAuthorizable Authorizable to which owner privilege should be granted.
+   * @param ownerName
+   * @param entityType
+   * @param updates Delta Updates.
+   * @throws Exception
+   */
+  public synchronized void updateOwnerPrivilege(final TSentryAuthorizable tAuthorizable,
+      final String ownerName,  final SentryEntityType entityType,
+      final List<Update> updates) throws Exception {
+    execute(updates, new TransactionBlock<Object>() {
+      public Object execute(PersistenceManager pm) throws Exception {
+        if (entityType == null) {
+          LOGGER.info("Invalid Entity Type");
+        }
+        pm.setDetachAllOnCommit(false); // No need to detach objects
+        TSentryPrivilege tOwnerPrivilege = toSentryPrivilege(tAuthorizable);
+        tOwnerPrivilege.setAction(AccessConstants.OWNER);
+
+        revokeOwnerPrivilegesCore(pm, tAuthorizable);
+
+        try {
+          if (ownerPrivilegeWithGrant) {
+            tOwnerPrivilege.setGrantOption(TSentryGrantOption.TRUE);
+          }
+          //Granting the privilege.
+          alterSentryGrantPrivilegeCore(pm, entityType, ownerName, tOwnerPrivilege);
+          return null;
+        } catch (JDODataStoreException e) {
+          throw new SentryInvalidInputException(
+              "Failed to grant owner privilege on Authorizable : " +
+                  tAuthorizable.toString() + " to " + entityType.toString() + ": " + ownerName + " "
+                  + e.getMessage());
+        }
+      }
+    });
+  }
+
+  /**
+   * Revokes all the owner privileges granted to an authorizable
+   * @param tAuthorizable authorizable for which owner privilege should be revoked.
+   * @param updates
+   * @throws Exception
+   */
+  @VisibleForTesting
+  void revokeOwnerPrivileges(final TSentryAuthorizable tAuthorizable, final List<Update> updates)
+     throws Exception{
+    execute(updates, new TransactionBlock<Object>() {
+      public Object execute(PersistenceManager pm) throws Exception {
+        pm.setDetachAllOnCommit(false);
+        revokeOwnerPrivilegesCore(pm, tAuthorizable);
+        return null;
+      }
+    });
+  }
+
+  public void revokeOwnerPrivilegesCore(PersistenceManager pm, final TSentryAuthorizable tAuthorizable)
+      throws Exception{
+    TSentryPrivilege tOwnerPrivilege = toSentryPrivilege(tAuthorizable);
+    tOwnerPrivilege.setAction(AccessConstants.OWNER);
+
+    // Finding owner privileges and removing them.
+    List<MSentryPrivilege> mOwnerPrivileges = getMSentryPrivileges(tOwnerPrivilege, pm);
+    for(MSentryPrivilege mOwnerPriv : mOwnerPrivileges) {
+      Set<MSentryUser> users;
+      users = mOwnerPriv.getUsers();
+      // Making sure of removing stale users.
+      for (MSentryUser user : users) {
+        user.removePrivilege(mOwnerPriv);
+        persistEntity(pm, SentryEntityType.USER, user);
+      }
+    }
+    pm.deletePersistentAll(mOwnerPrivileges);
   }
 
   /**
@@ -4275,12 +4458,35 @@ public class SentryStore {
    */
   private void execute(Update update,
         TransactionBlock<Object> transactionBlock) throws Exception {
-    List<TransactionBlock<Object>> tbs = new ArrayList(2);
-
-    if (persistUpdateDeltas && update != null) {
-      tbs.add(new DeltaTransactionBlock(update));
+    if (update != null ) {
+      execute(Collections.singletonList(update), transactionBlock);
+    } else {
+      execute(Collections.<Update>emptyList(), transactionBlock);
     }
+  }
 
+
+  /**
+   * Execute multiple delta updates in a single transaction.
+   * Note that this method only applies to TransactionBlock that
+   * does not have any return value.
+   * <p>
+   * Failure in any TransactionBlock would cause the whole transaction
+   * to fail.
+   *
+   * @param updates list of delta updates
+   * @throws Exception
+   */
+  private void execute(List<Update> updates, TransactionBlock<Object> transactionBlock) throws Exception {
+    // Currently this API is used to update the owner privilege. This needs two DeltaTransactionBlock's to record
+    // revoking/granting owner privilege and one TransactionBlock to perform actual permission change.
+    // Default size of tbs is picked accordingly.
+    List<TransactionBlock<Object>> tbs = new ArrayList<>(3);
+    if (persistUpdateDeltas && updates != null && updates.size() > 0) {
+      for (Update update : updates) {
+        tbs.add(new DeltaTransactionBlock(update));
+      }
+    }
     tbs.add(transactionBlock);
     tm.executeTransactionBlocksWithRetry(tbs);
   }

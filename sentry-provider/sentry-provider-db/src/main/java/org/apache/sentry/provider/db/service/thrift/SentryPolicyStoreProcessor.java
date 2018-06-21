@@ -21,6 +21,8 @@ package org.apache.sentry.provider.db.service.thrift;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,6 +33,8 @@ import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
+import org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType;
+import org.apache.sentry.service.thrift.SentryOwnerInfo;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.common.GroupMappingService;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
@@ -64,6 +68,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -79,6 +84,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   private static final Logger AUDIT_LOGGER = LoggerFactory.getLogger(Constants.AUDIT_LOGGER_NAME);
 
   static final String SENTRY_POLICY_SERVICE_NAME = "SentryPolicyService";
+  private static final Map<TSentryObjectOwnerType, SentryEntityType> mapOwnerType = ImmutableMap.of(
+          TSentryObjectOwnerType.ROLE, SentryEntityType.ROLE,
+          TSentryObjectOwnerType.USER, SentryEntityType.USER
+  );
 
   private final String name;
   private final Configuration conf;
@@ -253,7 +262,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       Preconditions.checkState(sentryPlugins.size() <= 1);
       Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
       for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-        plugin.onAlterSentryRoleGrantPrivilege(request, privilegesUpdateMap);
+        plugin.onAlterSentryRoleGrantPrivilege(request.getRoleName(), request.getPrivileges(), privilegesUpdateMap);
       }
 
       if (!privilegesUpdateMap.isEmpty()) {
@@ -328,7 +337,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       Preconditions.checkState(sentryPlugins.size() <= 1);
       Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
       for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-        plugin.onAlterSentryRoleRevokePrivilege(request, privilegesUpdateMap);
+        plugin.onAlterSentryRoleRevokePrivilege(request.getRoleName(), request.getPrivileges(), privilegesUpdateMap);
       }
 
       if (!privilegesUpdateMap.isEmpty()) {
@@ -1063,9 +1072,181 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     if (ServiceConstants.ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT != protocol_version) {
       String msg = "Sentry thrift API protocol version mismatch: Client thrift version " +
           "is: " + protocol_version + " , server thrift verion " +
-              "is " + ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT;
+          "is " + ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT;
       throw new SentryThriftAPIMismatchException(msg);
     }
+  }
+
+  @Override
+  public TSentryHmsEventNotificationResponse sentry_notify_hms_event(TSentryHmsEventNotification request) throws TException{
+    TSentryHmsEventNotificationResponse response = new TSentryHmsEventNotificationResponse();
+    final Timer.Context timerContext = sentryMetrics.notificationProcessTimer.time();
+    EventType eventType = EventType.valueOf(request.getEventType());
+    try {
+      switch (eventType) {
+        case CREATE_DATABASE:
+        case CREATE_TABLE:
+          // Wait till Sentry server processes HMS Notification Event.
+          if(request.getId() > 0) {
+            response.setId(syncEventId(request.getId()));
+          }
+          //Grant privilege to the owner.
+          grantOwnerPrivilege(request);
+          break;
+        case DROP_DATABASE:
+        case DROP_TABLE:
+          // Wait till Sentry server processes HMS Notification Event.
+          if(request.getId() > 0) {
+            response.setId(syncEventId(request.getId()));
+          }
+          // Owner privileges for the database and tables that are dropped are cleaned-up when
+          // sentry fetches and process the DROP_DATABASE and DROP_TABLE notifications.
+          break;
+        case ALTER_TABLE:
+          /* Alter table event is notified to sentry when either of below is observed.
+             together.
+             1. Owner Update
+             2. Table Rename
+          */
+          // Wait till Sentry server processes HMS Notification Event.
+          if(request.getId() > 0) {
+            response.setId(syncEventId(request.getId()));
+          }
+          // Owner is updated. There is no need to wait till Sentry processes HMS Notification Event.
+          // Revoke owner privilege from old owners and grant one to the new owner.
+          updateOwnerPrivilege(request);
+          break;
+        default:
+         LOGGER.info("Processing HMS Event of Type: " + eventType.toString() + " skipped");
+      }
+      response.setStatus(Status.OK());
+    } catch (SentryNoSuchObjectException e) {
+      String msg = request.getOwnerType().toString() + ": " + request.getOwnerName() + " doesn't exist";
+      LOGGER.error(msg, e);
+      response.setStatus(Status.NoSuchObject(msg, e));
+    } catch (SentryInvalidInputException e) {
+      LOGGER.error(e.getMessage(), e);
+      response.setStatus(Status.InvalidInput(e.getMessage(), e));
+    } catch (SentryThriftAPIMismatchException e) {
+      LOGGER.error(e.getMessage(), e);
+      response.setStatus(Status.THRIFT_VERSION_MISMATCH(e.getMessage(), e));
+    } catch (Exception e) {
+      String msg = "Unknown error for request: " + request + ", message: " + e.getMessage();
+      LOGGER.error(msg, e);
+        response.setStatus(Status.RuntimeError(msg, e));
+    } finally {
+      timerContext.stop();
+    }
+    return response;
+  }
+
+  /**
+   * Grants owner privilege  to an authorizable.
+   *
+   * Privilege is granted based on the information in TSentryHmsEventNotification
+   * @param request TSentryHmsEventNotification
+   * @throws Exception when there an exception while sending/processing the request.
+   */
+  private void grantOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
+    if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
+      LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not adding owner privilege for" +
+              " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
+              request.getAuthorizable().getTable()));
+      return;
+    }
+
+    TSentryPrivilege ownerPrivilege = constructOwnerPrivilege(request.getAuthorizable());
+    if (ownerPrivilege == null) {
+      LOGGER.debug("Owner privilege is not added");
+      return;
+    }
+
+    SentryEntityType entityType = getSentryEntityType(request.getOwnerType());
+    if (entityType == null) {
+      String error = "Invalid owner type : " + request.getEventType();
+      LOGGER.error(error);
+      throw new SentryInvalidInputException(error);
+    }
+
+    Preconditions.checkState(sentryPlugins.size() <= 1);
+    Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
+    Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
+    switch (request.getOwnerType()) {
+      case ROLE:
+        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          plugin.onAlterSentryRoleGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
+        }
+        break;
+      case USER:
+        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          plugin.onAlterSentryUserGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
+        }
+        break;
+      default:
+        LOGGER.error("Invalid owner Type");
+    }
+    // Grants owner privilege to the entity
+    sentryStore.alterSentryGrantOwnerPrivilege(request.getOwnerName(), entityType,
+            ownerPrivilege, privilegesUpdateMap.get(ownerPrivilege));
+    //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
+    //TODO Implement Audit Log API's and invoke them here.
+  }
+
+  /**
+   * Alters owner privilege of an authorizable.
+   *
+   * Revoke all the owner privileges on the authorizable and grants new owner privilege.
+   * @param request Sentry HMS Event Notification
+   * @throws Exception when there an exception while sending/processing the request.
+   */
+  private void updateOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
+    if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
+      LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not revoking owner privilege for" +
+                      " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
+              request.getAuthorizable().getTable()));
+      return;
+    }
+
+    TSentryPrivilege ownerPrivilege = constructOwnerPrivilege(request.getAuthorizable());
+    if (ownerPrivilege == null) {
+      LOGGER.debug("Owner privilege is not added");
+      return;
+    }
+
+    SentryEntityType entityType = getSentryEntityType(request.getOwnerType());
+    if(entityType == null ) {
+      String error = "Invalid owner type : " + request.getEventType();
+      LOGGER.error(error);
+      throw new SentryInvalidInputException(error);
+    }
+
+    Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
+    Preconditions.checkState(sentryPlugins.size() <= 1);
+    Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
+    List<Update> updateList = new ArrayList<>();
+    List<SentryOwnerInfo> ownerInfoList = sentryStore.listOwnersByAuthorizable(request.getAuthorizable());
+    // Creating updates for deleting all the old owner privileges
+    // There should only one owner privilege for an authorizable but the current schema
+    // doesn't have constraints to limit it. It is possible to have multiple owners for an authorizable (which is unlikely)
+    // This logic makes sure of revoking all the owner privilege.
+    for (SentryOwnerInfo ownerInfo : ownerInfoList) {
+      if (SentryEntityType.USER.equals(ownerInfo.getOwnerType())) {
+        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
+          updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+        }
+      } else if (ownerInfo.getOwnerType() == SentryEntityType.ROLE) {
+        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
+          updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+        }
+      }
+    }
+    // Revokes old owner privileges and grants owner privilege for new owner.
+    sentryStore.updateOwnerPrivilege(request.getAuthorizable(), request.getOwnerName(),
+        entityType, updateList);
+    //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
+    //TODO Implement Audit Log API's and invoke them here.
   }
 
   /**
@@ -1077,8 +1258,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
    */
   TSentryPrivilege constructOwnerPrivilege(TSentryAuthorizable authorizable) {
     Boolean isOwnerPrivEnabled = conf.getBoolean(ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES,
-            ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES_DEFAULT);
-    if(isOwnerPrivEnabled == false) {
+      ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES_DEFAULT);
+    if(!isOwnerPrivEnabled) {
       return null;
     }
     if(Strings.isNullOrEmpty(authorizable.getDb())) {
@@ -1089,9 +1270,13 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
             ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT_DEFAULT);
 
     TSentryPrivilege ownerPrivilege = new TSentryPrivilege();
+    ownerPrivilege.setServerName(authorizable.getServer());
     ownerPrivilege.setDbName(authorizable.getDb());
     if(!Strings.isNullOrEmpty(authorizable.getTable())) {
       ownerPrivilege.setTableName(authorizable.getTable());
+      ownerPrivilege.setPrivilegeScope("TABLE");
+    } else {
+      ownerPrivilege.setPrivilegeScope("DATABASE");
     }
     if(privilegeWithGrantOption) {
       ownerPrivilege.setGrantOption(TSentryGrantOption.TRUE);
@@ -1100,12 +1285,34 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     return ownerPrivilege;
   }
 
-  @Override
-  public TSentryHmsEventNotificationResponse sentry_notify_hms_event
-          (TSentryHmsEventNotification request) throws TException{
-    TSentryHmsEventNotificationResponse response = new TSentryHmsEventNotificationResponse();
-    //TODO This API has to be implemented.
-    response.setStatus(Status.OK());
-    return response;
+  /**
+   *
+   * @param ownerType
+   * @return SentryEntityType if input was valid, otherwise returns null
+   * @throws Exception
+   */
+  private SentryEntityType getSentryEntityType(TSentryObjectOwnerType ownerType) throws Exception {
+    return mapOwnerType.get(ownerType);
+  }
+
+  /**
+   * Syncronizes with the eventId processed by sentry
+   * @param eventId
+   * @return current counter value that should be no smaller then the requested
+   * value, returns 0 if there were an exception.
+   */
+  long syncEventId(long eventId) {
+    try {
+      return sentryStore.getCounterWait().waitFor(eventId);
+    } catch (InterruptedException e) {
+      String msg = String.format("wait request for id %d is interrupted",
+              eventId);
+      LOGGER.error(msg, e);
+      Thread.currentThread().interrupt();
+    } catch (TimeoutException e) {
+      String msg = String.format("timed out wait request for id %d", eventId);
+      LOGGER.warn(msg, e);
+    }
+    return 0;
   }
 }
