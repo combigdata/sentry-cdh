@@ -106,7 +106,7 @@ public class TestSentryHiveAuthorizationTaskFactory {
     partition = new Partition(table);
     context = new Context(conf);
     parseDriver = new ParseDriver();
-    analyzer = new DDLSemanticAnalyzer(new QueryState(conf), db);
+    analyzer = new DDLSemanticAnalyzer(new QueryState.Builder().withHiveConf(conf).build(), db);
     SessionState.start(conf);
     Mockito.when(db.getTable(TABLE, false)).thenReturn(table);
     Mockito.when(db.getPartition(table, new HashMap<String, String>(), false))
