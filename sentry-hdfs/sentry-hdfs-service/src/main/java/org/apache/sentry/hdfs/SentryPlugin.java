@@ -31,6 +31,7 @@ import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 import org.apache.sentry.provider.db.SentryPolicyStorePlugin;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleAddGroupsRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleDeleteGroupsRequest;
@@ -116,7 +117,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
   private DBUpdateForwarder<PermissionsUpdate> permsUpdater;
 
   @Override
-  public void initialize(Configuration conf, SentryStore sentryStore) throws SentryPluginException {
+  public void initialize(Configuration conf, SentryStoreInterface sentryStore) throws SentryPluginException {
     // List of paths managed by Sentry
     String[] prefixes =
             conf.getStrings(SENTRY_HDFS_INTEGRATION_PATH_PREFIXES,

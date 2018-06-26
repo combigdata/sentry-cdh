@@ -51,6 +51,7 @@ import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory;
 import org.apache.sentry.core.common.utils.PubSub;
 import org.apache.sentry.hdfs.UniquePathsUpdate;
+import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.service.persistent.PathsImage;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
@@ -104,7 +105,7 @@ public class TestHMSFollower {
      * should trigger a new full HMS snapshot request with the eventId = 1
      */
 
-    final long SENTRY_PROCESSED_EVENT_ID = SentryStore.EMPTY_NOTIFICATION_ID;
+    final long SENTRY_PROCESSED_EVENT_ID = ProviderConstants.EMPTY_NOTIFICATION_ID;
     final long HMS_PROCESSED_EVENT_ID = 1L;
 
     // Mock that returns a full snapshot
@@ -174,7 +175,7 @@ public class TestHMSFollower {
      *
      */
 
-    final long SENTRY_PROCESSED_EVENT_ID = SentryStore.EMPTY_NOTIFICATION_ID;
+    final long SENTRY_PROCESSED_EVENT_ID = ProviderConstants.EMPTY_NOTIFICATION_ID;
     final long HMS_PROCESSED_EVENT_ID = 1L;
 
     // Mock that returns a full snapshot
@@ -263,7 +264,7 @@ public class TestHMSFollower {
     configuration.set(ServiceConstants.ServerConfig.PROCESSOR_FACTORIES, "");
     configuration.set(ServiceConstants.ServerConfig.SENTRY_POLICY_STORE_PLUGINS, "");
 
-    final long SENTRY_PROCESSED_EVENT_ID = SentryStore.EMPTY_NOTIFICATION_ID;
+    final long SENTRY_PROCESSED_EVENT_ID = ProviderConstants.EMPTY_NOTIFICATION_ID;
     final long HMS_PROCESSED_EVENT_ID = 1L;
 
     // Mock that returns a full snapshot
@@ -986,7 +987,7 @@ public class TestHMSFollower {
      * should trigger a new full HMS snapshot request with the eventId = 1
      */
 
-    final long SENTRY_PROCESSED_EVENT_ID = SentryStore.EMPTY_NOTIFICATION_ID;
+    final long SENTRY_PROCESSED_EVENT_ID = ProviderConstants.EMPTY_NOTIFICATION_ID;
     final long HMS_PROCESSED_EVENT_ID = 1L;
 
     // Mock that returns a full snapshot

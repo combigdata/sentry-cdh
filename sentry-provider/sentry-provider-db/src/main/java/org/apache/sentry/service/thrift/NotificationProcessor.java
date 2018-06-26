@@ -37,6 +37,7 @@ import org.apache.sentry.binding.metastore.messaging.json.SentryJSONDropTableMes
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageDeserializer;
 import org.apache.sentry.core.common.exception.SentryInvalidHMSEventException;
 import org.apache.sentry.core.common.utils.PathUtils;
+import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.hdfs.PathsUpdate;
@@ -45,7 +46,7 @@ import org.apache.sentry.hdfs.SentryMalformedPathException;
 import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.hdfs.Updateable.Update;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ import static org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars.AU
 /**
  * NotificationProcessor processes various notification events generated from
  * the Hive MetaStore state change, and applies these changes to the complete
- * HMS Paths snapshot or delta update stored in Sentry using SentryStore.
+ * HMS Paths snapshot or delta update stored in Sentry using SentryStoreInterface.
  *
  * <p>NotificationProcessor should not skip processing notification events for any reason.
  * If some notification events are to be skipped, appropriate logic should be added in
@@ -74,7 +75,7 @@ import static org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars.AU
 final class NotificationProcessor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NotificationProcessor.class);
-  private final SentryStore sentryStore;
+  private final SentryStoreInterface sentryStore;
   private final SentryJSONMessageDeserializer deserializer;
   private final String authServerName;
   // These variables can be updated even after object is instantiated, for testing purposes.
@@ -89,7 +90,7 @@ final class NotificationProcessor {
    * @param authServerName Server that sentry is authorizing
    * @param conf sentry configuration
    */
-  NotificationProcessor(SentryStore sentryStore, String authServerName,
+  NotificationProcessor(SentryStoreInterface sentryStore, String authServerName,
       Configuration conf) {
     this.sentryStore = sentryStore;
     deserializer = new SentryJSONMessageDeserializer();
@@ -126,7 +127,7 @@ final class NotificationProcessor {
   @VisibleForTesting
   static Update getPermUpdatableOnDrop(TSentryAuthorizable authorizable)
       throws SentryInvalidInputException {
-    PermissionsUpdate update = new PermissionsUpdate(SentryStore.INIT_CHANGE_ID, false);
+    PermissionsUpdate update = new PermissionsUpdate(ProviderConstants.INIT_CHANGE_ID, false);
     String authzObj = SentryServiceUtil.getAuthzObj(authorizable);
     update.addPrivilegeUpdate(authzObj)
         .putToDelPrivileges(PermissionsUpdate.ALL_ROLES, PermissionsUpdate.ALL_ROLES);
@@ -153,7 +154,7 @@ final class NotificationProcessor {
       throws SentryInvalidInputException {
     String oldAuthz = SentryServiceUtil.getAuthzObj(oldAuthorizable);
     String newAuthz = SentryServiceUtil.getAuthzObj(newAuthorizable);
-    PermissionsUpdate update = new PermissionsUpdate(SentryStore.INIT_CHANGE_ID, false);
+    PermissionsUpdate update = new PermissionsUpdate(ProviderConstants.INIT_CHANGE_ID, false);
     TPrivilegeChanges privUpdate = update.addPrivilegeUpdate(PermissionsUpdate.RENAME_PRIVS);
     privUpdate.putToAddPrivileges(newAuthz, newAuthz);
     privUpdate.putToDelPrivileges(oldAuthz, oldAuthz);

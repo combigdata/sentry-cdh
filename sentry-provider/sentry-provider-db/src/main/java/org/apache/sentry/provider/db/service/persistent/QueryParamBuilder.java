@@ -19,6 +19,8 @@
 package org.apache.sentry.provider.db.service.persistent;
 
 import com.google.common.base.Joiner;
+
+import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -259,7 +261,7 @@ public class QueryParamBuilder {
    * @return this
    */
   public QueryParamBuilder addNotNull(String fieldName) {
-    queryParts.add(String.format("this.%s != \"%s\"", fieldName, SentryStore.NULL_COL));
+    queryParts.add(String.format("this.%s != \"%s\"", fieldName, ProviderConstants.NULL_COL));
     return this;
   }
 
@@ -269,7 +271,7 @@ public class QueryParamBuilder {
    * @return this
    */
   public QueryParamBuilder addNull(String fieldName) {
-    queryParts.add(String.format("this.%s == \"%s\"", fieldName, SentryStore.NULL_COL));
+    queryParts.add(String.format("this.%s == \"%s\"", fieldName, ProviderConstants.NULL_COL));
     return this;
   }
 
