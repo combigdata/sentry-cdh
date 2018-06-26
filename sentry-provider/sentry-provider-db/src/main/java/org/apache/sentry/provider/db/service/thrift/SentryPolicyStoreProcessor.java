@@ -47,7 +47,7 @@ import org.apache.sentry.provider.db.SentryThriftAPIMismatchException;
 import org.apache.sentry.provider.db.log.entity.JsonLogEntity;
 import org.apache.sentry.provider.db.log.entity.JsonLogEntityFactory;
 import org.apache.sentry.provider.db.log.util.Constants;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServerConfig;
 import org.apache.sentry.provider.db.service.thrift.validator.GrantPrivilegeRequestValidator;
 import org.apache.sentry.provider.db.service.thrift.validator.RevokePrivilegeRequestValidator;
@@ -91,7 +91,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
 
   private final String name;
   private final Configuration conf;
-  private final SentryStore sentryStore;
+  private final SentryStoreInterface sentryStore;
   private final NotificationHandlerInvoker notificationHandlerInvoker;
   private final ImmutableSet<String> adminGroups;
   private SentryMetrics sentryMetrics;
@@ -102,7 +102,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   private List<SentryPolicyStorePlugin> sentryPlugins = new LinkedList<SentryPolicyStorePlugin>();
 
   SentryPolicyStoreProcessor(String name,
-        Configuration conf, SentryStore store) throws Exception {
+        Configuration conf, SentryStoreInterface store) throws Exception {
     super();
     this.name = name;
     this.conf = conf;

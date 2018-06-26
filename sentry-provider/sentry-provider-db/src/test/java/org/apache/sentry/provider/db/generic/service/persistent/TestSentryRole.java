@@ -34,10 +34,10 @@ import javax.jdo.Transaction;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.sentry.core.model.search.Collection;
+import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.service.model.MSentryGMPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.junit.After;
 import org.junit.Before;
@@ -139,8 +139,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(ProviderConstants.NULL_COL);
+    hivePrivilege.setColumnName(ProviderConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
     //The same hivePrivilege
     MSentryPrivilege hivePrivilege2 = new MSentryPrivilege(hivePrivilege);
@@ -201,8 +201,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(ProviderConstants.NULL_COL);
+    hivePrivilege.setColumnName(ProviderConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -280,8 +280,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(ProviderConstants.NULL_COL);
+    hivePrivilege.setColumnName(ProviderConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -359,8 +359,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(ProviderConstants.NULL_COL);
+    hivePrivilege.setColumnName(ProviderConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -439,8 +439,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(ProviderConstants.NULL_COL);
+    hivePrivilege.setColumnName(ProviderConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
