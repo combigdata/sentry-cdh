@@ -46,6 +46,7 @@ import org.apache.sentry.provider.db.service.thrift.TSentryRole;
 import org.apache.sentry.service.thrift.CounterWait;
 import org.apache.sentry.service.thrift.SentryOwnerInfo;
 import org.apache.sentry.service.thrift.ServiceConstants;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
 
 /**
  * Interface for backend sentry store.
@@ -449,9 +450,9 @@ public interface SentryStoreInterface {
    * @param update DeltaTransactionBlock
    * @throws Exception
    */
-  void alterSentryGrantOwnerPrivilege(final String entityName, final ServiceConstants.SentryEntityType entityType,
-       final TSentryPrivilege privilege,
-       final Update update) throws Exception;
+  void alterSentryGrantOwnerPrivilege(final String entityName, SentryEntityType entityType,
+      final TSentryPrivilege privilege,
+      final Update update) throws Exception;
 
   /**
    * Alter a given sentry role to revoke a set of privileges, as well as persist the
@@ -721,4 +722,22 @@ public interface SentryStoreInterface {
    * @return latest path change ID.
    */
   long getLastProcessedImageID() throws Exception;
+
+  /**
+   * Returns all roles and privileges found on the Sentry database.
+   *
+   * @return A mapping between role and privileges in the form [roleName, set<privileges>].
+   *         If a role does not have privileges, then an empty set is returned for that role.
+   *         If no roles are found, then an empty map object is returned.
+   */
+  Map<String, Set<TSentryPrivilege>> getAllRolesPrivileges() throws Exception;
+
+  /**
+   * Returns all users and privileges found on the Sentry database.
+   *
+   * @return A mapping between user and privileges in the form [userName, set<privileges>].
+   *         If a user does not have privileges, then an empty set is returned for that user.
+   *         If no users are found, then an empty map object is returned.
+   */
+  Map<String, Set<TSentryPrivilege>> getAllUsersPrivileges() throws Exception;
 }

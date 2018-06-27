@@ -309,6 +309,25 @@ struct TSentryHmsEventNotificationResponse {
 2: required i64 id // Most recent processed ID
 }
 
+/**
+* API that requests all roles and users privileges from the Sentry server.
+**/
+struct TSentryPrivilegesRequest {
+1: required i32 protocol_version = sentry_common_service.TSENTRY_SERVICE_V2,
+2: required string requestorUserName # user on whose behalf the request is issued
+}
+
+/**
+* API that returns either all users or roles privileges found on the Sentry server.
+*
+* The response returns a mapping object that maps the role or user name to the privileges
+* they have in the server. An empty set of privileges may be returned to each role or user
+* name. Null values are not returned.
+**/
+struct TSentryPrivilegesResponse {
+1: required sentry_common_service.TSentryResponseStatus status
+2: required map<string, set<TSentryPrivilege>> privilegesMap;
+}
 
 service SentryPolicyService
 {
@@ -340,7 +359,15 @@ service SentryPolicyService
  # Synchronize between HMS notifications and Sentry
  TSentrySyncIDResponse sentry_sync_notifications(1:TSentrySyncIDRequest request);
 
- # Notify Sentry about new events in HMS. Currently used to synchronize between HMS/Sentry
- # and also update sentry with the owner information.
- TSentryHmsEventNotificationResponse sentry_notify_hms_event(1:TSentryHmsEventNotification request);
+  # Notify Sentry about new events in HMS. Currently used to synchronize between HMS/Sentry
+  # and also update sentry with the owner information.
+  TSentryHmsEventNotificationResponse sentry_notify_hms_event(1:TSentryHmsEventNotification request);
+
+  # Returns a map of all roles and their privileges that exist in the Sentry server.
+  # The mapping object returned will be in the form of [roleName, set<privileges>]
+  TSentryPrivilegesResponse list_roles_privileges(1:TSentryPrivilegesRequest request);
+
+  # Returns a map of all users and their privileges that exist in the Sentry server.
+  # The mapping object returned will be in the form of [userName, set<privileges>]
+  TSentryPrivilegesResponse list_users_privileges(1:TSentryPrivilegesRequest request);
 }

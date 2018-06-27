@@ -22,8 +22,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 import junit.framework.Assert;
 import org.apache.hadoop.hive.metastore.messaging.EventMessage;
@@ -431,5 +435,107 @@ public class TestSentryPolicyStoreProcessor {
         sentryStore, Mockito.times(1)
     ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryEntityType.ROLE),
         Mockito.anyList());
+  }
+
+  @Test
+  public void testListRolesPrivileges() throws Exception {
+    MockGroupMappingService.addUserGroupMapping("admin", Sets.newHashSet("admin"));
+
+    Configuration conf = new Configuration();
+    conf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING, MockGroupMappingService.class.getName());
+    conf.set(ServerConfig.ADMIN_GROUPS, "admin");
+
+    SentryPolicyStoreProcessor policyStoreProcessor =
+        new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
+            conf, sentryStore);
+
+    TSentryPrivilegesResponse returnedResp;
+
+    TSentryPrivilegesRequest request = new TSentryPrivilegesRequest();
+    request.setRequestorUserName("user1");
+
+    // Request privileges when requestorUser is not an admin returns an access denied exception
+    returnedResp = policyStoreProcessor.list_roles_privileges(request);
+    Assert.assertEquals(Status.ACCESS_DENIED.getCode(), returnedResp.getStatus().getValue());
+
+    request.setRequestorUserName("admin");
+
+    // Request privileges when no roles are created yet returns an empty map object
+    Mockito.when(sentryStore.getAllRolesPrivileges()).thenReturn(
+        Collections.<String, Set<TSentryPrivilege>>emptyMap());
+    returnedResp = policyStoreProcessor.list_roles_privileges(request);
+    Assert.assertEquals(Status.OK.getCode(),  returnedResp.getStatus().getValue());
+    Assert.assertEquals(0, returnedResp.getPrivilegesMap().size());
+
+    // Request privileges when roles exist returns a map of the form [roleName, set<privileges>]
+    Set<TSentryPrivilege> privileges1 = new HashSet<TSentryPrivilege>();
+    privileges1.add(newSentryPrivilege("TABLE", "db1", "tbl1", "ALL"));
+    privileges1.add(newSentryPrivilege("DATABASE", "db1", "", "INSERT"));
+    Set<TSentryPrivilege> privileges2 = new HashSet<TSentryPrivilege>();
+    privileges2.add(newSentryPrivilege("SERVER", "", "", "ALL"));
+    ImmutableMap<String, Set<TSentryPrivilege>> rolesPrivileges = ImmutableMap.of(
+        "role1", privileges1,
+        "role2", privileges2,
+        "role3", new HashSet<TSentryPrivilege>());
+
+
+    Mockito.when(sentryStore.getAllRolesPrivileges()).thenReturn(rolesPrivileges);
+    returnedResp = policyStoreProcessor.list_roles_privileges(request);
+    Assert.assertEquals(Status.OK(),  returnedResp.getStatus());
+    Assert.assertEquals(3, returnedResp.getPrivilegesMap().size());
+    Assert.assertEquals(2, returnedResp.getPrivilegesMap().get("role1").size());
+    Assert.assertEquals(1, returnedResp.getPrivilegesMap().get("role2").size());
+    Assert.assertEquals(0, returnedResp.getPrivilegesMap().get("role3").size());
+  }
+
+  @Test
+  public void testListUsersPrivileges() throws Exception {
+    MockGroupMappingService.addUserGroupMapping("admin", Sets.newHashSet("admin"));
+
+    Configuration conf = new Configuration();
+    conf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING, MockGroupMappingService.class.getName());
+    conf.set(ServerConfig.ADMIN_GROUPS, "admin");
+
+    SentryPolicyStoreProcessor policyStoreProcessor =
+        new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
+            conf, sentryStore);
+
+    TSentryPrivilegesResponse returnedResp;
+
+    TSentryPrivilegesRequest request = new TSentryPrivilegesRequest();
+    request.setRequestorUserName("user1");
+
+    // Request privileges when requestorUser is not an admin returns an access denied exception
+    returnedResp = policyStoreProcessor.list_users_privileges(request);
+    Assert.assertEquals(Status.ACCESS_DENIED.getCode(), returnedResp.getStatus().getValue());
+
+    request.setRequestorUserName("admin");
+
+    // Request privileges when no roles are created yet returns an empty map object
+    Mockito.when(sentryStore.getAllUsersPrivileges()).thenReturn(
+        new HashMap<String, Set<TSentryPrivilege>>());
+    returnedResp = policyStoreProcessor.list_users_privileges(request);
+    Assert.assertEquals(Status.OK.getCode(),  returnedResp.getStatus().getValue());
+    Assert.assertEquals(0, returnedResp.getPrivilegesMap().size());
+
+    // Request privileges when roles exist returns a map of the form [userName, set<privileges>]
+    Set<TSentryPrivilege> privileges1 = new HashSet<TSentryPrivilege>();
+    privileges1.add(newSentryPrivilege("TABLE", "db1", "tbl1", "ALL"));
+    privileges1.add(newSentryPrivilege("DATABASE", "db1", "", "INSERT"));
+    Set<TSentryPrivilege> privileges2 = new HashSet<TSentryPrivilege>();
+    privileges2.add(newSentryPrivilege("SERVER", "", "", "ALL"));
+    ImmutableMap<String, Set<TSentryPrivilege>> usersPrivileges = ImmutableMap.of(
+        "user1", privileges1,
+        "user2", privileges2,
+        "user3", new HashSet<TSentryPrivilege>()
+    );
+
+    Mockito.when(sentryStore.getAllUsersPrivileges()).thenReturn(usersPrivileges);
+    returnedResp = policyStoreProcessor.list_users_privileges(request);
+    Assert.assertEquals(Status.OK(),  returnedResp.getStatus());
+    Assert.assertEquals(3, returnedResp.getPrivilegesMap().size());
+    Assert.assertEquals(2, returnedResp.getPrivilegesMap().get("user1").size());
+    Assert.assertEquals(1, returnedResp.getPrivilegesMap().get("user2").size());
+    Assert.assertEquals(0, returnedResp.getPrivilegesMap().get("user3").size());
   }
 }
