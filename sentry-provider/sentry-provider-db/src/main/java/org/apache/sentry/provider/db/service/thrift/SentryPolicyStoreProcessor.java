@@ -1089,6 +1089,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
           // Wait till Sentry server processes HMS Notification Event.
           if(request.getId() > 0) {
             response.setId(syncEventId(request.getId()));
+          } else {
+            response.setId(0L);
           }
           //Grant privilege to the owner.
           grantOwnerPrivilege(request);
@@ -1098,6 +1100,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
           // Wait till Sentry server processes HMS Notification Event.
           if(request.getId() > 0) {
             response.setId(syncEventId(request.getId()));
+          } else {
+            response.setId(0L);
           }
           // Owner privileges for the database and tables that are dropped are cleaned-up when
           // sentry fetches and process the DROP_DATABASE and DROP_TABLE notifications.
@@ -1111,6 +1115,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
           // Wait till Sentry server processes HMS Notification Event.
           if(request.getId() > 0) {
             response.setId(syncEventId(request.getId()));
+          } else {
+            response.setId(0L);
           }
           // Owner is updated. There is no need to wait till Sentry processes HMS Notification Event.
           // Revoke owner privilege from old owners and grant one to the new owner.
