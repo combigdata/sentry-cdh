@@ -42,6 +42,10 @@ limitations under the License.
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-core-model-solr</artifactId>
     </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.apache.sentry</groupId>-->
+      <!--<artifactId>sentry-core-model-sqoop</artifactId>-->
+    <!--</dependency>-->
     <dependency>
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-core-model-kafka</artifactId>
@@ -54,6 +58,10 @@ limitations under the License.
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-binding-solr</artifactId>
     </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.apache.sentry</groupId>-->
+      <!--<artifactId>sentry-binding-sqoop</artifactId>-->
+    <!--</dependency>-->
     <dependency>
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-binding-kafka</artifactId>
