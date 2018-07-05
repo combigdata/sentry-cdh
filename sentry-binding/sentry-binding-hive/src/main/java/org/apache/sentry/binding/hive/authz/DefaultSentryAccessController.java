@@ -202,7 +202,7 @@ public class DefaultSentryAccessController extends SentryHiveAccessController {
       throws HiveAuthzPluginException, HiveAccessControlException {
     if (principal.getType() != HivePrincipalType.ROLE) {
       String msg =
-          SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
+          SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
       throw new HiveAuthzPluginException(msg);
     }
     List<HivePrivilegeInfo> infoList = new ArrayList<HivePrivilegeInfo>();
@@ -302,7 +302,7 @@ public class DefaultSentryAccessController extends SentryHiveAccessController {
         roles = sentryClient.listRolesByGroupName(authenticator.getUserName(), principal.getName());
       } else {
         String msg =
-            SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
+            SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + principal.getType();
         throw new HiveAuthzPluginException(msg);
       }
       if (roles != null && !roles.isEmpty()) {
