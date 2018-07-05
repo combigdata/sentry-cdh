@@ -384,7 +384,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace("onDropSentryPrivilege: {}", request); // request.toString() provides all details
     }
-    
+
     PermissionsUpdate update = new PermissionsUpdate();
     String authzObj = null;
     try {

@@ -163,6 +163,8 @@ public class GenericPrivilegeConverter implements TSentryPrivilegeConverter {
       return KafkaPrivilegeModel.getInstance().getPrivilegeValidators();
     } else if ("SOLR".equals(component)) {
       return SolrPrivilegeModel.getInstance().getPrivilegeValidators();
+//    } else if (AuthorizationComponent.SQOOP.equals(component)) {
+//      return SqoopPrivilegeModel.getInstance().getPrivilegeValidators(service);
     } else if (AuthorizationComponent.HBASE_INDEXER.equals(component)) {
       return IndexerPrivilegeModel.getInstance().getPrivilegeValidators();
     }
@@ -175,6 +177,8 @@ public class GenericPrivilegeConverter implements TSentryPrivilegeConverter {
       return KafkaModelAuthorizables.from(keyValue);
     } else if ("SOLR".equals(component)) {
       return SolrModelAuthorizables.from(keyValue);
+//    } else if (AuthorizationComponent.SQOOP.equals(component)) {
+//      return SqoopModelAuthorizables.from(keyValue);
     } else if (AuthorizationComponent.HBASE_INDEXER.equals(component)) {
       return IndexerModelAuthorizables.from(keyValue);
     }
