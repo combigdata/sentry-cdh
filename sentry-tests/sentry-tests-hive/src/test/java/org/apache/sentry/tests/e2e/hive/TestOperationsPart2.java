@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.sentry.provider.file.PolicyFile;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -54,15 +55,26 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
   static Map<String, String> privileges = new HashMap<String, String>();
   static {
     privileges.put("all_server", "server=server1->action=all");
+    privileges.put("create_server", "server=server1->action=create");
     privileges.put("all_db1", "server=server1->db=" + DB1 + "->action=all");
     privileges.put("select_db1", "server=server1->db=" + DB1 + "->action=select");
     privileges.put("insert_db1", "server=server1->db=" + DB1 + "->action=insert");
-    privileges.put("all_db2", "server=server1->db=" + DB2 + "->action=all");
+    privileges.put("create_db1", "server=server1->db=" + DB1 + "->action=create");
+    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=drop");
+    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=alter");
+    privileges.put("create_db2", "server=server1->db=" + DB2 + "->action=create");
+
     privileges.put("all_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("select_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=select");
     privileges.put("insert_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=insert");
+    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=alter");
+    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=alter");
+    privileges.put("index_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=index");
+    privileges.put("lock_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=lock");
+    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=drop");
     privileges.put("insert_db2_tb2", "server=server1->db=" + DB2 + "->table=tb2->action=insert");
     privileges.put("select_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=select");
+
   }
 
   @Before
@@ -102,7 +114,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     adminCreate(DB1, tableName, true);
     String indexLocation = dfs.getBaseDir() + "/" + Math.random();
     policyFile
-        .addPermissionsToRole("index_db1_tb1", privileges.get("all_db1_tb1"))
+        .addPermissionsToRole("index_db1_tb1", privileges.get("index_db1_tb1"))
         .addRolesToGroup(USERGROUP1, "index_db1_tb1")
         .addRolesToGroup(USERGROUP3, "index_db1_tb1")
         .addPermissionsToRole("uri_role", "server=server1->uri=" + indexLocation)
@@ -169,7 +181,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
   public void testDropTable() throws Exception {
     adminCreate(DB1, tableName, true);
     policyFile
-        .addPermissionsToRole("drop_db1_tb1", privileges.get("all_db1_tb1"))
+        .addPermissionsToRole("drop_db1_tb1", privileges.get("drop_db1_tb1"))
         .addRolesToGroup(USERGROUP1, "drop_db1_tb1")
         .addPermissionsToRole("insert_db1_tb1", privileges.get("insert_db1_tb1"))
         .addRolesToGroup(USERGROUP2, "insert_db1_tb1");
@@ -203,6 +215,120 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     //TODO
   }
 
+  /* Operations that require alter + drop on table
+    1. HiveOperation.ALTERTABLE_DROPPARTS
+  */
+  @Test
+  public void dropPartition() throws Exception {
+    adminCreate(DB1, tableName, true);
+    policyFile
+        .addPermissionsToRole("alter_db1_tb1", privileges.get("alter_db1_tb1"))
+        .addPermissionsToRole("drop_db1_tb1", privileges.get("drop_db1_tb1"))
+        .addRolesToGroup(USERGROUP1, "alter_db1_tb1", "drop_db1_tb1")
+        .addRolesToGroup(USERGROUP2, "alter_db1_tb1");
+
+    writePolicyFile(policyFile);
+
+    Connection connection;
+    Statement statement;
+    //Setup
+    connection = context.createConnection(ADMIN1);
+    statement = context.createStatement(connection);
+    exec(statement, "Use " + DB1);
+    exec(statement, "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '10') ");
+
+    //Negative case
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    exec(statement, "USE " + DB1);
+    assertSemanticException(statement, "ALTER TABLE tb1 DROP PARTITION (b = 10)");
+
+    //Positive case
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+    exec(statement, "Use " + DB1);
+    exec(statement, "ALTER TABLE tb1 DROP PARTITION (b = 10)");
+    statement.close();
+    connection.close();
+  }
+
+  /*
+   1. HiveOperation.ALTERTABLE_RENAME
+   */
+  @Test
+  public void renameTable() throws Exception {
+    adminCreate(DB1, "TAB_1");
+    adminCreate(DB2, "TAB_3");
+    adminCreate(DB3, null);
+    Connection connection = context.createConnection(ADMIN1);
+    Statement statement = context.createStatement(connection);
+    exec(statement, "CREATE table  " + DB1 + ".TAB_2 (a string)");
+    statement.close();
+    connection.close();
+
+    policyFile
+        .addRolesToGroup(USERGROUP1, "all_db1")
+        .addRolesToGroup(USERGROUP1, "drop_db2")
+        .addRolesToGroup(USERGROUP1, "create_db3")
+        .addPermissionsToRole("all_db1", "server=server1->db=" + DB1)
+        .addPermissionsToRole("drop_db2", "server=server1->db=" + DB2 + "->action=drop")
+        .addPermissionsToRole("create_db3", "server=server1->db=" + DB3 + "->action=create")
+        .setUserGroupMapping(StaticUserGroup.getStaticMapping());
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER1_1);
+    statement = context.createStatement(connection);
+    // user1 haven't create permission with db_2, can't move table to db_2
+    exec(statement, "use " + DB1);
+    try {
+      exec(statement, "alter table TAB_1 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+    try {
+      // test with the format of table name: db.table
+      exec(statement, "alter table " + DB1 + ".TAB_1 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+
+    // user1 haven't create permission with db_2, can't move table from db_2
+    exec(statement, "use " + DB2);
+    try {
+      exec(statement, "alter table TAB_3 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+    try {
+      // test with the format of table name: db.table
+      exec(statement, "alter table " + DB2 + ".TAB_3 rename to " + DB2 + ".TAB_1");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+
+    // user1 have all permission with db_1 and create permission with db_3, alter_table_rename pass
+    exec(statement, "use " + DB1);
+    exec(statement, "alter table TAB_1 rename to " + DB3 + ".TAB_1");
+    exec(statement, "alter table " + DB1 + ".TAB_2 rename to " + DB3 + ".TAB_2");
+
+    // user1 have drop permission with db_2 and create permission with db_3, alter_table_rename pass
+    exec(statement, "use " + DB2);
+    exec(statement, "alter table TAB_3 rename to " + DB3 + ".TAB_3");
+
+    // user1 haven't drop permission with db_3, can't move table to db_3
+    exec(statement, "use " + DB3);
+    try {
+      exec(statement, "alter table TAB_3 rename to TAB_4");
+      fail("the exception should be thrown");
+    } catch (Exception e) {
+      // ignore the exception
+    }
+  }
+
   /* Test all operations which require alter on table (+ all on URI)
    1. HiveOperation.ALTERTABLE_LOCATION
    2. HiveOperation.ALTERTABLE_ADDPARTS
@@ -214,7 +340,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     adminCreate(DB1, tableName, true);
     String tabLocation = dfs.getBaseDir() + "/" + Math.random();
     policyFile
-        .addPermissionsToRole("alter_db1_tb1", privileges.get("all_db1_tb1"))
+        .addPermissionsToRole("alter_db1_tb1", privileges.get("alter_db1_tb1"))
         .addPermissionsToRole("all_uri", "server=server1->uri=" + tabLocation)
         .addRolesToGroup(USERGROUP1, "alter_db1_tb1", "all_uri")
         .addRolesToGroup(USERGROUP2, "alter_db1_tb1");
@@ -279,7 +405,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     adminCreate(DB2, null);
     policyFile
         .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
-        .addPermissionsToRole("create_db2", privileges.get("all_db2"))
+        .addPermissionsToRole("create_db2", privileges.get("create_db2"))
         .addRolesToGroup(USERGROUP1, "select_db1_tb1", "create_db2");
     writePolicyFile(policyFile);
 
@@ -325,7 +451,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     createTable(ADMIN1, DB1, dataFile, tableName);
     String location = dfs.getBaseDir() + "/" + Math.random();
     policyFile
-        .addPermissionsToRole("create_db1", privileges.get("all_db1"))
+        .addPermissionsToRole("create_db1", privileges.get("create_db1"))
         .addPermissionsToRole("all_uri", "server=server1->uri="+ location)
         .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
         .addPermissionsToRole("insert_db1", privileges.get("insert_db1"))
@@ -424,7 +550,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     policyFile
         .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
         .addPermissionsToRole("select_db1_view1", privileges.get("select_db1_view1"))
-        .addPermissionsToRole("create_db2", privileges.get("all_db2"))
+        .addPermissionsToRole("create_db2", privileges.get("create_db2"))
         .addPermissionsToRole("all_uri", "server=server1->uri=" + location)
         .addRolesToGroup(USERGROUP1, "select_db1_tb1", "create_db2")
         .addRolesToGroup(USERGROUP2, "select_db1_view1", "create_db2")
@@ -532,7 +658,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     assertTrue("Unable to create directory for external table test" , externalTblDir.mkdir());
 
     policyFile
-        .addPermissionsToRole("create_db1", privileges.get("all_db1"))
+        .addPermissionsToRole("create_db1", privileges.get("create_db1"))
         .addPermissionsToRole("all_uri", "server=server1->uri=file://" + dataDir.getPath())
         .addRolesToGroup(USERGROUP1, "create_db1", "all_uri")
         .addRolesToGroup(USERGROUP2, "create_db1");
