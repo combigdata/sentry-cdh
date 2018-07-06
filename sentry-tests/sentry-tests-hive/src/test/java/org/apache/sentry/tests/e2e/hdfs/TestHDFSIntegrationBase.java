@@ -192,6 +192,11 @@ public abstract class TestHDFSIntegrationBase {
   protected String[] dbNames;
   protected String[] roles;
   protected String admin;
+  protected static Boolean hdfsSyncEnabled = true;
+  protected static Boolean hiveSyncOnCreate = false;
+  protected static Boolean hiveSyncOnDrop = true;
+  protected static Boolean ownerPrivilegeEnabled = false;
+  protected static Boolean ownerPrivilegeGrantEnabled = false;
   protected static Configuration hadoopConf;
 
   protected static File assertCreateDir(File dir) {
@@ -805,6 +810,30 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS, "10000");
           properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS, "50");
           properties.put(ServerConfig.RPC_MIN_THREADS, "3");
+
+          if(hiveSyncOnCreate) {
+            properties.put("sentry.hive.sync.create", "true");
+          } else {
+            properties.put("sentry.hive.sync.create", "false");
+          }
+          if(hiveSyncOnDrop) {
+            properties.put("sentry.hive.sync.drop", "true");
+          } else {
+            properties.put("sentry.hive.sync.drop", "false");
+          }
+          if(hdfsSyncEnabled) {
+            properties.put("sentry.service.processor.factories",
+                "org.apache.sentry.api.service.thrift.SentryPolicyStoreProcessorFactory,org.apache.sentry.hdfs.SentryHDFSServiceProcessorFactory");
+            properties.put("sentry.policy.store.plugins", "org.apache.sentry.hdfs.SentryPlugin");
+          }
+          if(ownerPrivilegeEnabled) {
+            properties.put("sentry.enable.owner.privileges", "true");
+
+            if(ownerPrivilegeGrantEnabled) {
+              properties.put("sentry.grant.owner.privileges.with.grant", "true");
+            }
+          }
+
           for (Map.Entry<String, String> entry : properties.entrySet()) {
             sentryConf.set(entry.getKey(), entry.getValue());
           }

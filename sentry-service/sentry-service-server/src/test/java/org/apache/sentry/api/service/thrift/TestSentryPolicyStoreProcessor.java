@@ -142,7 +142,7 @@ public class TestSentryPolicyStoreProcessor {
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
     TSentryPrivilege privilege = new TSentryPrivilege();
-    TSentryAuthorizable authorizable = new TSentryAuthorizable("");
+    TSentryAuthorizable authorizable = new TSentryAuthorizable("server1");
     authorizable.setDb("db1");
     authorizable.setTable("tb1");
 
@@ -155,20 +155,21 @@ public class TestSentryPolicyStoreProcessor {
     sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
-    authorizable = new TSentryAuthorizable("");
+    authorizable = new TSentryAuthorizable("server1");
     authorizable.setTable("tb1");
     Assert.assertNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
 
     //Check the behavior when DB name is set and table name is not set.
-    authorizable = new TSentryAuthorizable("");
+    authorizable = new TSentryAuthorizable("server1");
     authorizable.setDb("db1");
+    privilege.setServerName("server1");
     privilege.setDbName("db1");
     privilege.setAction(AccessConstants.OWNER);
     Assert.assertNotNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
     Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
 
     //check the behaviour when both DB name and table name are set
-    authorizable = new TSentryAuthorizable("");
+    authorizable = new TSentryAuthorizable("server1");
     authorizable.setDb("db1");
     authorizable.setTable("tb1");
     privilege.setTableName("tb1");
@@ -181,7 +182,7 @@ public class TestSentryPolicyStoreProcessor {
     sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
-    authorizable = new TSentryAuthorizable("");
+    authorizable = new TSentryAuthorizable("server1");
     authorizable.setDb("db1");
     authorizable.setTable("tb1");
     privilege.setGrantOption(TSentryGrantOption.TRUE);

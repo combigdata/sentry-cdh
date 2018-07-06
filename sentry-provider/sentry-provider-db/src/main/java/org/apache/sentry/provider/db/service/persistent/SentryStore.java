@@ -167,7 +167,7 @@ public class SentryStore {
       AccessConstants.ALL, AccessConstants.ACTION_ALL,
       AccessConstants.SELECT, AccessConstants.INSERT, AccessConstants.ALTER,
       AccessConstants.CREATE, AccessConstants.DROP, AccessConstants.INDEX,
-      AccessConstants.LOCK);
+      AccessConstants.LOCK, AccessConstants.OWNER);
 
   // Now partial revoke just support action with SELECT,INSERT and ALL.
   // Now partial revoke just support action with SELECT,INSERT, and ALL.
@@ -1294,7 +1294,7 @@ public class SentryStore {
       // otherwise,
       // we will revoke it from role directly
       MSentryPrivilege persistedPriv = getMSentryPrivilege(convertToTSentryPrivilege(mPrivilege), pm);
-      if (persistedPriv != null && !persistedPriv.getRoles().isEmpty()) {
+      if (persistedPriv != null) {
         persistedPriv.removeEntity(mEntity);
         persistPrivilege(pm, persistedPriv);
       }
@@ -2568,22 +2568,7 @@ public class SentryStore {
           public Object execute(PersistenceManager pm) throws Exception {
             pm.setDetachAllOnCommit(false); // No need to detach objects
 
-            // Drop the give privilege for all possible actions from all entities.
-            TSentryPrivilege tPrivilege = toSentryPrivilege(tAuthorizable);
-
-            try {
-              if (isMultiActionsSupported(tPrivilege)) {
-                for (String privilegeAction : ALL_ACTIONS) {
-                  tPrivilege.setAction(privilegeAction);
-                  dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
-                }
-              } else {
-                dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
-              }
-            } catch (JDODataStoreException e) {
-              throw new SentryInvalidInputException("Failed to get privileges: "
-                      + e.getMessage());
-            }
+            dropPrivilegeCore(pm, tAuthorizable);
             return null;
           }
             });
@@ -2603,25 +2588,32 @@ public class SentryStore {
       public Object execute(PersistenceManager pm) throws Exception {
         pm.setDetachAllOnCommit(false); // No need to detach objects
 
-        // Drop the give privilege for all possible actions from all entities.
-        TSentryPrivilege tPrivilege = toSentryPrivilege(tAuthorizable);
+        dropPrivilegeCore(pm, tAuthorizable);
 
-        try {
-          if (isMultiActionsSupported(tPrivilege)) {
-            for (String privilegeAction : ALL_ACTIONS) {
-              tPrivilege.setAction(privilegeAction);
-              dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
-            }
-          } else {
-            dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
-          }
-        } catch (JDODataStoreException e) {
-          throw new SentryInvalidInputException("Failed to get privileges: "
-                  + e.getMessage());
-        }
         return null;
       }
     });
+  }
+
+  private void dropPrivilegeCore(PersistenceManager pm, TSentryAuthorizable tAuthorizable) throws Exception {
+
+    // Drop the give privilege for all possible actions from all entities.
+    TSentryPrivilege tPrivilege = toSentryPrivilege(tAuthorizable);
+    tPrivilege.setGrantOption(TSentryGrantOption.UNSET);
+
+    try {
+      if (isMultiActionsSupported(tPrivilege)) {
+        for (String privilegeAction : ALL_ACTIONS) {
+          tPrivilege.setAction(privilegeAction);
+          dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
+        }
+      } else {
+        dropPrivilegeForAllEntities(pm, new TSentryPrivilege(tPrivilege));
+      }
+    } catch (JDODataStoreException e) {
+      throw new SentryInvalidInputException("Failed to get privileges: "
+          + e.getMessage());
+    }
   }
 
   /**
@@ -2716,28 +2708,11 @@ public class SentryStore {
           public Object execute(PersistenceManager pm) throws Exception {
             pm.setDetachAllOnCommit(false); // No need to detach objects
 
-            // Drop the give privilege for all possible actions from all entities.
-            TSentryPrivilege tPrivilege = toSentryPrivilege(oldTAuthorizable);
-            TSentryPrivilege newPrivilege = toSentryPrivilege(newTAuthorizable);
+            renamePrivilegeCore(pm, oldTAuthorizable, newTAuthorizable);
 
-            try {
-              // In case of tables or DBs, check all actions
-              if (isMultiActionsSupported(tPrivilege)) {
-                for (String privilegeAction : ALL_ACTIONS) {
-                  tPrivilege.setAction(privilegeAction);
-                  newPrivilege.setAction(privilegeAction);
-                  renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
-                }
-              } else {
-                renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
-              }
-            } catch (JDODataStoreException e) {
-              throw new SentryInvalidInputException("Failed to get privileges: "
-                      + e.getMessage());
-            }
             return null;
           }
-            });
+    });
   }
 
   /**
@@ -2759,28 +2734,45 @@ public class SentryStore {
       public Object execute(PersistenceManager pm) throws Exception {
         pm.setDetachAllOnCommit(false); // No need to detach objects
 
-        // Drop the give privilege for all possible actions from all entities.
-        TSentryPrivilege tPrivilege = toSentryPrivilege(oldTAuthorizable);
-        TSentryPrivilege newPrivilege = toSentryPrivilege(newTAuthorizable);
+        renamePrivilegeCore(pm, oldTAuthorizable, newTAuthorizable);
 
-        try {
-          // In case of tables or DBs, check all actions
-          if (isMultiActionsSupported(tPrivilege)) {
-            for (String privilegeAction : ALL_ACTIONS) {
-              tPrivilege.setAction(privilegeAction);
-              newPrivilege.setAction(privilegeAction);
-              renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
-            }
-          } else {
-            renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
-          }
-        } catch (JDODataStoreException e) {
-          throw new SentryInvalidInputException("Failed to get privileges: "
-          + e.getMessage());
-        }
         return null;
       }
     });
+  }
+
+  private void renamePrivilegeCore(PersistenceManager pm, TSentryAuthorizable oldTAuthorizable,
+      final TSentryAuthorizable newTAuthorizable) throws Exception {
+    TSentryPrivilege tPrivilege = toSentryPrivilege(oldTAuthorizable);
+    TSentryPrivilege newPrivilege = toSentryPrivilege(newTAuthorizable);
+
+    tPrivilege.setGrantOption(TSentryGrantOption.FALSE);
+    newPrivilege.setGrantOption(TSentryGrantOption.FALSE);
+    renamePrivilegeCore(pm, tPrivilege, newPrivilege);
+
+    tPrivilege.setGrantOption(TSentryGrantOption.TRUE);
+    newPrivilege.setGrantOption(TSentryGrantOption.TRUE);
+    renamePrivilegeCore(pm, tPrivilege, newPrivilege);
+  }
+
+  private void renamePrivilegeCore(PersistenceManager pm, TSentryPrivilege tPrivilege,
+      final TSentryPrivilege newPrivilege) throws Exception {
+
+    try {
+      // In case of tables or DBs, check all actions
+      if (isMultiActionsSupported(tPrivilege)) {
+        for (String privilegeAction : ALL_ACTIONS) {
+          tPrivilege.setAction(privilegeAction);
+          newPrivilege.setAction(privilegeAction);
+          renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
+        }
+      } else {
+        renamePrivilegeForAllEntities(pm, tPrivilege, newPrivilege);
+      }
+    } catch (JDODataStoreException e) {
+      throw new SentryInvalidInputException("Failed to get privileges: "
+          + e.getMessage());
+    }
   }
 
   // Currently INSERT/SELECT/ALL are supported for Table and DB level privileges
