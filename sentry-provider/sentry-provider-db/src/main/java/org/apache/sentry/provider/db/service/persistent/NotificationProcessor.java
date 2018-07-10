@@ -239,7 +239,7 @@ final class NotificationProcessor {
     String dbName = message.getDB();
     String location = message.getLocation();
     if ((dbName == null) || (location == null)) {
-      LOGGER.error("Create database event "
+      LOGGER.warn("Create database event "
               + "has incomplete information. dbName: {} location: {}",
           StringUtils.defaultIfBlank(dbName, "null"),
           StringUtils.defaultIfBlank(location, "null"));
@@ -273,7 +273,7 @@ final class NotificationProcessor {
     String dbName = dropDatabaseMessage.getDB();
     String location = dropDatabaseMessage.getLocation();
     if (dbName == null) {
-      LOGGER.error("Drop database event has incomplete information: dbName = null");
+      LOGGER.warn("Drop database event has incomplete information: dbName = null");
       return false;
     }
     if (syncStoreOnDrop) {
@@ -303,7 +303,7 @@ final class NotificationProcessor {
     String tableName = createTableMessage.getTable();
     String location = createTableMessage.getLocation();
     if ((dbName == null) || (tableName == null) || (location == null)) {
-      LOGGER.error(String.format("Create table event " + "has incomplete information."
+      LOGGER.warn(String.format("Create table event " + "has incomplete information."
               + " dbName = %s, tableName = %s, location = %s",
           StringUtils.defaultIfBlank(dbName, "null"),
           StringUtils.defaultIfBlank(tableName, "null"),
@@ -338,7 +338,7 @@ final class NotificationProcessor {
     String dbName = dropTableMessage.getDB();
     String tableName = dropTableMessage.getTable();
     if ((dbName == null) || (tableName == null)) {
-      LOGGER.error("Drop table event "
+      LOGGER.warn("Drop table event "
           + "has incomplete information. dbName: {}, tableName: {}",
           StringUtils.defaultIfBlank(dbName, "null"),
           StringUtils.defaultIfBlank(tableName, "null"));
@@ -381,7 +381,7 @@ final class NotificationProcessor {
         || (newTableName == null)
         || (oldLocation == null)
         || (newLocation == null)) {
-      LOGGER.error(String.format("Alter table event "
+      LOGGER.warn(String.format("Alter table notification ignored since event "
               + "has incomplete information. oldDbName = %s, oldTableName = %s, oldLocation = %s, "
               + "newDbName = %s, newTableName = %s, newLocation = %s",
           StringUtils.defaultIfBlank(oldDbName, "null"),
@@ -396,7 +396,7 @@ final class NotificationProcessor {
     if ((oldDbName.equals(newDbName))
         && (oldTableName.equals(newTableName))
         && (oldLocation.equals(newLocation))) {
-      LOGGER.error(String.format("Alter table notification ignored as neither name nor "
+      LOGGER.debug(String.format("Alter table notification ignored as neither name nor "
               + "location has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
               + "newLocation = %s", oldDbName + "." + oldTableName, oldLocation,
           newDbName + "." + newTableName, newLocation));
@@ -408,7 +408,7 @@ final class NotificationProcessor {
       try {
         renamePrivileges(oldDbName, oldTableName, newDbName, newTableName);
       } catch (SentryNoSuchObjectException e) {
-        LOGGER.info("Rename Sentry privilege ignored as there are no privileges on the table:"
+        LOGGER.debug("Rename Sentry privilege ignored as there are no privileges on the table:"
             + " {}.{}", oldDbName, oldTableName);
       } catch (Exception e) {
         LOGGER.info("Could not process Alter table event. Event: {}", event.toString(), e);
@@ -444,7 +444,7 @@ final class NotificationProcessor {
     String tableName = addPartitionMessage.getTable();
     List<String> locations = addPartitionMessage.getLocations();
     if ((dbName == null) || (tableName == null) || (locations == null)) {
-      LOGGER.error(String.format("Create table event has incomplete information. "
+      LOGGER.warn(String.format("Create table event has incomplete information. "
               + "dbName = %s, tableName = %s, locations = %s",
           StringUtils.defaultIfBlank(dbName, "null"),
           StringUtils.defaultIfBlank(tableName, "null"),
@@ -475,7 +475,7 @@ final class NotificationProcessor {
     String tableName = dropPartitionMessage.getTable();
     List<String> locations = dropPartitionMessage.getLocations();
     if ((dbName == null) || (tableName == null) || (locations == null)) {
-      LOGGER.error(String.format("Drop partition event "
+      LOGGER.warn(String.format("Drop partition event "
               + "has incomplete information. dbName = %s, tableName = %s, location = %s",
           StringUtils.defaultIfBlank(dbName, "null"),
           StringUtils.defaultIfBlank(tableName, "null"),
@@ -510,7 +510,7 @@ final class NotificationProcessor {
         || (tableName == null)
         || (oldLocation == null)
         || (newLocation == null)) {
-      LOGGER.error(String.format("Alter partition event "
+      LOGGER.warn(String.format("Alter partition event "
               + "has incomplete information. dbName = %s, tableName = %s, "
               + "oldLocation = %s, newLocation = %s",
           StringUtils.defaultIfBlank(dbName, "null"),
@@ -688,6 +688,7 @@ final class NotificationProcessor {
         updateAuthzPathsMapping(oldAuthzObj, oldPathTree, newAuthzObj, newPathTree,event);
       }
     } else {
+      // This code should not be hit as appropriate checks are performed by the callers of this method.
       LOGGER.error("Update Notification for Auhorizable object {}, with no change, skipping",
           oldAuthzObj);
       throw new SentryInvalidHMSEventException("Update Notification for Authorizable object"
@@ -735,7 +736,7 @@ final class NotificationProcessor {
       authorizable.setDb(dbName);
       sentryStore.dropPrivilege(authorizable, getPermUpdatableOnDrop(authorizable));
     } catch (SentryNoSuchObjectException e) {
-      LOGGER.info("Drop Sentry privilege ignored as there are no privileges on the database: {}",
+      LOGGER.debug("Drop Sentry privilege ignored as there are no privileges on the database: {}",
           dbName);
     } catch (Exception e) {
       LOGGER.error("Could not process Drop database event." + "Event: " + event.toString(), e);
@@ -750,7 +751,7 @@ final class NotificationProcessor {
       authorizable.setTable(tableName);
       sentryStore.dropPrivilege(authorizable, getPermUpdatableOnDrop(authorizable));
     } catch (SentryNoSuchObjectException e) {
-      LOGGER.info("Drop Sentry privilege ignored as there are no privileges on the table: {}.{}",
+      LOGGER.debug("Drop Sentry privilege ignored as there are no privileges on the table: {}.{}",
           dbName, tableName);
     } catch (Exception e) {
       LOGGER.error("Could not process Drop table event. Event: " + event.toString(), e);
