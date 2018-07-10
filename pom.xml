@@ -85,7 +85,7 @@ limitations under the License.
     <maven.antrun.plugin.version>1.7</maven.antrun.plugin.version>
     <maven.eclipse.plugin.version>2.9</maven.eclipse.plugin.version>
     <maven.enforcer.plugin.version>1.3.1</maven.enforcer.plugin.version>
-    <maven.shade.plugin.version>2.4.3</maven.shade.plugin.version>
+    <maven.shade.plugin.version>3.1.1</maven.shade.plugin.version>
     <metrics.version>3.2.2</metrics.version>
     <mockito.version>${cdh.mockito.version}</mockito.version>
     <objenesis.version>1.2</objenesis.version>
@@ -513,6 +513,10 @@ limitations under the License.
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-client</artifactId>
           </exclusion>
+            <exclusion>
+              <groupId>com.yammer.metrics</groupId>
+              <artifactId>metrics-core</artifactId>
+            </exclusion>
           <exclusion>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -790,6 +794,10 @@ limitations under the License.
             <artifactId>jms</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>com.yammer.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>javax.transaction</groupId>
             <artifactId>transaction-api</artifactId>
           </exclusion>
@@ -849,6 +857,7 @@ limitations under the License.
           <targetJdk>${maven.compile.target}</targetJdk>
           <excludeRoots>
             <excludeRoot>${basedir}/src/main/generated</excludeRoot>
+            <excludeRoot>${basedir}/src/gen/thrift/gen-javabean</excludeRoot>
           </excludeRoots>
         </configuration>
         <executions>

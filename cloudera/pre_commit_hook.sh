@@ -16,4 +16,5 @@ mv "$(which mvn-gbn-wrapper)" "$(dirname "$(which mvn-gbn-wrapper)")/mvn"
 find . -name test-classes | grep target/test-classes | xargs rm -rf
 
 # execute all tests (disable slow tests for now)
-mvn test -PskipOnlySlowTests --fail-at-end
+# CDH-70545 include package phase due to shading
+mvn test package -PskipOnlySlowTests --fail-at-end
