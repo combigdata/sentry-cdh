@@ -31,8 +31,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 /**
  * Test all operations that require index on table alone (part 1)
  1. Create index : HiveOperation.CREATEINDEX
@@ -42,26 +41,31 @@ import org.slf4j.LoggerFactory;
  */
 public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
 
-  private static final Logger LOGGER = LoggerFactory
-      .getLogger(TestOperationsPart1.class);
-
   private PolicyFile policyFile;
   final String tableName = "tb1";
 
   static Map<String, String> privileges = new HashMap<String, String>();
   static {
     privileges.put("all_server", "server=server1->action=all");
+    privileges.put("create_server", "server=server1->action=create");
     privileges.put("all_db1", "server=server1->db=" + DB1 + "->action=all");
     privileges.put("select_db1", "server=server1->db=" + DB1 + "->action=select");
     privileges.put("insert_db1", "server=server1->db=" + DB1 + "->action=insert");
+    privileges.put("create_db1", "server=server1->db=" + DB1 + "->action=create");
+    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=drop");
+    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=alter");
+    privileges.put("create_db2", "server=server1->db=" + DB2 + "->action=create");
     privileges.put("all_db2", "server=server1->db=" + DB2 + "->action=all");
+
     privileges.put("all_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("select_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=select");
     privileges.put("insert_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=insert");
+    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=alter");
+    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=alter");
+    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=drop");
     privileges.put("insert_db2_tb2", "server=server1->db=" + DB2 + "->table=tb2->action=insert");
     privileges.put("select_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=select");
     privileges.put("select_db1_tb2", "server=server1->db=" + DB1 + "->table=tb2->action=select");
-
   }
 
   @Before
@@ -101,28 +105,135 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     connection.close();
   }
 
-  /* Test all operations that require all on Database alone
-  1. Create table : HiveOperation.CREATETABLE
-  2. Alter database : HiveOperation.ALTERDATABASE
-  3. Drop database : HiveOperation.DROPDATABASE
+  /* Test all operations that require create on Server
+  1. Create database : HiveOperation.CREATEDATABASE
    */
   @Test
-  public void testAllOnDatabase() throws Exception{
-    adminCreate(DB1, null);
+  public void testCreateOnServer() throws Exception{
     policyFile
-        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
-        .addRolesToGroup(USERGROUP1, "all_db1");
+        .addPermissionsToRole("create_server", privileges.get("create_server"))
+        .addRolesToGroup(USERGROUP1, "create_server");
 
     writePolicyFile(policyFile);
 
     Connection connection = context.createConnection(USER1_1);
     Statement statement = context.createStatement(connection);
-    statement.execute("CREATE TABLE " + DB1 + ".tb1(a int)");
-    statement.execute("USE " +DB1);
-    statement.execute("ALTER TABLE tb1 RENAME TO tb2");
-    statement.execute("ALTER DATABASE " + DB1 + " SET DBPROPERTIES ('comment'='comment')");
+    statement.execute("Create database " + DB2);
+    statement.close();
+    connection.close();
 
-    statement.execute("DROP database " + DB1 + " cascade");
+    //Negative case
+    policyFile
+        .addPermissionsToRole("create_db1", privileges.get("create_db1"))
+        .addRolesToGroup(USERGROUP2, "create_db1");
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    context.assertSentrySemanticException(statement, "CREATE database " + DB1, semanticException);
+    statement.close();
+    connection.close();
+
+  }
+
+  @Test
+  public void testInsertInto() throws Exception{
+    File dataFile;
+    dataFile = new File(dataDir, SINGLE_TYPE_DATA_FILE_NAME);
+    FileOutputStream to = new FileOutputStream(dataFile);
+    Resources.copy(Resources.getResource(SINGLE_TYPE_DATA_FILE_NAME), to);
+    to.close();
+
+    adminCreate(DB1, null);
+    policyFile
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addPermissionsToRole("all_uri", "server=server1->uri=file://" + dataDir)
+        .addRolesToGroup(USERGROUP1, "all_db1", "all_uri");
+
+
+    writePolicyFile(policyFile);
+
+    Connection connection = context.createConnection(USER1_1);
+    Statement statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("create table bar (key int)");
+    statement.execute("load data local inpath '" + dataFile.getPath() + "' into table bar");
+    statement.execute("create table foo (key int) partitioned by (part int) stored as parquet");
+    statement.execute("insert into table foo PARTITION(part=1) select key from bar");
+
+    statement.close();
+    connection.close();
+  }
+
+  /* Test all operations that require create on Database alone
+  1. Create table : HiveOperation.CREATETABLE
+  */
+  @Test
+  public void testCreateOnDatabase() throws Exception{
+    adminCreate(DB1, null);
+    policyFile
+        .addPermissionsToRole("create_db1", privileges.get("create_db1"))
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addRolesToGroup(USERGROUP1, "create_db1")
+        .addRolesToGroup(USERGROUP2, "all_db1");
+
+    writePolicyFile(policyFile);
+
+    Connection connection = context.createConnection(USER1_1);
+    Statement statement = context.createStatement(connection);
+    statement.execute("CREATE TABLE " + DB1 + ".tb2(a int)");
+    statement.close();
+    connection.close();
+
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    statement.execute("CREATE TABLE " + DB1 + ".tb3(a int)");
+
+    statement.close();
+    connection.close();
+
+    //Negative case
+    policyFile
+        .addPermissionsToRole("all_db1_tb1", privileges.get("select_db1"))
+        .addRolesToGroup(USERGROUP3, "all_db1_tb1");
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER3_1);
+    statement = context.createStatement(connection);
+    context.assertSentrySemanticException(statement, "CREATE TABLE " + DB1 + ".tb1(a int)", semanticException);
+    statement.close();
+    connection.close();
+  }
+
+  /* Test all operations that require drop on Database alone
+  1. Drop database : HiveOperation.DROPDATABASE
+  */
+  @Test
+  public void testDropOnDatabase() throws Exception{
+    adminCreate(DB1, null);
+    policyFile
+        .addPermissionsToRole("drop_db1", privileges.get("drop_db1"))
+        .addRolesToGroup(USERGROUP1, "drop_db1");
+
+    writePolicyFile(policyFile);
+
+    Connection connection = context.createConnection(USER1_1);
+    Statement statement = context.createStatement(connection);
+    statement.execute("DROP DATABASE " + DB1);
+    statement.close();
+    connection.close();
+
+    adminCreate(DB1, null);
+
+    policyFile
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addRolesToGroup(USERGROUP2, "all_db1");
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER2_1);
+    statement = context.createStatement(connection);
+    statement.execute("DROP DATABASE " + DB1);
+
     statement.close();
     connection.close();
 
@@ -130,24 +241,59 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     adminCreate(DB1, null);
     policyFile
         .addPermissionsToRole("select_db1", privileges.get("select_db1"))
-        .addRolesToGroup(USERGROUP2, "select_db1");
+        .addRolesToGroup(USERGROUP3, "select_db1");
     writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER3_1);
+    statement = context.createStatement(connection);
+    context.assertSentrySemanticException(statement, "drop database " + DB1, semanticException);
+    statement.close();
+    connection.close();
+  }
+
+  /* Test all operations that require alter on Database alone
+  1. Alter database : HiveOperation.ALTERDATABASE
+   */
+  @Test
+  public void testAlterOnDatabase() throws Exception{
+    adminCreate(DB1, null);
+    policyFile
+        .addPermissionsToRole("alter_db1", privileges.get("alter_db1"))
+        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+        .addRolesToGroup(USERGROUP2, "all_db1")
+        .addRolesToGroup(USERGROUP1, "alter_db1");
+    writePolicyFile(policyFile);
+
+    Connection connection = context.createConnection(USER1_1);
+    Statement statement = context.createStatement(connection);
+    statement.execute("ALTER DATABASE " + DB1 + " SET DBPROPERTIES ('comment'='comment')");
 
     connection = context.createConnection(USER2_1);
     statement = context.createStatement(connection);
-    context.assertSentrySemanticException(statement, "CREATE TABLE " + DB1 + ".tb1(a int)", semanticException);
-    context.assertSentrySemanticException(statement, "ALTER DATABASE " + DB1 + " SET DBPROPERTIES ('comment'='comment')", semanticException);
-    context.assertSentrySemanticException(statement, "DROP database " + DB1 + " cascade", semanticException);
-    statement.close();
+    statement.execute("ALTER DATABASE " + DB1 + " SET DBPROPERTIES ('comment'='comment')");
+
     connection.close();
 
+    //Negative case
+    adminCreate(DB1, null);
+    policyFile
+        .addPermissionsToRole("select_db1", privileges.get("select_db1"))
+        .addRolesToGroup(USERGROUP3, "select_db1");
+    writePolicyFile(policyFile);
+
+    connection = context.createConnection(USER3_1);
+    statement = context.createStatement(connection);
+    context.assertSentrySemanticException(statement, "ALTER DATABASE " + DB1 + " SET DBPROPERTIES ('comment'='comment')", semanticException);
+    statement.close();
+    connection.close();
   }
+
   /* SELECT/INSERT on DATABASE
    1. HiveOperation.DESCDATABASE
    */
   @Test
   public void testDescDB() throws Exception {
-    adminCreate(DB1, null);
+    adminCreate(DB1, tableName);
     policyFile
         .addPermissionsToRole("select_db1", privileges.get("select_db1"))
         .addPermissionsToRole("insert_db1", privileges.get("insert_db1"))
@@ -181,8 +327,9 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
   }
 
   private void assertSemanticException(Statement stmt, String command) throws SQLException{
-    context.assertSentrySemanticException(stmt,command, semanticException);
+    context.assertSentrySemanticException(stmt, command, semanticException);
   }
+
   /* Test all operations that require all on table alone
   1. Create index : HiveOperation.CREATEINDEX
   2. Drop index : HiveOperation.DROPINDEX
@@ -217,10 +364,10 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
   public void testAllOnTable() throws Exception{
     adminCreate(DB1, tableName, true);
     policyFile
-        .addPermissionsToRole("all_db1_tb1", privileges.get("all_db1_tb1"))
-        .addRolesToGroup(USERGROUP1, "all_db1_tb1")
-        .addPermissionsToRole("insert_db1_tb1", privileges.get("insert_db1_tb1"))
-        .addRolesToGroup(USERGROUP2, "insert_db1_tb1");
+      .addPermissionsToRole("all_db1_tb1", privileges.get("all_db1_tb1"))
+      .addRolesToGroup(USERGROUP1, "all_db1_tb1")
+      .addPermissionsToRole("insert_db1_tb1", privileges.get("insert_db1_tb1"))
+      .addRolesToGroup(USERGROUP2, "insert_db1_tb1");
     writePolicyFile(policyFile);
 
     Connection connection;
@@ -437,70 +584,106 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement.executeQuery("DESCRIBE tb1 PARTITION (b=1)");
     statement.executeQuery("SHOW Partitions tb1");
 
-
     statement.close();
     connection.close();
   }
 
-  /**
-   * Test all operations which require all on table + all on URI
-   1. HiveOperation.ALTERTABLE_LOCATION
-   2. HiveOperation.ALTERTABLE_ADDPARTS
-   3. TODO: HiveOperation.ALTERPARTITION_LOCATION
-   4. TODO: HiveOperation.ALTERTBLPART_SKEWED_LOCATION
+  /* Test all operations that require alter on table
+  1. HiveOperation.ALTERTABLE_PROPERTIES
+  2. HiveOperation.ALTERTABLE_SERDEPROPERTIES
+  3. HiveOperation.ALTERTABLE_CLUSTER_SORT
+  4. HiveOperation.ALTERTABLE_TOUCH
+  5. HiveOperation.ALTERTABLE_FILEFORMAT
+  6. HiveOperation.ALTERTABLE_RENAMEPART
+  7. HiveOperation.ALTERPARTITION_SERDEPROPERTIES
+  8. TODO: archive partition
+  9. TODO: unarchive partition
+  10. HiveOperation.ALTERPARTITION_FILEFORMAT
+  11. TODO: partition touch (is it same as  HiveOperation.ALTERTABLE_TOUCH?)
+  12. HiveOperation.ALTERTABLE_RENAMECOL
+  13. HiveOperation.ALTERTABLE_ADDCOLS
+  14. HiveOperation.ALTERTABLE_REPLACECOLS
+  15. TODO: HiveOperation.ALTERVIEW_PROPERTIES
+  16. TODO: HiveOperation.ALTERTABLE_SERIALIZER
+  17. TODO: HiveOperation.ALTERPARTITION_SERIALIZER
    */
   @Test
-  public void testAlterAllOnTableAndURI() throws Exception {
+  public void testAlterTable() throws Exception {
     adminCreate(DB1, tableName, true);
-    String tabLocation = dfs.getBaseDir() + "/" + Math.random();
-    policyFile
-        .addPermissionsToRole("all_db1_tb1", privileges.get("all_db1_tb1"))
-        .addPermissionsToRole("all_uri", "server=server1->uri=" + tabLocation)
-        .addRolesToGroup(USERGROUP1, "all_db1_tb1", "all_uri")
-        .addRolesToGroup(USERGROUP2, "all_db1_tb1");
 
+    Connection connection;
+    Statement statement;
+    //Setup
+    connection = context.createConnection(ADMIN1);
+    statement = context.createStatement(connection);
+    statement.execute("Use " + DB1);
+    statement.execute("ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '10') ");
+    statement.execute("ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '1') ");
+    statement.execute("DROP TABLE IF EXISTS ptab");
+    statement.execute("CREATE TABLE ptab (a int) STORED AS PARQUET");
+
+    policyFile
+      .addPermissionsToRole("alter_db1_tb1", privileges.get("alter_db1_tb1"))
+      .addPermissionsToRole("alter_db1_ptab", privileges.get("alter_db1_ptab"))
+      .addRolesToGroup(USERGROUP1, "alter_db1_tb1", "alter_db1_ptab")
+      .addPermissionsToRole("insert_db1_tb1", privileges.get("insert_db1_tb1"))
+      .addRolesToGroup(USERGROUP2, "insert_db1_tb1");
     writePolicyFile(policyFile);
 
-    Connection connection = context.createConnection(USER1_1);
-    Statement statement = context.createStatement(connection);
-    statement.execute("Use " + DB1);
-    statement.execute("ALTER TABLE tb1 SET LOCATION '" + tabLocation + "'");
-    statement.execute("ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '" + tabLocation + "/part'");
-    statement.execute("MSCK REPAIR TABLE tb1");
-    statement.close();
-    connection.close();
-
-    //Negative case: User2_1 has privileges on table but on on uri
+    //Negative test cases
     connection = context.createConnection(USER2_1);
     statement = context.createStatement(connection);
     statement.execute("Use " + DB1);
-    context.assertSentrySemanticException(statement, "ALTER TABLE tb1 SET LOCATION '" + tabLocation + "'",
-        semanticException);
-    context.assertSentrySemanticException(statement,
-        "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '" + tabLocation + "/part'",
-        semanticException);
+    assertSemanticException(statement, "ALTER TABLE tb1 SET TBLPROPERTIES ('comment' = 'new_comment')");
+    assertSemanticException(statement, "ALTER TABLE tb1 SET SERDEPROPERTIES ('field.delim' = ',')");
+    assertSemanticException(statement, "ALTER TABLE tb1 CLUSTERED BY (a) SORTED BY (a) INTO 1 BUCKETS");
+    assertSemanticException(statement, "ALTER TABLE tb1 TOUCH");
+    assertSemanticException(statement, "ALTER TABLE tb1 SET FILEFORMAT RCFILE");
+
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) RENAME TO PARTITION (b = 2)");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) SET SERDEPROPERTIES ('field.delim' = ',')");
+    //assertSemanticException(statement, "ALTER TABLE tb1 ARCHIVE PARTITION (b = 2)");
+    //assertSemanticException(statement, "ALTER TABLE tb1 UNARCHIVE PARTITION (b = 2)");
+    assertSemanticException(statement, "ALTER TABLE tb1 PARTITION (b = 10) SET FILEFORMAT RCFILE");
+    assertSemanticException(statement, "ALTER TABLE tb1 TOUCH PARTITION (b = 10)");
+
+    assertSemanticException(statement, "ALTER TABLE tb1 CHANGE COLUMN a c int");
+    assertSemanticException(statement, "ALTER TABLE tb1 ADD COLUMNS (a int)");
+    assertSemanticException(statement, "ALTER TABLE ptab REPLACE COLUMNS (a int, c int)");
+    assertSemanticException(statement, "MSCK REPAIR TABLE tb1");
+
+    //assertSemanticException(statement, "ALTER VIEW view1 SET TBLPROPERTIES ('comment' = 'new_comment')");
+
 
     statement.close();
     connection.close();
 
-    //Negative case: User3_1 has only insert privileges on table
-    policyFile
-        .addPermissionsToRole("insert_db1_tb1", privileges.get("insert_db1_tb1"))
-        .addRolesToGroup(USERGROUP3, "insert_db1_tb1", "all_uri");
-    writePolicyFile(policyFile);
-
-    connection = context.createConnection(USER3_1);
+    //Positive cases
+    connection = context.createConnection(USER1_1);
     statement = context.createStatement(connection);
     statement.execute("Use " + DB1);
-    context.assertSentrySemanticException(statement, "ALTER TABLE tb1 SET LOCATION '" + tabLocation + "'",
-        semanticException);
-    context.assertSentrySemanticException(statement, "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '3') LOCATION '"
-        + tabLocation + "/part'", semanticException);
-    context.assertSentrySemanticException(statement, "MSCK REPAIR TABLE tb1", semanticException);
+    statement.execute("ALTER TABLE tb1 SET TBLPROPERTIES ('comment' = 'new_comment')");
+    statement.execute("ALTER TABLE tb1 SET SERDEPROPERTIES ('field.delim' = ',')");
+    statement.execute("ALTER TABLE tb1 CLUSTERED BY (a) SORTED BY (a) INTO 1 BUCKETS");
+    statement.execute("ALTER TABLE tb1 TOUCH");
+    statement.execute("ALTER TABLE tb1 SET FILEFORMAT RCFILE");
+
+    statement.execute("ALTER TABLE tb1 PARTITION (b = 1) RENAME TO PARTITION (b = 2)");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) SET SERDEPROPERTIES ('field.delim' = ',')");
+    //statement.execute("ALTER TABLE tb1 ARCHIVE PARTITION (b = 2)");
+    //statement.execute("ALTER TABLE tb1 UNARCHIVE PARTITION (b = 2)");
+    statement.execute("ALTER TABLE tb1 PARTITION (b = 2) SET FILEFORMAT RCFILE");
+    statement.execute("ALTER TABLE tb1 TOUCH PARTITION (b = 2)");
+
+    statement.execute("ALTER TABLE tb1 CHANGE COLUMN a c int");
+    statement.execute("ALTER TABLE tb1 ADD COLUMNS (a int)");
+    statement.execute("ALTER TABLE ptab REPLACE COLUMNS (a int, c int)");
+    statement.execute("MSCK REPAIR TABLE tb1");
+
+    //statement.execute("ALTER VIEW view1 SET TBLPROPERTIES ('comment' = 'new_comment')");
+
     statement.close();
     connection.close();
-
-
   }
 
   @Test
@@ -543,11 +726,11 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement.execute("CREATE VIEW view1 AS SELECT * FROM tb1");
 
     policyFile
-        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
-        .addRolesToGroup(USERGROUP1, "all_db1")
-        .addPermissionsToRole("select_db1_view1", privileges.get("select_db1_view1"))
-        .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
-        .addRolesToGroup(USERGROUP2, "select_db1_tb1", "select_db1_view1");
+      .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+      .addRolesToGroup(USERGROUP1, "all_db1")
+      .addPermissionsToRole("select_db1_view1", privileges.get("select_db1_view1"))
+      .addPermissionsToRole("select_db1_tb1", privileges.get("select_db1_tb1"))
+      .addRolesToGroup(USERGROUP2, "select_db1_tb1", "select_db1_view1");
     writePolicyFile(policyFile);
 
     //positive test cases
@@ -563,7 +746,7 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement = context.createStatement(connection);
     statement.execute("Use " + DB1);
     context.assertSentrySemanticException(statement, "ALTER VIEW view2 RENAME TO view1",
-        semanticException);
+      semanticException);
     statement.close();
     connection.close();
   }
@@ -582,10 +765,10 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement.execute("CREATE VIEW view1 AS SELECT * FROM tb1");
 
     policyFile
-        .addPermissionsToRole("all_db1", privileges.get("all_db1"))
-        .addPermissionsToRole("select_db1_tb2", privileges.get("select_db1_tb2"))
-        .addRolesToGroup(USERGROUP1, "all_db1", "select_db1_tb2")
-        .addRolesToGroup(USERGROUP2, "select_db1_tb2");
+      .addPermissionsToRole("all_db1", privileges.get("all_db1"))
+      .addPermissionsToRole("select_db1_tb2", privileges.get("select_db1_tb2"))
+      .addRolesToGroup(USERGROUP1, "all_db1", "select_db1_tb2")
+      .addRolesToGroup(USERGROUP2, "select_db1_tb2");
     writePolicyFile(policyFile);
 
     //positive test cases
@@ -601,7 +784,7 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     statement = context.createStatement(connection);
     statement.execute("Use " + DB1);
     context.assertSentrySemanticException(statement, "ALTER VIEW view1 AS SELECT * FROM tb2",
-        semanticException);
+      semanticException);
     statement.close();
     connection.close();
   }

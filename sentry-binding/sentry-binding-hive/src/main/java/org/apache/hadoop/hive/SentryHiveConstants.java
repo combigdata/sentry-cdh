@@ -26,7 +26,8 @@ public class SentryHiveConstants {
 
   //CDH-28502: Disable fine Sentry fine grain DDL authorization for Hive in CDH 5.5
   public static final EnumSet<PrivilegeType> ALLOWED_PRIVS = EnumSet.of(
-      PrivilegeType.ALL, PrivilegeType.SELECT, PrivilegeType.INSERT);
+      PrivilegeType.ALL, PrivilegeType.SELECT, PrivilegeType.INSERT, PrivilegeType.CREATE,
+      PrivilegeType.ALTER_METADATA, PrivilegeType.DROP);
 
   public static final String PRIVILEGE_NOT_SUPPORTED = "Sentry does not support privilege: ";
   public static final String PARTITION_PRIVS_NOT_SUPPORTED = "Sentry does not support partition level authorization";

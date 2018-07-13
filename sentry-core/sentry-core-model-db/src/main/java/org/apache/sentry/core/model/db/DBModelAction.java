@@ -28,11 +28,10 @@ public enum DBModelAction implements Action {
   // regression. Since most real use case of permissions may be read only(SELECT).
   SELECT(AccessConstants.SELECT),
   INSERT(AccessConstants.INSERT),
-  //Commented out as we are disabling finer grained privileges
-  /*ALTER(AccessConstants.ALTER),
+  ALTER(AccessConstants.ALTER),
   CREATE(AccessConstants.CREATE),
   DROP(AccessConstants.DROP),
-  INDEX(AccessConstants.INDEX),
+  /*INDEX(AccessConstants.INDEX),
   LOCK(AccessConstants.LOCK),*/
   ALL(AccessConstants.ALL);
 
