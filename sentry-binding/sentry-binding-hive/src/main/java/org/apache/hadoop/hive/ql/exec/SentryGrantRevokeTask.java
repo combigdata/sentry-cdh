@@ -298,7 +298,7 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
 
     try {
       if (principalDesc.getType() != PrincipalType.ROLE && principalDesc.getType() != PrincipalType.USER) {
-        String msg = SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principalDesc.getType();
+        String msg = SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + principalDesc.getType();
         throw new HiveException(msg);
       }
 

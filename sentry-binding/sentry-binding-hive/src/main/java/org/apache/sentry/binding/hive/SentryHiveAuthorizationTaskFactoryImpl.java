@@ -104,7 +104,7 @@ public class SentryHiveAuthorizationTaskFactoryImpl implements HiveAuthorization
       break;
     }
     if (principalType != PrincipalType.GROUP) {
-      String msg = SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + principalType;
+      String msg = SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + principalType;
       throw new SemanticException(msg);
     }
     String principalName = BaseSemanticAnalyzer.unescapeIdentifier(child.getChild(0).getText());
@@ -200,7 +200,7 @@ public class SentryHiveAuthorizationTaskFactoryImpl implements HiveAuthorization
       break;
     }
     if (type != PrincipalType.ROLE) {
-      String msg = SentryHiveConstants.GRANT_REVOKE_NOT_SUPPORTED_FOR_PRINCIPAL + type;
+      String msg = SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + type;
       throw new SemanticException(msg);
     }
     String principalName = BaseSemanticAnalyzer.unescapeIdentifier(principal.getChild(0).getText());
