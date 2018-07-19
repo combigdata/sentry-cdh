@@ -70,6 +70,7 @@ import org.apache.sentry.provider.db.service.thrift.TSentryGroup;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntity;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntityType;
+import org.apache.sentry.provider.db.service.thrift.TSentryPrivilegeMap;
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.service.thrift.ServiceConstants;
@@ -3671,4 +3672,32 @@ public class TestSentryStore extends org.junit.Assert {
     user = sentryStore.getMSentryUserByName(userName, false);
     assertNull(user);
   }
+
+  @Test
+  public void testListSentryPrivilegesByAuthorizableForUser() throws Exception {
+    String userName1 = "list-privs-user1";
+    String grantor = "g1";
+    sentryStore.createSentryUser(userName1);
+
+    TSentryPrivilege privilege1 = new TSentryPrivilege();
+    privilege1.setPrivilegeScope("TABLE");
+    privilege1.setServerName("server1");
+    privilege1.setDbName("db1");
+    privilege1.setTableName("tbl1");
+    privilege1.setAction("SELECT");
+    privilege1.setCreateTime(System.currentTimeMillis());
+    sentryStore.alterSentryGrantPrivilege(grantor, SentryEntityType.USER, userName1, privilege1, null);
+
+    TSentryAuthorizable tSentryAuthorizable = new TSentryAuthorizable();
+    tSentryAuthorizable.setServer("server1");
+    tSentryAuthorizable.setDb("db1");
+    tSentryAuthorizable.setTable("tbl1");
+
+    TSentryPrivilegeMap map = sentryStore.listSentryPrivilegesByAuthorizableForUser(
+        Sets.newHashSet(userName1),
+        tSentryAuthorizable,false);
+    assertEquals(1, map.getPrivilegeMapSize());
+    assertEquals(Sets.newHashSet(userName1), map.getPrivilegeMap().keySet());
+  }
+
 }

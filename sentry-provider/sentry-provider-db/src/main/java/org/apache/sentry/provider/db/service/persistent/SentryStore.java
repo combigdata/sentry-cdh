@@ -1905,9 +1905,17 @@ public class SentryStore {
             // if no server, then return empty resultset
             return new ArrayList<MSentryPrivilege>();
           }
-          FetchGroup grp = pm.getFetchGroup(MSentryPrivilege.class, "fetchRole");
-          grp.addMember("roles");
-          pm.getFetchPlan().addGroup("fetchRole");
+
+          if (entityType == SentryEntityType.ROLE) {
+            FetchGroup grp = pm.getFetchGroup(MSentryPrivilege.class, "fetchRole");
+            grp.addMember("roles");
+            pm.getFetchPlan().addGroup("fetchRole");
+          } else if(entityType == SentryEntityType.USER) {
+            FetchGroup grp = pm.getFetchGroup(MSentryPrivilege.class, "fetchUser");
+            grp.addMember("users");
+            pm.getFetchPlan().addGroup("fetchUser");
+          }
+
           // LOGGER.debug("XXX: " + paramBuilder.toString());
           query.setFilter(paramBuilder.toString());
           return (List<MSentryPrivilege>) query.executeWithMap(paramBuilder.getArguments());
