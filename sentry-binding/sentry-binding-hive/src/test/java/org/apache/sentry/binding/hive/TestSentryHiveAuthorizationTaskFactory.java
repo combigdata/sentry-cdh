@@ -20,6 +20,7 @@ package org.apache.sentry.binding.hive;
 import junit.framework.Assert;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.SentryHiveConstants;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
@@ -436,6 +437,51 @@ public class TestSentryHiveAuthorizationTaskFactory {
     Assert.assertTrue("Expected server", privilegeDesc.getServer());
     Assert.assertEquals(SERVER, privilegeDesc.getObject());
   }
+
+
+  /**
+   * SHOW GRANT ... ON SERVER ...
+   */
+  @Test
+  public void testShowGrantOnServer() throws Exception {
+    DDLWork work = analyze(parse("SHOW GRANT ON SERVER " + SERVER));
+    ShowGrantDesc grantDesc = work.getShowGrantDesc();
+    Assert.assertNotNull("Show grant should not be null", grantDesc);
+    Assert.assertEquals(null, grantDesc.getPrincipalDesc().getType());
+    Assert.assertEquals(StringUtils.EMPTY, grantDesc.getPrincipalDesc().getName());
+    Assert.assertEquals(SERVER, grantDesc.getHiveObj().getObject());
+    Assert.assertTrue("Expected server", ((SentryHivePrivilegeObjectDesc)grantDesc.getHiveObj()).getServer());
+  }
+
+  /**
+   * SHOW GRANT ... ON DATABASE ...
+   */
+  @Test
+  public void testShowGrantOnDatabase() throws Exception {
+    DDLWork work = analyze(parse("SHOW GRANT ON DATABASE " + DB));
+    ShowGrantDesc grantDesc = work.getShowGrantDesc();
+    Assert.assertNotNull("Show grant should not be null", grantDesc);
+    Assert.assertEquals(null, grantDesc.getPrincipalDesc().getType());
+    Assert.assertEquals(StringUtils.EMPTY, grantDesc.getPrincipalDesc().getName());
+    Assert.assertEquals(DB, grantDesc.getHiveObj().getObject());
+    //TODO - Part of SENTRY-2238 commit
+//    Assert.assertTrue("Expected database", ((SentryHivePrivilegeObjectDesc)grantDesc.getHiveObj()).getDatabase());
+  }
+
+  /**
+   * SHOW GRANT ... ON TABLE ...
+   */
+  @Test
+  public void testShowGrantOnTable() throws Exception {
+    DDLWork work = analyze(parse("SHOW GRANT ON TABLE " + TABLE));
+    ShowGrantDesc grantDesc = work.getShowGrantDesc();
+    Assert.assertNotNull("Show grant should not be null", grantDesc);
+    Assert.assertEquals(null, grantDesc.getPrincipalDesc().getType());
+    Assert.assertEquals(StringUtils.EMPTY, grantDesc.getPrincipalDesc().getName());
+    Assert.assertEquals(TABLE, grantDesc.getHiveObj().getObject());
+    Assert.assertTrue("Expected table", ((SentryHivePrivilegeObjectDesc)grantDesc.getHiveObj()).getTable());
+  }
+
 
   /*
   Db prefix in grant
