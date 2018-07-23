@@ -74,6 +74,7 @@ import org.apache.sentry.core.model.db.Database;
 import org.apache.sentry.core.model.db.Server;
 import org.apache.sentry.core.model.db.Table;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
+import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.service.thrift.SentryObjectPrivileges;
 import org.apache.sentry.provider.db.service.thrift.SentryPolicyServiceClient;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
@@ -321,7 +322,17 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
             privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, null);
             break;
           case USER:
-            privileges = sentryClient.listPrivilegesByUserName(subject, principalName, null);
+            try {
+              privileges = sentryClient.listPrivilegesByUserName(subject, principalName, null);
+            } catch (SentryNoSuchObjectException e) {
+              // SentryNoSuchObjectException is thrown by Sentry when the user name requested
+              // is not found in the Sentry database. Sentry only stores user information when
+              // privileges are granted, and deletes the user when privileges are deleted to avoid
+              // stale data.
+              // To avoid throwing a nasty exception in Hive, then we return an empty list instead
+              // to let Hive execute the SHOW GRANT USER without errors.
+              LOG.info("User {} requested does not exist in Sentry", principalName);
+            }
             break;
         }
       } else {
@@ -336,7 +347,18 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
                 pbuilder.addAll(sentryClient.listPrivilegesByRoleName(subject, principalName, p));
                 break;
               case USER:
-                pbuilder.addAll(sentryClient.listPrivilegesByUserName(subject, principalName, p));
+                try {
+                  pbuilder.addAll(sentryClient.listPrivilegesByUserName(subject, principalName, p));
+                } catch (SentryNoSuchObjectException e) {
+                  // SentryNoSuchObjectException is thrown by Sentry when the user name requested
+                  // is not found in the Sentry database. Sentry only stores user information when
+                  // privileges are granted, and deletes the user when privileges are deleted to avoid
+                  // stale data.
+                  // To avoid throwing a nasty exception in Hive, then we return an empty list instead
+                  // to let Hive execute the SHOW GRANT USER without errors.
+                  LOG.info("User {} requested does not exist in Sentry", principalName);
+                }
+
                 break;
             }
           }
@@ -347,7 +369,17 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
               privileges = sentryClient.listPrivilegesByRoleName(subject, principalName, authorizableHeirarchy);
               break;
             case USER:
-              privileges = sentryClient.listPrivilegesByUserName(subject, principalName, authorizableHeirarchy);
+              try {
+                privileges = sentryClient.listPrivilegesByUserName(subject, principalName, authorizableHeirarchy);
+              } catch (SentryNoSuchObjectException e) {
+                // SentryNoSuchObjectException is thrown by Sentry when the user name requested
+                // is not found in the Sentry database. Sentry only stores user information when
+                // privileges are granted, and deletes the user when privileges are deleted to avoid
+                // stale data.
+                // To avoid throwing a nasty exception in Hive, then we return an empty list instead
+                // to let Hive execute the SHOW GRANT USER without errors.
+                LOG.info("User {} requested does not exist in Sentry", principalName);
+              }
               break;
           }
         }
