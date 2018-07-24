@@ -19,8 +19,10 @@ package org.apache.sentry.binding.metastore;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.security.auth.login.LoginException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -37,6 +39,7 @@ import org.apache.hadoop.hive.metastore.events.DropPartitionEvent;
 import org.apache.hadoop.hive.metastore.events.DropTableEvent;
 import org.apache.hadoop.hive.metastore.events.ListenerEvent;
 import org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType;
+import org.apache.hadoop.hive.shims.Utils;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf;
 import org.apache.sentry.provider.db.service.thrift.SentryPolicyServiceClient;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
@@ -66,6 +69,15 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
    * monotonically.
    */
   private final AtomicLong latestProcessedId = new AtomicLong(0);
+
+  /*
+  * A client used for testing purposes only. I
+  *
+  * It may be set by unit-tests as a mock object and used to verify that the client methods
+  * were called correctly (see TestSentrySyncHMSNotificationsPostEventListener)
+  */
+  private SentryPolicyServiceClient serviceClient;
+
 
   public SentrySyncHMSNotificationsPostEventListener(Configuration config) {
     super(config);
@@ -204,7 +216,7 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
    *
    * @param event Sentry HMS event.
    */
-  private void notifyHmsEvent(SentryHmsEvent event ) {
+  private void notifyHmsEvent(SentryHmsEvent event) {
     /* If the HMS is running in an active transaction, then we do not want to sync with Sentry
      * because the desired eventId is not available for Sentry yet, and Sentry may block the HMS
      * forever or until a read time-out happens.
@@ -220,7 +232,13 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
     try (SentryPolicyServiceClient sentryClient = this.getSentryServiceClient()) {
       LOGGER.debug("Notifying sentry about Notification for {} (id: {})", event.getEventType(),
               event.getEventId());
-      long sentryLatestProcessedId = sentryClient.notifyHmsNotification(event.getHmsEventNotification());
+      long sentryLatestProcessedId = sentryClient.notifyHmsEvent(
+        getUserName(),
+        event.getEventId(),
+        event.getEventType().toString(),
+        event.getOwnerType(),
+        event.getOwnerName(),
+        event.getAuthorizable());
       LOGGER.debug("Finished Notifying sentry about Notification for {} (id: {})", event.getEventType(),
              event.getEventId());
       LOGGER.debug("Latest processed event ID returned by the Sentry server: {}", sentryLatestProcessedId);
@@ -254,8 +272,23 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
    * were called correctly (see TestSentrySyncHMSNotificationsPostEventListener).
    */
   @VisibleForTesting
+  void setSentryServiceClient(SentryPolicyServiceClient serviceClient) {
+    this.serviceClient = serviceClient;
+  }
+
+  /**
+   * Sets the sentry client object (for testing purposes only)
+   * <p>
+   * It may be set by unit-tests as a mock object and used to verify that the client methods
+   * were called correctly (see TestSentrySyncHMSNotificationsPostEventListener).
+   */
+  @VisibleForTesting
   SentryPolicyServiceClient getSentryServiceClient()
       throws MetaException {
+    // Return the sentry client in case was set by the unit tests.
+    if (serviceClient != null) {
+      return serviceClient;
+    }
     try {
       return SentryServiceClientFactory.create(authzConf);
     } catch (Exception e) {
@@ -307,5 +340,15 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
 
     return authzConf.get(AuthzConfVars.AUTHZ_SERVER_NAME_DEPRECATED.getVar(),
         AuthzConfVars.AUTHZ_SERVER_NAME_DEPRECATED.getDefault());
+  }
+
+  private String getUserName() throws MetaException {
+    try {
+      return Utils.getUGI().getShortUserName();
+    } catch (LoginException e) {
+      throw new MetaException("Failed to get username " + e.getMessage());
+    } catch (IOException e) {
+      throw new MetaException("Failed to get username " + e.getMessage());
+    }
   }
 }
