@@ -811,21 +811,6 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS, "50");
           properties.put(ServerConfig.RPC_MIN_THREADS, "3");
 
-          if(hiveSyncOnCreate) {
-            properties.put("sentry.hive.sync.create", "true");
-          } else {
-            properties.put("sentry.hive.sync.create", "false");
-          }
-          if(hiveSyncOnDrop) {
-            properties.put("sentry.hive.sync.drop", "true");
-          } else {
-            properties.put("sentry.hive.sync.drop", "false");
-          }
-          if(hdfsSyncEnabled) {
-            properties.put("sentry.service.processor.factories",
-                "org.apache.sentry.api.service.thrift.SentryPolicyStoreProcessorFactory,org.apache.sentry.hdfs.SentryHDFSServiceProcessorFactory");
-            properties.put("sentry.policy.store.plugins", "org.apache.sentry.hdfs.SentryPlugin");
-          }
           if(ownerPrivilegeEnabled) {
             properties.put("sentry.enable.owner.privileges", "true");
 

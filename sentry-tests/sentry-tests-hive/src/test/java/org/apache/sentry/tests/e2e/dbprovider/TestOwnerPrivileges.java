@@ -34,6 +34,7 @@ import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -81,6 +82,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testCreateDatabase() throws Exception {
     dbNames = new String[]{DB1};
@@ -200,6 +202,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testDropDatabase() throws Exception {
     dbNames = new String[]{DB1};
@@ -236,6 +239,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testCreateTable() throws Exception {
     dbNames = new String[]{DB1};
@@ -381,6 +385,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testDropTable() throws Exception {
     dbNames = new String[]{DB1};
