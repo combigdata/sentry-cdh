@@ -1441,7 +1441,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   private void grantOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
     if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
       LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not adding owner privilege for" +
-              " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
+                      " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
               request.getAuthorizable().getTable()));
       return;
     }
@@ -1454,7 +1454,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
 
     SentryPrincipalType principalType = getSentryPrincipalType(request.getOwnerType());
     if (principalType == null) {
-      String error = "Invalid owner type : " + request.getEventType();
+      String error = "Invalid owner type : " + request.getOwnerType() +
+        " in event of Type: " + request.getEventType();
       LOGGER.error(error);
       throw new SentryInvalidInputException(error);
     }
@@ -1563,6 +1564,25 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
    * @throws Exception
    */
   private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryPrincipalType ownerType,
+      Set<TSentryPrivilege> privSet,
+      Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
+    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+      switch (ownerType) {
+        case ROLE:
+          plugin.onAlterSentryRoleGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        case USER:
+          plugin.onAlterSentryUserGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        default:
+          String error = "Invalid owner type : " + ownerType;
+          LOGGER.error(error);
+          throw new SentryInvalidInputException(error);
+      }
+    }
+  }
+
+  private void getOwnerPrivilegeUpdateForGrant(String ownerName, SentryPrincipalType ownerType,
       Set<TSentryPrivilege> privSet,
       Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
     for (SentryPolicyStorePlugin plugin : sentryPlugins) {

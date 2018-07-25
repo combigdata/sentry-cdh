@@ -181,7 +181,7 @@ class SentryHmsEvent {
 
   private void setOwnerInfo(Table table) {
     ownerName = (table != null) ? table.getOwner() : null;
-    ownerType = (table != null) ? 
+    ownerType = (table != null) ?
             getTSentryHmsObjectOwnerType(table.getOwnerType()) : null;
   }
 
