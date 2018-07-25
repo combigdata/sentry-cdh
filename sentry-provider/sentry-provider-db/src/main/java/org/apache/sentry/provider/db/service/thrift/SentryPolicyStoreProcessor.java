@@ -1236,7 +1236,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   private void grantOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
     if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
       LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not adding owner privilege for" +
-              " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
+                      " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
               request.getAuthorizable().getTable()));
       return;
     }
@@ -1256,7 +1256,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
 
     SentryEntityType entityType = getSentryEntityType(request.getOwnerType());
     if (entityType == null) {
-      String error = "Invalid owner type : " + request.getEventType();
+      String error = "Invalid owner type : " + request.getOwnerType() +
+          " in event of Type: " + request.getEventType();
       LOGGER.error(error);
       throw new SentryInvalidInputException(error);
     }
@@ -1264,20 +1265,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     Preconditions.checkState(sentryPlugins.size() <= 1);
     Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
     Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
-    switch (request.getOwnerType()) {
-      case ROLE:
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-          plugin.onAlterSentryRoleGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
-        }
-        break;
-      case USER:
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-          plugin.onAlterSentryUserGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
-        }
-        break;
-      default:
-        LOGGER.error("Invalid owner Type");
-    }
+    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
     // Grants owner privilege to the entity
     sentryStore.alterSentryGrantOwnerPrivilege(request.getOwnerName(), entityType,
             ownerPrivilege, privilegesUpdateMap.get(ownerPrivilege));
@@ -1322,19 +1310,23 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     // There should only one owner privilege for an authorizable but the current schema
     // doesn't have constraints to limit it. It is possible to have multiple owners for an authorizable (which is unlikely)
     // This logic makes sure of revoking all the owner privilege.
-    for (SentryOwnerInfo ownerInfo : ownerInfoList) {
-      if (SentryEntityType.USER.equals(ownerInfo.getOwnerType())) {
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+      for (SentryOwnerInfo ownerInfo : ownerInfoList) {
+        if (SentryEntityType.USER.equals(ownerInfo.getOwnerType())) {
           plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
-        }
-      } else if (ownerInfo.getOwnerType() == SentryEntityType.ROLE) {
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          privilegesUpdateMap.clear();
+        } else if (ownerInfo.getOwnerType() == SentryEntityType.ROLE) {
           plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+          privilegesUpdateMap.clear();
         }
       }
     }
+
+    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
+    updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+
     if(request.getOwnerType() == TSentryObjectOwnerType.USER &&
             isSentryAdminUser(request.getOwnerName())) {
       LOGGER.debug(String.format("%s, belongs to Sentry Admin group, Owner privilege not granted to %s",
@@ -1348,6 +1340,25 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     }
     //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
     //TODO Implement Audit Log API's and invoke them here.
+  }
+
+  private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryObjectOwnerType ownerType,
+      Set<TSentryPrivilege> privSet,
+      Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
+    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+      switch (ownerType) {
+        case ROLE:
+          plugin.onAlterSentryRoleGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        case USER:
+          plugin.onAlterSentryUserGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        default:
+          String error = "Invalid owner type : " + ownerType;
+          LOGGER.error(error);
+          throw new SentryInvalidInputException(error);
+      }
+    }
   }
 
   /**

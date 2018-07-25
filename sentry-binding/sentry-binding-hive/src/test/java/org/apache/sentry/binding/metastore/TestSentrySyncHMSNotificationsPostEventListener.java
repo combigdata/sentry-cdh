@@ -111,28 +111,33 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
 
     callAllEventsThatSynchronize(EventType.CREATE_DATABASE, SUCCESSFUL_STATUS, eventId++);
 
+    TSentryAuthorizable database = new TSentryAuthorizable(SERVER1);
+    TSentryAuthorizable table = new TSentryAuthorizable(SERVER1);
+    database.setDb(DBNAME);
+    table.setDb(DBNAME);
+    table.setTable(TABLENAME);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.CREATE_DATABASE.toString()),
-      any(TSentryObjectOwnerType.class), anyString(), eq(new TSentryAuthorizable(SERVER1)));
+      any(TSentryObjectOwnerType.class), anyString(), eq(database));
 
     callAllEventsThatSynchronize(EventType.DROP_DATABASE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.DROP_DATABASE.toString()),
-            any(TSentryObjectOwnerType.class), anyString(), eq(new TSentryAuthorizable(SERVER1)));
+            any(TSentryObjectOwnerType.class), anyString(), eq(database));
 
     callAllEventsThatSynchronize(EventType.CREATE_TABLE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.CREATE_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), anyString(), eq(new TSentryAuthorizable(SERVER1)));
+      eq(TSentryObjectOwnerType.USER), anyString(), eq(table));
 
     long latestEventId = callAllEventsThatSynchronize(EventType.DROP_TABLE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.DROP_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), anyString(), eq(new TSentryAuthorizable(SERVER1)));
+      eq(TSentryObjectOwnerType.USER), anyString(), eq(table));
 
 
     Mockito.verify(
@@ -140,25 +145,6 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     ).close();
 
     Mockito.verifyNoMoreInteractions(mockSentryClient);
-  }
-
-  @Test
-  public void testSyncNotificationsWithNewLatestProcessedIdMayAvoidSyncingCalls() throws Exception {
-    Mockito.doAnswer(new Answer<Long>() {
-      @Override
-      public Long answer(InvocationOnMock invocation) throws Throwable {
-        TSentryHmsEventNotification notification = (TSentryHmsEventNotification) invocation.getArguments()[0];
-        return notification.getId() + 1;
-      }
-    }).when(mockSentryClient).notifyHmsEvent(anyString(), anyLong(), anyString(),
-            any(TSentryObjectOwnerType.class), anyString(), any(TSentryAuthorizable.class));
-
-    long latestEventId = callAllEventsThatSynchronize(SUCCESSFUL_STATUS, EVENT_ID_SET);
-    verifyInvocations();
-
-    Mockito.verify(
-            mockSentryClient, Mockito.times((int) latestEventId)
-    ).close();
   }
 
   @Test
@@ -322,25 +308,40 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
   }
 
   private long callAllEventsThatSynchronize(EventType event, boolean status, long eventId) throws MetaException {
+    Table table;
+    Database database;
     switch (event) {
       case CREATE_DATABASE:
-        CreateDatabaseEvent createDatabaseEvent = new CreateDatabaseEvent(null, status, null);
+        database = new Database();
+        database.setName(DBNAME);
+        database.setOwnerType(PrincipalType.USER);
+        CreateDatabaseEvent createDatabaseEvent = new CreateDatabaseEvent(database, status, null);
         setEventId(true, createDatabaseEvent, eventId);
         eventListener.onCreateDatabase(createDatabaseEvent);
         break;
       case DROP_DATABASE:
-        DropDatabaseEvent dropDatabaseEvent = new DropDatabaseEvent(null, status, null);
+        database = new Database();
+        database.setName(DBNAME);
+        database.setOwnerType(PrincipalType.USER);
+        DropDatabaseEvent dropDatabaseEvent = new DropDatabaseEvent(database, status, null);
         setEventId(true, dropDatabaseEvent, eventId);
         eventListener.onDropDatabase(dropDatabaseEvent);
         break;
       case CREATE_TABLE:
-
-        CreateTableEvent createTableEvent = new CreateTableEvent(null, status, null);
+        table = new Table();
+        table.setDbName(DBNAME);
+        table.setTableName(TABLENAME);
+        table.setOwnerType(PrincipalType.USER);
+        CreateTableEvent createTableEvent = new CreateTableEvent(table, status, null);
         setEventId(true, createTableEvent, eventId);
         eventListener.onCreateTable(createTableEvent);
         break;
       case DROP_TABLE:
-        DropTableEvent dropTableEvent = new DropTableEvent(null, status, false, null);
+        table = new Table();
+        table.setDbName(DBNAME);
+        table.setTableName(TABLENAME);
+        table.setOwnerType(PrincipalType.USER);
+        DropTableEvent dropTableEvent = new DropTableEvent(table, status, false, null);
         setEventId(true, dropTableEvent, eventId);
         eventListener.onDropTable(dropTableEvent);
         break;
@@ -348,21 +349,6 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
         return eventId;
     }
     return eventId;
-  }
-
-  private void verifyInvocations() throws Exception {
-    long i = 1;
-
-    Mockito.verify(
-            mockSentryClient, Mockito.times(1)
-    ).notifyHmsEvent(anyString(), eq(i), eq(EventType.CREATE_DATABASE.toString()),
-            any(TSentryObjectOwnerType.class), anyString(), any(TSentryAuthorizable.class));
-    i += 2;
-
-    Mockito.verify(
-            mockSentryClient, Mockito.times(1)
-    ).notifyHmsEvent(anyString(), eq(i), eq(EventType.CREATE_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), anyString(), any(TSentryAuthorizable.class));
   }
 
   private void setEventId(boolean eventIdSet, ListenerEvent eventListener, long eventId) {

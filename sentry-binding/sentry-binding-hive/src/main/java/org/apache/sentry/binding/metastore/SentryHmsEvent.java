@@ -159,10 +159,8 @@ class SentryHmsEvent {
 
   private void setOwnerInfo(Table table) {
     ownerName = (table != null) ? table.getOwner() : null;
-    // Hive 2.3.2 currently support owner type. Assuming user as the type for now.
-    // TODO once sentry dependency is changed to a hive version that suppots user type for table this
-    // hard coding should be rempved.
-    ownerType = TSentryObjectOwnerType.USER;
+    ownerType = (table != null) ?
+            getTSentryHmsObjectOwnerType(table.getOwnerType()) : null;
   }
 
   private void setOwnerInfo(Database database) {
