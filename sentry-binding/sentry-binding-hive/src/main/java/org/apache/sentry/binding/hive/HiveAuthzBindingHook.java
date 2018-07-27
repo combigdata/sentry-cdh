@@ -68,7 +68,7 @@ import org.apache.sentry.core.model.db.DBModelAuthorizable;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 import org.apache.sentry.core.model.db.Database;
 import org.apache.sentry.core.model.db.Table;
-import org.apache.sentry.provider.cache.PrivilegeCache;
+import org.apache.sentry.provider.cache.SentryPrivilegeCache;
 import org.apache.sentry.provider.cache.SimplePrivilegeCache;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import java.util.Arrays;
@@ -946,7 +946,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       inputHierarchy.add(externalAuthorizableHierarchy);
 
       try {
-        // do the authorization by new HiveAuthzBinding with PrivilegeCache
+        // do the authorization by new HiveAuthzBinding with SentryPrivilegeCache
         hiveBindingWithPrivilegeCache.authorize(operation, tableMetaDataPrivilege, subject,
             inputHierarchy, outputHierarchy);
         filteredResult.add(table.getName());
@@ -984,7 +984,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       inputHierarchy.add(externalAuthorizableHierarchy);
 
       try {
-        // do the authorization by new HiveAuthzBinding with PrivilegeCache
+        // do the authorization by new HiveAuthzBinding with SentryPrivilegeCache
         hiveBindingWithPrivilegeCache.authorize(operation, columnMetaDataPrivilege, subject,
             inputHierarchy, outputHierarchy);
         filteredResult.add(col);
@@ -1038,7 +1038,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       inputHierarchy.add(externalAuthorizableHierarchy);
 
       try {
-        // do the authorization by new HiveAuthzBinding with PrivilegeCache
+        // do the authorization by new HiveAuthzBinding with SentryPrivilegeCache
         hiveBindingWithPrivilegeCache.authorize(operation, anyPrivilege, subject,
             inputHierarchy, outputHierarchy);
         filteredResult.add(database.getName());
@@ -1129,7 +1129,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     return entity.isDummy();
   }
 
-  // create hiveBinding with PrivilegeCache
+  // create hiveBinding with SentryPrivilegeCache
   private static HiveAuthzBinding getHiveBindingWithPrivilegeCache(HiveAuthzBinding hiveAuthzBinding,
       String userName) throws SemanticException {
     // get the original HiveAuthzBinding, and get the user's privileges by AuthorizationProvider
@@ -1138,10 +1138,10 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
             authProvider.getGroupMapping().getGroups(userName), hiveAuthzBinding.getActiveRoleSet(),
             hiveAuthzBinding.getAuthServer());
 
-    // create PrivilegeCache using user's privileges
-    PrivilegeCache privilegeCache = new SimplePrivilegeCache(userPrivileges);
+    // create SentryPrivilegeCache using user's privileges
+    SentryPrivilegeCache privilegeCache = new SimplePrivilegeCache(userPrivileges);
     try {
-      // create new instance of HiveAuthzBinding whose backend provider should be SimpleCacheProviderBackend
+      // create new instance of HiveAuthzBinding whose backend provider should be SimpleHiveCacheProviderBackend
       return new HiveAuthzBinding(HiveAuthzBinding.HiveHook.HiveServer2, hiveAuthzBinding.getHiveConf(),
               hiveAuthzBinding.getAuthzConf(), privilegeCache);
     } catch (Exception e) {

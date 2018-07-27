@@ -33,13 +33,13 @@ import com.google.common.collect.Sets;
 
 public class TestCacheProvider {
 
-  private SimpleCacheProviderBackend backend;
+  private SimpleHiveCacheProviderBackend backend;
   private ProviderBackendContext context;
   private PrivilegeCacheTestImpl testCache;
 
   @Before
   public void setup() throws IOException {
-    backend = new SimpleCacheProviderBackend(new Configuration(), "");
+    backend = new SimpleHiveCacheProviderBackend(new Configuration(), "");
     context = new ProviderBackendContext();
     testCache = new PrivilegeCacheTestImpl();
     context.setBindingHandle(testCache);

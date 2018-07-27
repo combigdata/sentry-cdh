@@ -42,8 +42,8 @@ import org.apache.sentry.core.model.db.DBModelAuthorizable;
 import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 import org.apache.sentry.core.model.db.Server;
 import org.apache.sentry.policy.common.PolicyEngine;
-import org.apache.sentry.provider.cache.PrivilegeCache;
-import org.apache.sentry.provider.cache.SimpleCacheProviderBackend;
+import org.apache.sentry.provider.cache.SentryPrivilegeCache;
+import org.apache.sentry.provider.cache.SimpleHiveCacheProviderBackend;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.sentry.provider.common.ProviderBackendContext;
@@ -92,7 +92,7 @@ public class HiveAuthzBinding {
   }
 
   public HiveAuthzBinding (HiveHook hiveHook, HiveConf hiveConf, HiveAuthzConf authzConf,
-      PrivilegeCache privilegeCache) throws Exception {
+      SentryPrivilegeCache privilegeCache) throws Exception {
     validateHiveConfig(hiveHook, hiveConf, authzConf);
     this.hiveConf = hiveConf;
     this.authzConf = authzConf;
@@ -233,9 +233,9 @@ public class HiveAuthzBinding {
     return (AuthorizationProvider) constrctor.newInstance(new Object[] {resourceName, policyEngine});
   }
 
-  // Instantiate the authz provider using PrivilegeCache, this method is used for metadata filter function.
+  // Instantiate the authz provider using SentryPrivilegeCache, this method is used for metadata filter function.
   public static AuthorizationProvider getAuthProviderWithPrivilegeCache(HiveAuthzConf authzConf,
-      String serverName, PrivilegeCache privilegeCache) throws Exception {
+      String serverName, SentryPrivilegeCache privilegeCache) throws Exception {
     // get the provider class and resources from the authz config
     String authProviderName = authzConf.get(AuthzConfVars.AUTHZ_PROVIDER.getVar());
     String resourceName =
@@ -244,9 +244,9 @@ public class HiveAuthzBinding {
 
     LOG.debug("Using authorization provider " + authProviderName +
             " with resource " + resourceName + ", policy engine "
-            + policyEngineName + ", provider backend SimpleCacheProviderBackend");
+            + policyEngineName + ", provider backend SimpleHiveCacheProviderBackend");
 
-    ProviderBackend providerBackend = new SimpleCacheProviderBackend(authzConf, resourceName);
+    ProviderBackend providerBackend = new SimpleHiveCacheProviderBackend(authzConf, resourceName);
     ProviderBackendContext context = new ProviderBackendContext();
     context.setBindingHandle(privilegeCache);
     providerBackend.initialize(context);

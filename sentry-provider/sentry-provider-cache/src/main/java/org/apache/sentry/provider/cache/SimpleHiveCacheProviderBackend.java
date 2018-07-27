@@ -17,17 +17,13 @@
 
 package org.apache.sentry.provider.cache;
 
-import java.util.Set;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.sentry.provider.common.ProviderBackendContext;
 
-import org.apache.sentry.core.common.ActiveRoleSet;
+public class SimpleHiveCacheProviderBackend extends SimpleCacheProviderBackend {
 
-public interface PrivilegeCache {
-  /**
-   * Get the privileges for the give set of groups with the give active roles
-   * from the cache
-   */
-  public Set<String> listPrivileges(Set<String> groups,
-                                    ActiveRoleSet roleSet);
+  public SimpleHiveCacheProviderBackend(Configuration conf, String resourcePath) {
+    super(conf, resourcePath);
+  }
 
-  public void close();
 }

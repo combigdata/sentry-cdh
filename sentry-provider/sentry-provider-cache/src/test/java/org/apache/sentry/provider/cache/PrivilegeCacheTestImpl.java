@@ -34,7 +34,7 @@ import com.google.common.io.Files;
 /**
  * Test cache provider that is a wrapper on top of File based provider
  */
-public class PrivilegeCacheTestImpl implements PrivilegeCache {
+public class PrivilegeCacheTestImpl implements SentryPrivilegeCache {
   private static final String resourcePath = "test-authz-provider-local-group-mapping.ini";
 
   private SimpleFileProviderBackend backend;

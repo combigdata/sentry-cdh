@@ -17,17 +17,9 @@
 
 package org.apache.sentry.provider.cache;
 
-import java.util.Set;
-
-import org.apache.sentry.core.common.ActiveRoleSet;
-
-public interface PrivilegeCache {
-  /**
-   * Get the privileges for the give set of groups with the give active roles
-   * from the cache
-   */
-  public Set<String> listPrivileges(Set<String> groups,
-                                    ActiveRoleSet roleSet);
-
-  public void close();
+/**
+ * Hive Privilege Cache Interface
+ */
+public interface SentryPrivilegeCache extends PrivilegeCache {
+// This interface should hold APIs that are specific to Hive.
 }

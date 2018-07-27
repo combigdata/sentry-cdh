@@ -25,7 +25,7 @@ import java.util.Set;
  * The class is used for saving and getting user's privileges when do the hive command like "show tables".
  * This will enhance the performance for the hive metadata filter.
  */
-public class SimplePrivilegeCache implements PrivilegeCache {
+public class SimplePrivilegeCache implements SentryPrivilegeCache {
 
   private Set<String> cachedPrivileges;
 

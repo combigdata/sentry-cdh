@@ -32,7 +32,7 @@ public class SimpleCacheProviderBackend implements ProviderBackend {
 
   private PrivilegeCache cacheHandle;
   private Configuration conf;
-  private boolean isInitialized = false;
+  protected boolean isInitialized = false;
 
   public SimpleCacheProviderBackend(Configuration conf, String resourcePath) {
     this.conf = conf;
