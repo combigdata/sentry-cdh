@@ -393,7 +393,7 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
 
     if (privileges.size() > 0) {
       for (TSentryPrivilege privilege : privileges) {
-        if(!("COLUMN".equalsIgnoreCase(privilege.getPrivilegeScope()))) {
+        if(!(PrivilegeScope.COLUMN.name().equalsIgnoreCase(privilege.getPrivilegeScope()))) {
           PermissionsUpdate update = onAlterSentryRevokePrivilegeCore(new TPrivilegeEntity(TPrivilegeEntityType.USER,
                   userName), privilege);
           if (update != null && privilegesUpdateMap != null) {

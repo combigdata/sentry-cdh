@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -710,6 +711,9 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
         dbName = dbTable.getDatabase();
         tableName = dbTable.getTable();
       } else if (privSubjectDesc.getUri()) {
+        if(StringUtils.isBlank(privSubjectDesc.getObject())) {
+          throw new HiveException("Null or Empty locations not supported for URI grants");
+        }
         uriPath = privSubjectDesc.getObject();
       } else if (privSubjectDesc.getServer()) {
         serverName = privSubjectDesc.getObject();

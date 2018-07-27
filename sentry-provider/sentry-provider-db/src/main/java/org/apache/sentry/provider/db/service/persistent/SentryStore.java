@@ -1117,6 +1117,11 @@ public class SentryStore implements SentryStoreInterface {
         throw noSuchUser (entityName);
       }
     }
+    if(tPrivilege.getPrivilegeScope().equalsIgnoreCase(PrivilegeScope.URI.name())
+        && StringUtils.isBlank(tPrivilege.getURI())) {
+      throw new SentryInvalidInputException("cannot revoke URI privileges from Null or EMPTY location");
+    }
+
     MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm);
     if (mPrivilege == null) {
       mPrivilege = convertToMSentryPrivilege(tPrivilege);
