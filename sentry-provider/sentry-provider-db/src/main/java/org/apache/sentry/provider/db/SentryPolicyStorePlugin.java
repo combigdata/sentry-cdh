@@ -22,16 +22,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.exception.SentryInvalidInputException;
 import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
-import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleAddGroupsRequest;
-import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleDeleteGroupsRequest;
-import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleGrantPrivilegeRequest;
-import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleRevokePrivilegeRequest;
-import org.apache.sentry.provider.db.service.thrift.TDropPrivilegesRequest;
-import org.apache.sentry.provider.db.service.thrift.TDropSentryRoleRequest;
-import org.apache.sentry.provider.db.service.thrift.TRenamePrivilegesRequest;
-import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
+import org.apache.sentry.api.service.thrift.TAlterSentryRoleAddGroupsRequest;
+import org.apache.sentry.api.service.thrift.TAlterSentryRoleDeleteGroupsRequest;
+import org.apache.sentry.api.service.thrift.TAlterSentryRoleGrantPrivilegeRequest;
+import org.apache.sentry.api.service.thrift.TAlterSentryRoleRevokePrivilegeRequest;
+import org.apache.sentry.api.service.thrift.TDropPrivilegesRequest;
+import org.apache.sentry.api.service.thrift.TDropSentryRoleRequest;
+import org.apache.sentry.api.service.thrift.TRenamePrivilegesRequest;
+import org.apache.sentry.api.service.thrift.TSentryPrivilege;
 
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.sentry.hdfs.Updateable.Update;
 
@@ -65,6 +66,26 @@ public interface SentryPolicyStorePlugin {
         Map<TSentryPrivilege, Update> privilegesUpdateMap) throws SentryPluginException;
 
   void onAlterSentryRoleRevokePrivilege(TAlterSentryRoleRevokePrivilegeRequest tRequest,
+        Map<TSentryPrivilege, Update> privilegesUpdateMap) throws SentryPluginException;
+
+  /**
+   * Used to create an update when privileges are granted to user.
+   * @param userName
+   * @param privileges
+   * @param privilegesUpdateMap
+   * @throws SentryPluginException
+   */
+  void onAlterSentryUserGrantPrivilege(String userName, Set<TSentryPrivilege> privileges,
+        Map<TSentryPrivilege, Update> privilegesUpdateMap) throws SentryPluginException;
+
+  /**
+   * Used to create an update when privileges are revoked from user.
+   * @param userName
+   * @param privileges
+   * @param privilegesUpdateMap
+   * @throws SentryPluginException
+   */
+  void onAlterSentryUserRevokePrivilege(String userName, Set<TSentryPrivilege> privileges,
         Map<TSentryPrivilege, Update> privilegesUpdateMap) throws SentryPluginException;
 
   Update onDropSentryRole(TDropSentryRoleRequest tRequest) throws SentryPluginException;

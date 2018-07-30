@@ -35,7 +35,7 @@ import org.apache.sentry.core.model.solr.SolrConstants;
 import org.apache.sentry.core.common.exception.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.generic.service.persistent.PrivilegeObject.Builder;
 import org.apache.sentry.provider.file.PolicyFile;
-import org.apache.sentry.service.thrift.ServiceConstants;
+import org.apache.sentry.service.common.ServiceConstants;
 import org.junit.Before;
 import org.junit.Test;
 

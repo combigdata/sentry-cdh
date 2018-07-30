@@ -22,7 +22,7 @@ import sentry.com.codahale.metrics.Counter;
 import sentry.com.codahale.metrics.Histogram;
 import sentry.com.codahale.metrics.MetricRegistry;
 import sentry.com.codahale.metrics.Timer;
-import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
+import org.apache.sentry.api.service.thrift.SentryMetrics;
 
 /**
  * Util class to support metrics.
