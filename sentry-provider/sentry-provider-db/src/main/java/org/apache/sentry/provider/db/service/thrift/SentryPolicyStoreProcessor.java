@@ -1312,16 +1312,13 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
           plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
           privilegesUpdateMap.clear();
-        } else if (ownerInfo.getOwnerType() == SentryEntityType.ROLE) {
+        } else if (SentryEntityType.ROLE.equals(ownerInfo.getOwnerType())) {
           plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
           privilegesUpdateMap.clear();
         }
       }
     }
-
-    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
-    updateList.add(privilegesUpdateMap.get(ownerPrivilege));
 
     if(request.getOwnerType() == TSentryObjectOwnerType.USER &&
             isSentryAdminUser(request.getOwnerName())) {
@@ -1330,6 +1327,9 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       // New Owner belongs to sentry admin group. There is no need to add owner privilege.
       sentryStore.revokeOwnerPrivileges(request.getAuthorizable(),updateList);
     } else {
+      getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
+      updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+
       // Revokes old owner privileges and grants owner privilege for new owner.
       sentryStore.updateOwnerPrivilege(request.getAuthorizable(), request.getOwnerName(),
               entityType, updateList);

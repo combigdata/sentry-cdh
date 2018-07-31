@@ -45,6 +45,7 @@ public class DBWildcardPrivilege implements Privilege {
       .getLogger(DBWildcardPrivilege.class);
 
   private final ImmutableList<KeyValue> parts;
+  private boolean grantOption = false;
 
   public DBWildcardPrivilege(String wildcardString) {
     wildcardString = Strings.nullToEmpty(wildcardString).trim();
@@ -62,6 +63,14 @@ public class DBWildcardPrivilege implements Privilege {
     if (parts.isEmpty()) {
       throw new AssertionError("Should never occur: " + wildcardString);
     }
+
+    // check if grant option is present
+    KeyValue lastPart = parts.get(parts.size() - 1);
+    if (lastPart.getKey().equalsIgnoreCase(ProviderConstants.GRANT_OPTION)) {
+      grantOption = lastPart.getValue().equalsIgnoreCase("true");
+      parts.remove(parts.size() - 1);
+    }
+
     this.parts = ImmutableList.copyOf(parts);
   }
 
@@ -74,6 +83,11 @@ public class DBWildcardPrivilege implements Privilege {
     }
 
     DBWildcardPrivilege wp = (DBWildcardPrivilege) p;
+
+    if ((wp.grantOption == true) && (this.grantOption == false)) {
+      // the required privilege wp needs grant option, but this privilege does not have grant option
+      return false;
+    }
 
     List<KeyValue> otherParts = wp.parts;
     if(equals(wp)) {

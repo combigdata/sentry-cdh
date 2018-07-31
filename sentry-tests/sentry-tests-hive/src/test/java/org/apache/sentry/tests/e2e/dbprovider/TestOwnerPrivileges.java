@@ -54,6 +54,8 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
       USER1_1 = StaticUserGroup.USER1_1,
       USER1_2 = StaticUserGroup.USER1_2,
       USERGROUP1 = StaticUserGroup.USERGROUP1,
+      USERGROUP2 = StaticUserGroup.USERGROUP2,
+      USER2_1 = StaticUserGroup.USER2_1,
       DB1 = "db_1";
 
   private final static String renameTag = "_new";
@@ -103,7 +105,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statementUSER1_1.execute("CREATE DATABASE " + DB1);
 
     // verify privileges created for new database
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
         DB1, null, 1);
 
     // verify that user has all privilege on this database, i.e., "OWNER" means "ALL"
@@ -149,7 +151,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     // verify user user1_2 has no privileges created for new database
     Connection connectionUSER1_2 = hiveServer2.createConnection(USER1_2, USER1_2);
     Statement statementUSER1_2 = connectionUSER1_2.createStatement();
-    verifyTablePrivilegeExistForEntity(statementUSER1_2, SentryEntityType.USER, Lists.newArrayList(USER1_2),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_2, SentryEntityType.USER, Lists.newArrayList(USER1_2),
         DB1, null, 0);
 
     // verify that user user1_2 does not have any privilege on this database except create
@@ -190,7 +192,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statement.execute("CREATE DATABASE " + DB1);
 
     // verify no privileges created for new database
-    verifyTablePrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
+    verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
         DB1, null, 0);
 
     statement.close();
@@ -224,7 +226,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statementUSER1_1.execute("DROP DATABASE " + DB1 + " CASCADE");
 
     // verify owner privileges created for new database no longer exists
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
         DB1, null, 0);
 
     statement.close();
@@ -265,7 +267,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
 
     // verify privileges created for new table
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
         DB1, tableName1, 1);
 
     // verify that user has all privilege on this table, i.e., "OWNER" means "ALL"
@@ -317,7 +319,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     // verify user1_2 does not have privileges on table created by user1_1
     Connection connectionUSER1_2 = hiveServer2.createConnection(USER1_2, USER1_2);
     Statement statementUSER1_2 = connectionUSER1_2.createStatement();
-    verifyTablePrivilegeExistForEntity(statementUSER1_2, SentryEntityType.USER, Lists.newArrayList(USER1_2),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_2, SentryEntityType.USER, Lists.newArrayList(USER1_2),
         DB1, tableName1, 0);
 
     // verify that user user1_2 does not have any privilege on this table
@@ -374,7 +376,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
         + " (under_col int comment 'the under column')");
 
     // verify no owner privileges created for new table
-    verifyTablePrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
+    verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
         DB1, tableName1, 0);
 
     statement.close();
@@ -410,7 +412,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statementUSER1_1.execute("DROP TABLE " + DB1 + "." + tableName1);
 
     // verify privileges created for new table
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
         DB1, tableName1, 0);
 
     statement.close();
@@ -422,6 +424,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testAlterTable() throws Exception {
     dbNames = new String[]{DB1};
@@ -442,12 +445,12 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
     Statement statementUSER1_1 = connectionUSER1_1.createStatement();
     statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
-            + " (under_col int comment 'the under column')");
+        + " (under_col int comment 'the under column')");
 
 
     // verify privileges created for new table
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
-            DB1, tableName1, 1);
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+        DB1, tableName1, 1);
 
     // verify that user has all privilege on this table, i.e., "OWNER" means "ALL"
     // for authorization
@@ -455,32 +458,32 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
     // Changing the owner to a role
     statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " +
-            "owner_role");
+        "owner_role");
 
     // alter table rename is not blocked for notification processing in upstream due to
     // hive bug HIVE-18783, which is fixed in Hive 2.4.0 and 3.0
     Thread.sleep(WAIT_BEFORE_TESTVERIFY);
 
     // Verify that old owner does not have owner privilege
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
-            DB1, tableName1, 0);
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+        DB1, tableName1, 0);
     // Verify that new owner has owner privilege
 
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
-            DB1, tableName1, 1);
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
+        DB1, tableName1, 1);
 
 
     // Changing the owner to a user
     statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
-            USER1_1);
+        USER1_1);
 
     // Verify that old owner does not have owner privilege
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
-            DB1, tableName1, 0);
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
+        DB1, tableName1, 0);
 
     // Verify that new owner has owner privilege
-    verifyTablePrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
-            DB1, tableName1, 1);
+    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+        DB1, tableName1, 1);
 
     statement.close();
     connection.close();
@@ -490,9 +493,103 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
   }
 
   /**
+   * Verify that the user who can call alter table set owner on this table
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testAuthorizeAlterTableSetOwner() throws Exception {
+    String ownerRole = "owner_role";
+    String allWithGrantRole = "allWithGrant_role";
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1", ownerRole};
+
+    // create required roles, and assign them to USERGROUP1
+    setupUserRoles(roles, statement);
+
+    // create test DB
+    statement.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statement.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1
+    statement.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+    statement.execute("USE " + DB1);
+
+    // USER1_1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+        + " (under_col int comment 'the under column')");
+
+    // admin issues alter table set owner
+    try {
+      statement.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " + ownerRole);
+      Assert.fail("Expect altering table set owner to fail for admin");
+    } catch (Exception ex) {
+      // admin does not have grant option, so cannot issue this command
+    }
+
+    Connection connectionUSER2_1 = hiveServer2.createConnection(USER2_1, USER2_1);
+    Statement statementUSER2_1 = connectionUSER2_1.createStatement();
+
+    try {
+      // create role that has all with grant on the table
+      statement.execute("create role " + allWithGrantRole);
+      statement.execute("grant role " + allWithGrantRole + " to group " + USERGROUP2);
+      statement.execute("grant all on table " + DB1 + "." + tableName1 + " to role " +
+          allWithGrantRole + " with grant option");
+
+      // cannot issue command on a different table
+      try {
+        statementUSER2_1.execute("ALTER TABLE " + DB1 + ".non_exit_table" + " SET OWNER ROLE " + ownerRole);
+        Assert.fail("Expect altering table set owner to fail on non-exist table");
+      } catch (Exception ex) {
+        // admin does not have grant option, so cannot issue this command
+      }
+
+      // user2_1 having all with grant on this table and can issue command: alter table set owner
+      // alter table set owner to a role
+      statementUSER2_1
+          .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " + ownerRole);
+
+      // verify privileges is transferred to role owner_role, which is associated with USERGROUP1,
+      // therefore to USER1_1
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.ROLE,
+          Lists.newArrayList(ownerRole),
+          DB1, tableName1, 1);
+
+      // alter table set owner to user USER1_1 and verify privileges is transferred to USER USER1_1
+      statementUSER2_1
+          .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " + USER1_1);
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER,
+          Lists.newArrayList(USER1_1), DB1, tableName1, 1);
+
+      // alter table set owner to user USER2_1, who already has explicit all with grant
+      statementUSER2_1
+          .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " + USER2_1);
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER,
+          Lists.newArrayList(USER2_1),
+          DB1, tableName1, 1);
+
+    } finally {
+      statement.execute("drop role " + allWithGrantRole);
+
+      statement.close();
+      connection.close();
+
+      statementUSER1_1.close();
+      connectionUSER1_1.close();
+
+      statementUSER2_1.close();
+      connectionUSER2_1.close();
+    }
+  }
+
+  /**
    * Verify that no owner privilege is granted when the ownership is changed to sentry admin user
    * @throws Exception
    */
+  @Ignore("Should be enabled once the bug that owner is set to be hive is resolved")
   @Test
   public void testAlterTableAdmin() throws Exception {
     dbNames = new String[]{DB1};
@@ -516,7 +613,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
             + " (under_col int comment 'the under column')");
 
     // verify owner privileges created for new table
-    verifyTablePrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+    verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(USER1_1),
             DB1, tableName1, 1);
 
     // Changing the owner to an admin user
@@ -525,7 +622,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
     // verify no owner privileges to the new owner as the owner is admin user
 
-    verifyTablePrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
+    verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
             DB1, tableName1, 0);
 
     statement.close();
@@ -543,8 +640,8 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     }
   }
 
-  // verify given table is part of every user in the list
-  private void verifyTablePrivilegeExistForEntity(Statement statement, SentryEntityType entityType,
+  // verify that each entity in the list has owner privilege on the given database or table
+  private void verifyTableOwnerPrivilegeExistForEntity(Statement statement, SentryEntityType entityType,
      List<String> entities, String dbName, String tableName, int expectedResultCount) throws Exception {
 
     for (String entity : entities) {
@@ -560,7 +657,12 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
       int resultSize = 0;
       while(resultSet.next()) {
-        resultSize ++;
+
+        String actionValue = resultSet.getString(7);
+        if (!actionValue.equalsIgnoreCase("owner")) {
+          // only check owner privilege, and skip other privileges
+          continue;
+        }
 
         assertThat(resultSet.getString(1), equalToIgnoringCase(dbName)); // db name
 
@@ -572,8 +674,9 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
         assertThat(resultSet.getString(4), equalToIgnoringCase(""));//column
         assertThat(resultSet.getString(5), equalToIgnoringCase(entity));//principalName
         assertThat(resultSet.getString(6), equalToIgnoringCase(entityType.toString()));//principalType
-        assertThat(resultSet.getString(7), equalToIgnoringCase("owner"));
         assertThat(resultSet.getBoolean(8), is(ownerPrivilegeGrantEnabled));//grantOption
+
+        resultSize ++;
       }
 
       assertEquals(expectedResultCount, resultSize);
@@ -581,5 +684,4 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
       resultSet.close();
     }
   }
-
 }

@@ -581,6 +581,7 @@ public abstract class TestHDFSIntegrationBase {
         hiveConf.set("hcatalog.message.factory.impl.json",
             "org.apache.sentry.binding.metastore.messaging.json.SentryJSONMessageFactory");
         hiveConf.set("hive.metastore.transactional.event.listeners", "org.apache.hive.hcatalog.listener.DbNotificationListener");
+        hiveConf.set("hive.metastore.event.listeners", "org.apache.sentry.binding.metastore.SentrySyncHMSNotificationsPostEventListener");
         hiveConf.set("hive.security.authorization.task.factory", "org.apache.sentry.binding.hive.SentryHiveAuthorizationTaskFactoryImpl");
         hiveConf.set("hive.server2.session.hook", "org.apache.sentry.binding.hive.HiveAuthzBindingSessionHook");
         hiveConf.set("sentry.metastore.service.users", "hive");// queries made by hive user (beeline) skip meta store check

@@ -18,6 +18,7 @@ package org.apache.sentry.provider.common;
 
 import static org.apache.sentry.provider.common.ProviderConstants.AUTHORIZABLE_JOINER;
 import static org.apache.sentry.provider.common.ProviderConstants.AUTHORIZABLE_SPLITTER;
+import static org.apache.sentry.provider.common.ProviderConstants.GRANT_OPTION;
 import static org.apache.sentry.provider.common.ProviderConstants.KV_JOINER;
 import static org.apache.sentry.provider.common.ProviderConstants.PRIVILEGE_NAME;
 
@@ -78,6 +79,21 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
   @Override
   public boolean hasAccess(Subject subject, List<? extends Authorizable> authorizableHierarchy,
       Set<? extends Action> actions, ActiveRoleSet roleSet) {
+    return hasAccess(subject, authorizableHierarchy, actions, false, roleSet);
+  }
+
+  /***
+   * @param subject: UserID to validate privileges
+   * @param authorizableHierarchy : List of object according to namespace hierarchy.
+   *        eg. Server->Db->Table or Server->Function
+   *        The privileges will be validated from the higher to lower scope
+   * @param actions : Privileges to validate
+   * @return
+   *        True if the subject is authorized to perform requested action on the given object
+   */
+  @Override
+  public boolean hasAccess(Subject subject, List<? extends Authorizable> authorizableHierarchy,
+      Set<? extends Action> actions, boolean requireGrantOption, ActiveRoleSet roleSet) {
     if(LOGGER.isDebugEnabled()) {
       LOGGER.debug("Authorization Request for " + subject + " " +
           authorizableHierarchy + " and " + actions);
@@ -88,21 +104,21 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
     Preconditions.checkNotNull(actions, "Actions cannot be null");
     Preconditions.checkArgument(!actions.isEmpty(), "Actions cannot be empty");
     Preconditions.checkNotNull(roleSet, "ActiveRoleSet cannot be null");
-    return doHasAccess(subject, authorizableHierarchy, actions, roleSet);
+    return doHasAccess(subject, authorizableHierarchy, actions, requireGrantOption, roleSet);
   }
 
   private boolean doHasAccess(Subject subject,
       List<? extends Authorizable> authorizables, Set<? extends Action> actions,
-      ActiveRoleSet roleSet) {
+      boolean requireGrantOption, ActiveRoleSet roleSet) {
     Set<String> groups =  getGroups(subject);
     Set<String> users = Sets.newHashSet(subject.getName());
     Set<String> hierarchy = new HashSet<String>();
     for (Authorizable authorizable : authorizables) {
       hierarchy.add(KV_JOINER.join(authorizable.getTypeName(), authorizable.getName()));
     }
-    List<String> requestPrivileges = buildPermissions(authorizables, actions);
+    List<String> requestPrivileges = buildPermissions(authorizables, actions, requireGrantOption);
     Iterable<Privilege> privileges = getPrivileges(groups, users,
-      roleSet, authorizables.toArray(new Authorizable[0]));
+        roleSet, authorizables.toArray(new Authorizable[0]));
     lastFailedPrivileges.get().clear();
 
     for (String requestPrivilege : requestPrivileges) {
@@ -200,7 +216,7 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
   }
 
   private List<String> buildPermissions(List<? extends Authorizable> authorizables,
-      Set<? extends Action> actions) {
+      Set<? extends Action> actions, boolean requireGrantOption) {
     List<String> hierarchy = new ArrayList<String>();
     List<String> requestedPermissions = new ArrayList<String>();
 
@@ -212,6 +228,8 @@ public abstract class ResourceAuthorizationProvider implements AuthorizationProv
       String requestPermission = AUTHORIZABLE_JOINER.join(hierarchy);
       requestPermission = AUTHORIZABLE_JOINER.join(requestPermission,
           KV_JOINER.join(PRIVILEGE_NAME, action.getValue()));
+      requestPermission = AUTHORIZABLE_JOINER.join(requestPermission,
+          KV_JOINER.join(GRANT_OPTION, requireGrantOption));
       requestedPermissions.add(requestPermission);
     }
     return requestedPermissions;

@@ -385,7 +385,7 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
           }
         }
       }
-      writeToFile(writeGrantInfo(privileges, principalName), desc.getResFile());
+      writeToFile(writeGrantInfo(privileges, principalName, principalDesc.getType()), desc.getResFile());
       return RETURN_CODE_SUCCESS;
     } catch (IOException e) {
       String msg = "IO Error in show grant " + e.getMessage();
@@ -570,6 +570,10 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
   }
 
   static String writeGrantInfo(Set<TSentryPrivilege> privileges, String roleName) {
+    return writeGrantInfo(privileges, roleName, PrincipalType.ROLE);
+  }
+
+  static String writeGrantInfo(Set<TSentryPrivilege> privileges, String principleName, PrincipalType principleType) {
     if (privileges == null || privileges.isEmpty()) {
       return "";
     }
@@ -589,8 +593,8 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
       appendNonNull(builder, privilege.getTableName());
       appendNonNull(builder, null);//getPartValues()
       appendNonNull(builder, privilege.getColumnName());//getColumnName()
-      appendNonNull(builder, roleName);//getPrincipalName()
-      appendNonNull(builder, "ROLE");//getPrincipalType()
+      appendNonNull(builder, principleName);//getPrincipalName()
+      appendNonNull(builder, principleType);//getPrincipalType()
       appendNonNull(builder, privilege.getAction());
       appendNonNull(builder,
           TSentryGrantOption.TRUE.equals(privilege.getGrantOption()));

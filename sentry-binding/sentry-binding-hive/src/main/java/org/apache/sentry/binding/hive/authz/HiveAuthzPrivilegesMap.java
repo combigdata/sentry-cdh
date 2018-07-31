@@ -117,6 +117,13 @@ public class HiveAuthzPrivilegesMap {
         setOperationType(HiveOperationType.DDL).
         build();
 
+    HiveAuthzPrivileges alterTableSetOwnerPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
+        addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
+        setOperationScope(HiveOperationScope.TABLE).
+        setOperationType(HiveOperationType.DDL).
+        setGrantOption(true).
+        build();
+
     // in CDH5 the hive command "ALTER TABLE EXCHANGE PARTITION" has empty input and
     // both source table and destination table are in output. If we specify the input required
     // privileges with empty input, exception will be thrown in HiveAuthzBinding.authorize
@@ -279,6 +286,7 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_DROPPARTS, dropPartitionPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_ADDPARTS, addPartitionPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_RENAME, alterTableRenamePrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_OWNER, alterTableSetOwnerPrivilege);
 
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_LOCATION, alterTableAndUriPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERPARTITION_LOCATION, alterTableAndUriPrivilege);

@@ -327,10 +327,16 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
           String serdeClassName = BaseSemanticAnalyzer.unescapeSQLString(serdeNode.getText());
           setSerdeURI(serdeClassName);
         }
-          if ("TOK_ALTERTABLE_RENAME".equals(childASTNode.getText())) {
+        if ("TOK_ALTERTABLE_RENAME".equals(childASTNode.getText())) {
           currDB = extractDatabase((ASTNode)ast.getChild(0));
           ASTNode newTableNode = (ASTNode)childASTNode.getChild(0);
           currOutDB = extractDatabase(newTableNode);
+        }
+        if ("TOK_TABNAME".equals(childASTNode.getText())) {
+          if (childASTNode.getChildren().size() >= 2) {
+            currDB = new Database(childASTNode.getChild(0).getText());
+            currTab = new Table(childASTNode.getChild(1).getText());
+          }
         }
       }
 
