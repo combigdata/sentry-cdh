@@ -64,16 +64,24 @@ public class SimpleDBProviderBackend implements ProviderBackend {
    */
   @Override
   public ImmutableSet<String> getPrivileges(Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
-    return getPrivileges(retryCount, groups, roleSet, authorizableHierarchy);
+    return getPrivileges(retryCount, groups, null, roleSet, authorizableHierarchy);
   }
 
-  private ImmutableSet<String> getPrivileges(int retryCount, Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
+  @Override
+  public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
+    ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
+    return getPrivileges(retryCount, groups, users, roleSet, authorizableHierarchy);
+  }
+
+  private ImmutableSet<String> getPrivileges(int retryCount, Set<String> groups, Set<String> users,
+      ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
     int retries = Math.max(retryCount + 1, 1); // if customer configs retryCount as Integer.MAX_VALUE, try only once
     while (retries > 0) {
       retries--;
       try (SentryPolicyServiceClient policyServiceClient =
                    SentryServiceClientFactory.create(conf)) {
-		return ImmutableSet.copyOf(policyServiceClient.listPrivilegesForProvider(groups, roleSet, authorizableHierarchy));
+		return ImmutableSet.copyOf(policyServiceClient.listPrivilegesForProvider(groups, users,
+        roleSet, authorizableHierarchy));
        } catch (Exception e) {
         //TODO: differentiate transient errors and permanent errors
         String msg = "Unable to obtain privileges from server: " + e.getMessage() + ".";

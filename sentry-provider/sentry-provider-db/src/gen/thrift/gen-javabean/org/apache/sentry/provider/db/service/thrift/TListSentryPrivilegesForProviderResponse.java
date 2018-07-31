@@ -448,13 +448,13 @@ public class TListSentryPrivilegesForProviderResponse implements org.apache.thri
           case 2: // PRIVILEGES
             if (schemeField.type == org.apache.thrift.protocol.TType.SET) {
               {
-                org.apache.thrift.protocol.TSet _set80 = iprot.readSetBegin();
-                struct.privileges = new HashSet<String>(2*_set80.size);
-                String _elem81;
-                for (int _i82 = 0; _i82 < _set80.size; ++_i82)
+                org.apache.thrift.protocol.TSet _set88 = iprot.readSetBegin();
+                struct.privileges = new HashSet<String>(2*_set88.size);
+                String _elem89;
+                for (int _i90 = 0; _i90 < _set88.size; ++_i90)
                 {
-                  _elem81 = iprot.readString();
-                  struct.privileges.add(_elem81);
+                  _elem89 = iprot.readString();
+                  struct.privileges.add(_elem89);
                 }
                 iprot.readSetEnd();
               }
@@ -485,9 +485,9 @@ public class TListSentryPrivilegesForProviderResponse implements org.apache.thri
         oprot.writeFieldBegin(PRIVILEGES_FIELD_DESC);
         {
           oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, struct.privileges.size()));
-          for (String _iter83 : struct.privileges)
+          for (String _iter91 : struct.privileges)
           {
-            oprot.writeString(_iter83);
+            oprot.writeString(_iter91);
           }
           oprot.writeSetEnd();
         }
@@ -513,9 +513,9 @@ public class TListSentryPrivilegesForProviderResponse implements org.apache.thri
       struct.status.write(oprot);
       {
         oprot.writeI32(struct.privileges.size());
-        for (String _iter84 : struct.privileges)
+        for (String _iter92 : struct.privileges)
         {
-          oprot.writeString(_iter84);
+          oprot.writeString(_iter92);
         }
       }
     }
@@ -527,13 +527,13 @@ public class TListSentryPrivilegesForProviderResponse implements org.apache.thri
       struct.status.read(iprot);
       struct.setStatusIsSet(true);
       {
-        org.apache.thrift.protocol.TSet _set85 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-        struct.privileges = new HashSet<String>(2*_set85.size);
-        String _elem86;
-        for (int _i87 = 0; _i87 < _set85.size; ++_i87)
+        org.apache.thrift.protocol.TSet _set93 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+        struct.privileges = new HashSet<String>(2*_set93.size);
+        String _elem94;
+        for (int _i95 = 0; _i95 < _set93.size; ++_i95)
         {
-          _elem86 = iprot.readString();
-          struct.privileges.add(_elem86);
+          _elem94 = iprot.readString();
+          struct.privileges.add(_elem94);
         }
       }
       struct.setPrivilegesIsSet(true);

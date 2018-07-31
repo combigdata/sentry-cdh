@@ -133,6 +133,13 @@ public class SentryGenericProviderBackend extends CacheProvider implements Provi
   }
 
   @Override
+  public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
+    ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
+    // SentryGenericProviderBackend doesn't support getPrivileges for user now.
+    return getPrivileges(groups, roleSet, authorizableHierarchy);
+  }
+
+  @Override
   public ImmutableSet<String> getRoles(Set<String> groups, ActiveRoleSet roleSet) {
     if (!initialized) {
       throw new IllegalStateException("SentryGenericProviderBackend has not been properly initialized");

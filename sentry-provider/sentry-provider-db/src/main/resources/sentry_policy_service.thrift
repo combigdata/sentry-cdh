@@ -211,6 +211,7 @@ struct TListSentryPrivilegesForProviderRequest {
 2: required set<string> groups,
 3: required TSentryActiveRoleSet roleSet,
 4: optional TSentryAuthorizable authorizableHierarchy,
+5: optional set<string> users
 }
 struct TListSentryPrivilegesForProviderResponse {
 1: required sentry_common_service.TSentryResponseStatus status

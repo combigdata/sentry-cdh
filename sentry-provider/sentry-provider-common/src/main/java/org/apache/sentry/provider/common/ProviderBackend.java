@@ -45,9 +45,19 @@ public interface ProviderBackend {
   public void initialize(ProviderBackendContext context);
 
   /**
-   * Get the privileges from the backend.
+   * Get the privileges from the backend for groups.
+   *
+   * @deprecated This method will be removed in CDH 6.1.
+   *             Use {@link #getPrivileges(Set, Set, ActiveRoleSet, Authorizable...)}.
    */
+  @Deprecated
   public ImmutableSet<String> getPrivileges(Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy);
+
+  /**
+   * Get the privileges from the backend for users and groups.
+   */
+  ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
+      ActiveRoleSet roleSet, Authorizable... authorizableHierarchy);
 
   /**
    * Get the roles associated with the groups from the backend.

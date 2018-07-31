@@ -67,6 +67,12 @@ public class SimpleIndexerPolicyEngine implements PolicyEngine {
     return getPrivileges(groups, roleSet);
   }
 
+  @Override
+  public ImmutableSet<String> getAllPrivileges(Set<String> groups, Set<String> users,
+    ActiveRoleSet roleSet) throws SentryConfigurationException {
+    return getPrivileges(groups, users, roleSet);
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -76,6 +82,20 @@ public class SimpleIndexerPolicyEngine implements PolicyEngine {
       LOGGER.debug("Getting permissions for {}", groups);
     }
     ImmutableSet<String> result = providerBackend.getPrivileges(groups, roleSet);
+    if(LOGGER.isDebugEnabled()) {
+      LOGGER.debug("result = " + result);
+    }
+    return result;
+  }
+
+  @Override
+  public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
+    ActiveRoleSet roleSet, Authorizable... authorizableHierarchy)
+    throws SentryConfigurationException {
+    if(LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Getting permissions for groups: {}, users: {}", groups, users);
+    }
+    ImmutableSet<String> result = providerBackend.getPrivileges(groups, users, roleSet);
     if(LOGGER.isDebugEnabled()) {
       LOGGER.debug("result = " + result);
     }

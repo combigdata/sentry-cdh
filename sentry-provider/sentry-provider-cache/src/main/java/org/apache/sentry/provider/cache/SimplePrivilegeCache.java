@@ -43,6 +43,14 @@ public class SimplePrivilegeCache implements SentryPrivilegeCache {
   }
 
   @Override
+  public Set<String> listPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet) {
+    if (cachedPrivileges == null) {
+      cachedPrivileges = new HashSet<String>();
+    }
+    return cachedPrivileges;
+  }
+
+  @Override
   public void close() {
     if (cachedPrivileges != null) {
       cachedPrivileges.clear();

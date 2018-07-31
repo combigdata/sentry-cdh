@@ -49,9 +49,25 @@ public interface PolicyEngine {
    * @param group name
    * @param active role-set
    * @return non-null immutable set of privileges
+   * @deprecated This method will be removed in CDH 6.1.
+   *             Use {@link #getAllPrivileges(Set, Set, ActiveRoleSet)}
    */
+  @Deprecated
   public ImmutableSet<String> getAllPrivileges(Set<String> groups, ActiveRoleSet roleSet)
       throws SentryConfigurationException;
+
+  /**
+   * Get privileges associated with a group and users. Returns Strings which can be resolved
+   * by the caller. Strings are returned to separate the PolicyFile class from the
+   * type of privileges used in a policy file. Additionally it is possible further
+   * processing of the privileges is needed before resolving to a privilege object.
+   * @param group name
+   * @param user name
+   * @param active role-set
+   * @return non-null immutable set of privileges
+   */
+  public ImmutableSet<String> getAllPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet)
+    throws SentryConfigurationException;
 
   /**
    * Get privileges associated with a group. Returns Strings which can be resolved
@@ -62,9 +78,26 @@ public interface PolicyEngine {
    * @param active role-set
    * @param authorizable Hierarchy (Can be null)
    * @return non-null immutable set of privileges
+   * @deprecated This method will be removed in CDH 6.1.
+   *             Use {@link #getPrivileges(Set, Set, ActiveRoleSet, Authorizable...)}
    */
+  @Deprecated
   public ImmutableSet<String> getPrivileges(Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy)
       throws SentryConfigurationException;
+
+  /**
+   * Get privileges associated with a group and users. Returns Strings which can be resolved
+   * by the caller. Strings are returned to separate the PolicyFile class from the
+   * type of privileges used in a policy file. Additionally it is possible further
+   * processing of the privileges is needed before resolving to a privilege object.
+   * @param group name
+   * @param user name
+   * @param active role-set
+   * @param authorizable Hierarchy (Can be null)
+   * @return non-null immutable set of privileges
+   */
+  public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy)
+    throws SentryConfigurationException;
 
   public void close();
 

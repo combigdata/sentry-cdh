@@ -18,6 +18,7 @@ package org.apache.sentry.binding.hive;
 
 import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
 
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -1135,8 +1136,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     // get the original HiveAuthzBinding, and get the user's privileges by AuthorizationProvider
     AuthorizationProvider authProvider = hiveAuthzBinding.getCurrentAuthProvider();
     Set<String> userPrivileges = authProvider.getPolicyEngine().getPrivileges(
-            authProvider.getGroupMapping().getGroups(userName), hiveAuthzBinding.getActiveRoleSet(),
-            hiveAuthzBinding.getAuthServer());
+            authProvider.getGroupMapping().getGroups(userName), Sets.newHashSet(userName),
+            hiveAuthzBinding.getActiveRoleSet(), hiveAuthzBinding.getAuthServer());
 
     // create SentryPrivilegeCache using user's privileges
     SentryPrivilegeCache privilegeCache = new SimplePrivilegeCache(userPrivileges);

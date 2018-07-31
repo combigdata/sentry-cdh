@@ -25,7 +25,9 @@ public interface PrivilegeCache {
   /**
    * Get the privileges for the give set of groups with the give active roles
    * from the cache
+   * @deprecated This method will be removed in CDH 6.1.
    */
+  @Deprecated
   public Set<String> listPrivileges(Set<String> groups,
                                     ActiveRoleSet roleSet);
 

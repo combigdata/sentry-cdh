@@ -60,7 +60,20 @@ public class TestGetGroupMapping {
       }
 
       @Override
+      public ImmutableSet<String> getAllPrivileges(Set<String> groups, Set<String> users,
+        ActiveRoleSet roleSet) throws SentryConfigurationException {
+        return getPrivileges(groups, users, roleSet);
+      }
+
+      @Override
       public ImmutableSet<String> getPrivileges(Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
+        return ImmutableSet.of();
+      }
+
+      @Override
+      public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
+        ActiveRoleSet roleSet, Authorizable... authorizableHierarchy)
+        throws SentryConfigurationException {
         return ImmutableSet.of();
       }
 

@@ -764,16 +764,12 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     response.setPrivileges(new HashSet<String>());
     try {
       validateClientVersion(request.getProtocol_version());
-      // TODO: request should have new function getUsers() and it should be used as input
-      // instead of Sets.<String>newHashSet()
       Set<String> privilegesForProvider = sentryStore.listSentryPrivilegesForProvider(
-          request.getGroups(), Sets.<String>newHashSet(), request.getRoleSet(), request.getAuthorizableHierarchy());
+          request.getGroups(), request.getUsers(), request.getRoleSet(), request.getAuthorizableHierarchy());
       response.setPrivileges(privilegesForProvider);
       if (((privilegesForProvider == null)||(privilegesForProvider.size() == 0))&&(request.getAuthorizableHierarchy() != null)) {
-        // TODO: request should have new function getUsers() and it should be used as input
-        // instead of Sets.<String>newHashSet()
         if (sentryStore.hasAnyServerPrivileges(
-            request.getGroups(), Sets.<String>newHashSet(), request.getRoleSet(), request.getAuthorizableHierarchy().getServer())) {
+            request.getGroups(), request.getUsers(), request.getRoleSet(), request.getAuthorizableHierarchy().getServer())) {
 
           // REQUIRED for ensuring 'default' Db is accessible by any user
           // with privileges to atleast 1 object with the specific server as root

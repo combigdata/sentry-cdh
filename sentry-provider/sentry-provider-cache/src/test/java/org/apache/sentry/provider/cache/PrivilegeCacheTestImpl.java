@@ -54,6 +54,11 @@ public class PrivilegeCacheTestImpl implements SentryPrivilegeCache {
   }
 
   @Override
+  public Set<String> listPrivileges(Set<String> groups, Set<String> users, ActiveRoleSet roleSet) {
+    return backend.getPrivileges(groups, users, roleSet);
+  }
+
+  @Override
   public void close() {
     backend.close();
     if (baseDir != null) {

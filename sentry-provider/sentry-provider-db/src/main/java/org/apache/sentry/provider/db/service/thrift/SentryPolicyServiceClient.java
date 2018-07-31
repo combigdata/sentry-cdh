@@ -166,8 +166,19 @@ public interface SentryPolicyServiceClient extends AutoCloseable {
       String db, String table, List<String> columns, String action, Boolean grantOption)
       throws SentryUserException;
 
+  /**
+   * List all privileges for groups on a specific authorizable. If the authorizable is null, then
+   * all privileges for groups in any authorizable are returned.
+   *
+   * @deprecated This method will be removed in CDH 6.1.
+   *             Use {@link #listPrivilegesForProvider(Set, ActiveRoleSet, Authorizable...)}
+   */
+  @Deprecated
   public Set<String> listPrivilegesForProvider(Set<String> groups, ActiveRoleSet roleSet,
       Authorizable... authorizable) throws SentryUserException;
+
+  public Set<String> listPrivilegesForProvider(Set<String> groups, Set<String> users, ActiveRoleSet roleSet,
+    Authorizable... authorizable) throws SentryUserException;
 
   public void grantRoleToGroup(String requestorUserName, String groupName, String roleName)
       throws SentryUserException;

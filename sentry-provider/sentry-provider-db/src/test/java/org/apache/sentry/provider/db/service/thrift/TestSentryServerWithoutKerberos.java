@@ -112,18 +112,18 @@ public class TestSentryServerWithoutKerberos extends SentryServiceIntegrationBas
     listPrivilegesByRoleName = client.listPrivilegesByRoleName(requestorUserName, roleName2, Lists.newArrayList(new Server("server"), new Database("db3")));
     assertEquals("Privilege not assigned to role2 !!", 1, listPrivilegesByRoleName.size());
 
-    Set<String> listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), ActiveRoleSet.ALL, new Server("server"), new Database("db2"));
+    Set<String> listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), null, ActiveRoleSet.ALL, new Server("server"), new Database("db2"));
     Assert.assertEquals("Privilege not correctly assigned to roles !!",
         Sets.newHashSet("server=server->db=db2->table=table4->action=all", "server=server->db=db2->table=table3->action=all"),
         listPrivilegesForProvider);
 
-    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), ActiveRoleSet.ALL, new Server("server"), new Database("db3"));
+    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), null, ActiveRoleSet.ALL, new Server("server"), new Database("db3"));
     Assert.assertEquals("Privilege not correctly assigned to roles !!", Sets.newHashSet("server=server->db=db3->table=table5->action=all"), listPrivilegesForProvider);
 
-    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), new ActiveRoleSet(Sets.newHashSet(roleName1)), new Server("server"), new Database("db3"));
+    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), null, new ActiveRoleSet(Sets.newHashSet(roleName1)), new Server("server"), new Database("db3"));
     Assert.assertEquals("Privilege not correctly assigned to roles !!", Sets.newHashSet("server=+"), listPrivilegesForProvider);
 
-    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), new ActiveRoleSet(Sets.newHashSet(roleName1)), new Server("server1"));
+    listPrivilegesForProvider = client.listPrivilegesForProvider(Sets.newHashSet(group1, group2), null, new ActiveRoleSet(Sets.newHashSet(roleName1)), new Server("server1"));
     Assert.assertEquals("Privilege not correctly assigned to roles !!", new HashSet<String>(), listPrivilegesForProvider);
   }
 
@@ -150,28 +150,28 @@ public class TestSentryServerWithoutKerberos extends SentryServiceIntegrationBas
     client.grantDatabasePrivilege(requestorUserName, roleName, "server1", "db2", AccessConstants.ALL);
     client.grantTablePrivilege(requestorUserName, roleName, "server1", "db3", "tab3", "ALL");
     assertEquals(2, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+            null, ActiveRoleSet.ALL).size());
 
     // drop role and verify privileges
     client.dropRole(requestorUserName, roleName);
     assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+      null, ActiveRoleSet.ALL).size());
 
     // recreate the role
     client.createRole(requestorUserName, roleName);
     client.grantRoleToGroup(requestorUserName, ADMIN_GROUP, roleName);
     assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+      null, ActiveRoleSet.ALL).size());
 
     // grant different privileges and verify
     client.grantDatabasePrivilege(requestorUserName, roleName, "server1", "db2", AccessConstants.ALL);
     assertEquals(1, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+      null, ActiveRoleSet.ALL).size());
     client.dropRole(requestorUserName, roleName);
     assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+      null, ActiveRoleSet.ALL).size());
     assertEquals(0, client.listPrivilegesForProvider(requestorUserGroupNames,
-            ActiveRoleSet.ALL).size());
+      null, ActiveRoleSet.ALL).size());
   }
 
 }

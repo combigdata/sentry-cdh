@@ -698,6 +698,12 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
 
   public Set<String> listPrivilegesForProvider(Set<String> groups, ActiveRoleSet roleSet, Authorizable... authorizable)
   throws SentryUserException {
+    return listPrivilegesForProvider(groups, null, roleSet, authorizable);
+  }
+
+  public Set<String> listPrivilegesForProvider(Set<String> groups, Set<String> users,
+    ActiveRoleSet roleSet, Authorizable... authorizable)
+    throws SentryUserException {
     TSentryActiveRoleSet thriftRoleSet = new TSentryActiveRoleSet(roleSet.isAll(), roleSet.getRoles());
     TListSentryPrivilegesForProviderRequest request =
         new TListSentryPrivilegesForProviderRequest(ThriftConstants.
@@ -706,6 +712,9 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
       TSentryAuthorizable tSentryAuthorizable = setupSentryAuthorizable(Lists
         .newArrayList(authorizable));
       request.setAuthorizableHierarchy(tSentryAuthorizable);
+    }
+    if (users != null) {
+      request.setUsers(users);
     }
     try {
       TListSentryPrivilegesForProviderResponse response = client.list_sentry_privileges_for_provider(request);
