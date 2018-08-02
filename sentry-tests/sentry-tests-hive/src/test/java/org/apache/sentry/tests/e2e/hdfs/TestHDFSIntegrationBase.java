@@ -189,6 +189,7 @@ public abstract class TestHDFSIntegrationBase {
   protected String tmpHDFSDirStr;
   protected String tmpHDFSPartitionStr;
   protected Path partitionDir;
+  protected static final String SERVER_NAME = "server1";
   protected String[] dbNames;
   protected String[] roles;
   protected String admin;
@@ -555,7 +556,7 @@ public abstract class TestHDFSIntegrationBase {
         hiveConf.set("sentry.hive.provider", LocalGroupResourceAuthorizationProvider.class.getName());
         hiveConf.set("sentry.hive.provider.resource", policyFileLocation.getPath());
         hiveConf.set("sentry.hive.testing.mode", "true");
-        hiveConf.set("sentry.hive.server", "server1");
+        hiveConf.set("sentry.hive.server", SERVER_NAME);
 
         hiveConf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING, ServerConfig.SENTRY_STORE_LOCAL_GROUP_MAPPING);
         hiveConf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING_RESOURCE, policyFileLocation.getPath());
@@ -811,6 +812,8 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS, "10000");
           properties.put(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS, "50");
           properties.put(ServerConfig.RPC_MIN_THREADS, "3");
+          properties.put("sentry.hive.sync.drop", "true");
+          properties.put("sentry.hive.sync.create", "true");
 
           if(ownerPrivilegeEnabled) {
             properties.put("sentry.enable.owner.privileges", "true");

@@ -46,10 +46,9 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
   private static final Logger LOGGER = LoggerFactory
       .getLogger(TestHDFSIntegrationBase.class);
-  private final static String tableName1 = "tb_1";
+  protected final static String tableName1 = "tb_1";
 
-  protected static final String ALL_DB1 = "server=server1->db=db_1",
-      ADMIN1 = StaticUserGroup.ADMIN1,
+  protected static final String ADMIN1 = StaticUserGroup.ADMIN1,
       ADMINGROUP = StaticUserGroup.ADMINGROUP,
       USER1_1 = StaticUserGroup.USER1_1,
       USER1_2 = StaticUserGroup.USER1_2,
@@ -59,8 +58,8 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
       DB1 = "db_1";
 
   private final static String renameTag = "_new";
-  private Connection connection;
-  private Statement statement;
+  protected Connection connection;
+  protected Statement statement;
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -234,6 +233,106 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
     statementUSER1_1.close();
     connectionUSER1_1.close();
+  }
+
+  /**
+   * Verify that the user who can call alter database set owner on this table
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testAuthorizeAlterDatabaseSetOwner() throws Exception {
+    String ownerRole = "owner_role";
+    String allWithGrantRole = "allWithGrant_role";
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_on_server", ownerRole};
+
+    // create required roles, and assign them to USERGROUP1
+    setupUserRoles(roles, statement);
+
+    // create test DB
+    statement.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+
+    // setup privileges for USER1
+    statement.execute("GRANT CREATE ON SERVER " + SERVER_NAME + " TO ROLE create_on_server");
+
+    // USER1_1 create database
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE DATABASE " + DB1);
+
+    if (!ownerPrivilegeGrantEnabled) {
+      try {
+        statementUSER1_1.execute("ALTER DATABASE " + DB1 + " SET OWNER ROLE " + ownerRole);
+        Assert.fail("Expect altering database set owner to fail for owner without grant option");
+      } catch(Exception ex){
+        // owner without grant option cannot issue this command
+      }
+    }
+
+
+    // admin issues alter database set owner
+    try {
+      statement.execute("ALTER DATABASE " + DB1 + " SET OWNER ROLE " + ownerRole);
+      Assert.fail("Expect altering database set owner to fail for admin");
+    } catch (Exception ex) {
+      // admin does not have all with grant option, so cannot issue this command
+    }
+
+    Connection connectionUSER2_1 = hiveServer2.createConnection(USER2_1, USER2_1);
+    Statement statementUSER2_1 = connectionUSER2_1.createStatement();
+
+    try {
+      // create role that has all with grant on the table
+      statement.execute("create role " + allWithGrantRole);
+      statement.execute("grant role " + allWithGrantRole + " to group " + USERGROUP2);
+      statement.execute("GRANT ALL ON DATABASE " + DB1 + " to role " +
+          allWithGrantRole + " with grant option");
+
+      // cannot issue command on a different database
+      try {
+        statementUSER2_1.execute("ALTER DATABASE NON_EXIST_DB" + " SET OWNER ROLE " + ownerRole);
+        Assert.fail("Expect altering database set owner to fail on db that USER2_1 has no all with grant");
+      } catch (Exception ex) {
+        // USER2_1 does not have all with grant option on NON_EXIST_DB, so cannot issue this command
+      }
+
+      // user2_1 having all with grant on this DB and can issue command: alter database set owner
+      // alter database set owner to a role
+      statementUSER2_1
+          .execute("ALTER DATABASE " + DB1 + " SET OWNER ROLE " + ownerRole);
+
+      // verify privileges is transferred to role owner_role, which is associated with USERGROUP1,
+      // therefore to USER1_1
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.ROLE,
+          Lists.newArrayList(ownerRole),
+          DB1, null, 1);
+
+      // alter database set owner to user USER1_1 and verify privileges is transferred to USER USER1_1
+      statementUSER2_1
+          .execute("ALTER DATABASE " + DB1 + " SET OWNER USER " + USER1_1);
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER,
+          Lists.newArrayList(USER1_1), DB1, null, 1);
+
+      // alter database set owner to user USER2_1, who already has explicit all with grant
+      statementUSER2_1
+          .execute("ALTER DATABASE " + DB1 + " SET OWNER USER " + USER2_1);
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER,
+          Lists.newArrayList(USER2_1),
+          DB1, null, 1);
+
+    } finally {
+      statement.execute("drop role " + allWithGrantRole);
+
+      statement.close();
+      connection.close();
+
+      statementUSER1_1.close();
+      connectionUSER1_1.close();
+
+      statementUSER2_1.close();
+      connectionUSER2_1.close();
+    }
   }
 
 
@@ -521,6 +620,17 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
         + " (under_col int comment 'the under column')");
 
+    // owner issues alter table set owner
+    if (!ownerPrivilegeGrantEnabled) {
+      try {
+        statementUSER1_1
+            .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " + ownerRole);
+        Assert.fail("Expect altering table set owner to fail for owner without grant option");
+      } catch (Exception ex) {
+        // owner without grant option cannot issue this command
+      }
+    }
+
     // admin issues alter table set owner
     try {
       statement.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " + ownerRole);
@@ -630,7 +740,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
   }
 
   // Create test roles
-  private void setupUserRoles(String[] roles, Statement statement) throws Exception {
+  protected void setupUserRoles(String[] roles, Statement statement) throws Exception {
     Set<String> userRoles = Sets.newHashSet(roles);
     userRoles.remove("admin_role");
 
@@ -641,7 +751,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
   }
 
   // verify that each entity in the list has owner privilege on the given database or table
-  private void verifyTableOwnerPrivilegeExistForEntity(Statement statement, SentryEntityType entityType,
+  protected void verifyTableOwnerPrivilegeExistForEntity(Statement statement, SentryEntityType entityType,
      List<String> entities, String dbName, String tableName, int expectedResultCount) throws Exception {
 
     for (String entity : entities) {
@@ -666,8 +776,19 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
         assertThat(resultSet.getString(1), equalToIgnoringCase(dbName)); // db name
 
+        String tableNameValue = resultSet.getString(2);
         if (tableName != null) {
-          assertThat(resultSet.getString(2), equalToIgnoringCase(tableName)); // table name
+          if (!tableNameValue.equalsIgnoreCase(tableName)) {
+            // it is possible the entity has owner privilege on both DB and table
+            // only check the owner privilege on table
+            continue;
+          }
+        } else {
+          if (!tableNameValue.equalsIgnoreCase("")) {
+            // it is possible the entity has owner privilege on both DB and table
+            // only check the owner privilege on db
+            continue;
+          }
         }
 
         assertThat(resultSet.getString(3), equalToIgnoringCase(""));//partition

@@ -70,6 +70,12 @@ public class HiveAuthzPrivilegesMap {
         setOperationScope(HiveOperationScope.DATABASE).
         setOperationType(HiveOperationType.DDL).
         build();
+    HiveAuthzPrivileges alterDbSetOwnerPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
+        addOutputObjectPriviledge(AuthorizableType.Db, EnumSet.of(DBModelAction.ALL)).
+        setOperationScope(HiveOperationScope.DATABASE).
+        setOperationType(HiveOperationType.DDL).
+        setGrantOption(true).
+        build();
 
     HiveAuthzPrivileges alterTablePrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALTER)).
@@ -237,7 +243,7 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.DROPDATABASE, dropDbPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.CREATETABLE, tableCreatePrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERDATABASE, alterDbPrivilege);
-    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERDATABASE_OWNER, alterDbPrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERDATABASE_OWNER, alterDbSetOwnerPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.CREATEMACRO, macroCreatePrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.DROPMACRO, dropMacroPrivilege);
 

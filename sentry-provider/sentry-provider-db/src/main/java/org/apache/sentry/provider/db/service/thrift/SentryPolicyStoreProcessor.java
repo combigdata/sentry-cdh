@@ -1121,17 +1121,17 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
              1. Owner Update
              2. Table Rename
           */
-          // Wait till Sentry server processes HMS Notification Event.
-          if(request.getId() > 0) {
-            response.setId(syncEventId(request.getId()));
-          } else {
-            response.setId(0L);
-          }
-          // Owner is updated. There is no need to wait till Sentry processes HMS Notification Event.
-          // Revoke owner privilege from old owners and grant one to the new owner.
-          updateOwnerPrivilege(request);
-          break;
-        default:
+        case ALTER_DATABASE:
+        // Wait till Sentry server processes HMS Notification Event.
+        if(request.getId() > 0) {
+          response.setId(syncEventId(request.getId()));
+        } else {
+          response.setId(0L);
+        }
+        // When owner is updated, revoke owner privilege from old owners and grant one to the new owner.
+        updateOwnerPrivilege(request);
+        break;
+      default:
          LOGGER.info("Processing HMS Event of Type: " + eventType.toString() + " skipped");
       }
       response.setStatus(Status.OK());

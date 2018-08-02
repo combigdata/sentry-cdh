@@ -341,6 +341,9 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       }
 
       break;
+    case HiveParser.TOK_ALTERDATABASE_OWNER:
+      currDB = currOutDB = new Database(ast.getChild(0).getText());
+      break;
     default:
       currDB = getCanonicalDb();
       break;
@@ -841,7 +844,6 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    *
    * @param inputHierarchy
    * @param entity
-   * @param sentryContext
    */
   private void addColumnHierarchy(List<List<DBModelAuthorizable>> inputHierarchy,
       ReadEntity entity) {
@@ -868,8 +870,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    * Get Authorizable from inputs and put into inputHierarchy
    *
    * @param inputHierarchy
-   * @param entity
-   * @param sentryContext
+   * @param inputs
    */
   private void getInputHierarchyFromInputs(List<List<DBModelAuthorizable>> inputHierarchy,
       Set<ReadEntity> inputs) {
@@ -1089,7 +1090,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    * Returns a set of hooks specified in a configuration variable.
    *
    * See getHooks(HiveAuthzConf.AuthzConfVars hookConfVar, Class<T> clazz)
-   * @param hookConfVar
+   * @param csHooks The configuration variable specifying a comma separated list of the hook
+   *                    class names.
    * @return
    * @throws Exception
    */
@@ -1101,7 +1103,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    * Returns the hooks specified in a configuration variable.  The hooks are returned in a list in
    * the order they were specified in the configuration variable.
    *
-   * @param hookConfVar The configuration variable specifying a comma separated list of the hook
+   * @param csHooks The configuration variable specifying a comma separated list of the hook
    *                    class names.
    * @param clazz       The super type of the hooks.
    * @return            A list of the hooks cast as the type specified in clazz, in the order

@@ -30,6 +30,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.MetaStoreEventListener;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.events.AddPartitionEvent;
+import org.apache.hadoop.hive.metastore.events.AlterDatabaseEvent;
 import org.apache.hadoop.hive.metastore.events.AlterPartitionEvent;
 import org.apache.hadoop.hive.metastore.events.AlterTableEvent;
 import org.apache.hadoop.hive.metastore.events.CreateDatabaseEvent;
@@ -205,6 +206,22 @@ public class SentrySyncHMSNotificationsPostEventListener extends MetaStoreEventL
   public void onDropDatabase(DropDatabaseEvent dbEvent) throws MetaException {
     // Failure event, Need not be notified.
     if (failedEvent(dbEvent, EventType.DROP_DATABASE)) {
+      return;
+    }
+    SentryHmsEvent event = new SentryHmsEvent(serverName, dbEvent);
+    notifyHmsEvent(event);
+  }
+
+  /**
+   * Notify sentry server when database is altered
+   *
+   * @param dbEvent Alter database event
+   * @throws MetaException
+   */
+  @Override
+  public void onAlterDatabase(AlterDatabaseEvent dbEvent) throws MetaException {
+    // Failure event, Need not be notified.
+    if (failedEvent(dbEvent, EventType.ALTER_DATABASE)) {
       return;
     }
     SentryHmsEvent event = new SentryHmsEvent(serverName, dbEvent);
