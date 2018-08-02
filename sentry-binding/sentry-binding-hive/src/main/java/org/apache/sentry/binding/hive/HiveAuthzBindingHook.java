@@ -1148,7 +1148,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     // create SentryPrivilegeCache using user's privileges
     SentryPrivilegeCache privilegeCache = new SimplePrivilegeCache(userPrivileges);
     try {
-      // create new instance of HiveAuthzBinding whose backend provider should be SimpleHiveCacheProviderBackend
+      // create new instance of HiveAuthzBinding whose backend provider should be SimpleSentryCacheProviderBackend
       return new HiveAuthzBinding(HiveAuthzBinding.HiveHook.HiveServer2, hiveAuthzBinding.getHiveConf(),
               hiveAuthzBinding.getAuthzConf(), privilegeCache);
     } catch (Exception e) {

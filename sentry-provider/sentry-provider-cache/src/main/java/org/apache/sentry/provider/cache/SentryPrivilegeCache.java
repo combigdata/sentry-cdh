@@ -22,7 +22,7 @@ import org.apache.sentry.core.common.ActiveRoleSet;
 import java.util.Set;
 
 /**
- * Hive Privilege Cache Interface
+ * Sentry Privilege Cache Interface. Interface to be used in sentry bindings
  */
 public interface SentryPrivilegeCache extends PrivilegeCache {
 // This interface should hold APIs that are specific to Hive.

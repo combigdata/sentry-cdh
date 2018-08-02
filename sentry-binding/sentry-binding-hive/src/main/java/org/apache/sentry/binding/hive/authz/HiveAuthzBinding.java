@@ -43,7 +43,7 @@ import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
 import org.apache.sentry.core.model.db.Server;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.cache.SentryPrivilegeCache;
-import org.apache.sentry.provider.cache.SimpleHiveCacheProviderBackend;
+import org.apache.sentry.provider.cache.SimpleSentryCacheProviderBackend;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.sentry.provider.common.ProviderBackendContext;
@@ -244,9 +244,9 @@ public class HiveAuthzBinding {
 
     LOG.debug("Using authorization provider " + authProviderName +
             " with resource " + resourceName + ", policy engine "
-            + policyEngineName + ", provider backend SimpleHiveCacheProviderBackend");
+            + policyEngineName + ", provider backend SimpleSentryCacheProviderBackend");
 
-    ProviderBackend providerBackend = new SimpleHiveCacheProviderBackend(authzConf, resourceName);
+    ProviderBackend providerBackend = new SimpleSentryCacheProviderBackend(authzConf, resourceName);
     ProviderBackendContext context = new ProviderBackendContext();
     context.setBindingHandle(privilegeCache);
     providerBackend.initialize(context);

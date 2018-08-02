@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableSet;
 
 public class SimpleCacheProviderBackend implements ProviderBackend {
 
-  private PrivilegeCache cacheHandle;
+  protected PrivilegeCache cacheHandle;
   private Configuration conf;
   protected boolean isInitialized = false;
 
@@ -50,7 +50,7 @@ public class SimpleCacheProviderBackend implements ProviderBackend {
     assert cacheHandle != null;
   }
 
-  private boolean initialized() {
+  protected boolean initialized() {
     return isInitialized;
   }
 
@@ -68,12 +68,12 @@ public class SimpleCacheProviderBackend implements ProviderBackend {
   @Override
   public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
     ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
-    if (!initialized()) {
-      throw new IllegalStateException(
-          "Backend has not been properly initialized");
-    }
-    return ImmutableSet.copyOf(((SentryPrivilegeCache) cacheHandle).listPrivileges(groups, users,
-        roleSet));
+    /*
+     This is temporary change as Impala does not have implementation for user privileges.
+     TODO Implementation of this API should be moved from SimpleCacheProviderBackend
+     once IMPALA-7343 is resolved.
+    */
+    return getPrivileges(groups, roleSet, authorizableHierarchy);
   }
 
   @Override
