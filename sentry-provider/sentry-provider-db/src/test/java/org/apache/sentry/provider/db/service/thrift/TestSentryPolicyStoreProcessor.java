@@ -32,7 +32,7 @@ public class TestSentryPolicyStoreProcessor {
 
   @Before
   public void setup() {
-    conf = new Configuration(false);
+    conf = new Configuration(true);
   }
   @Test(expected=SentryConfigurationException.class)
   public void testConfigNotNotificationHandler() throws Exception {

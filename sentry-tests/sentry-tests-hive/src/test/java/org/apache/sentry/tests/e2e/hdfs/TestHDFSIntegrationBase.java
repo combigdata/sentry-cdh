@@ -774,7 +774,7 @@ public abstract class TestHDFSIntegrationBase {
       hiveUgi.doAs(new PrivilegedExceptionAction<Void>() {
         @Override
         public Void run() throws Exception {
-          Configuration sentryConf = new Configuration(false);
+          Configuration sentryConf = new Configuration(true);
           sentryConf.set(SENTRY_HDFS_INTEGRATION_PATH_PREFIXES, MANAGED_PREFIXES);
           Map<String, String> properties = Maps.newHashMap();
           properties.put(HiveServerFactory.AUTHZ_PROVIDER_BACKEND,

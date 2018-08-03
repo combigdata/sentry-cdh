@@ -94,7 +94,7 @@ public class AbstractSolrSentryTestWithDbProvider extends AbstractSolrSentryTest
   protected static final String COMPONENT_SOLR = "solr";
   protected static final String SERVICE_NAME = SearchConstants.SENTRY_SEARCH_SERVICE_DEFAULT;
 
-  protected static final Configuration conf = new Configuration(false);
+  protected static final Configuration conf = new Configuration(true);
 
   protected static SortedMap<Class, String> extraRequestFilters;
   protected static MiniDFSCluster dfsCluster;

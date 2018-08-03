@@ -572,8 +572,8 @@ public class SentryService implements Callable, SigUtils.SigListener {
       throw new IllegalArgumentException("Cannot read configuration file "
           + configFile);
     }
-    Configuration conf = new Configuration(false);
-    conf.addResource(configFile.toURL());
+    Configuration conf = new Configuration(true);
+    conf.addResource(configFile.toURL(), true);
     return conf;
   }
 
