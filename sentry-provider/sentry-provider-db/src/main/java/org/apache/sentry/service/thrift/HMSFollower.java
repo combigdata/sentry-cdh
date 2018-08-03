@@ -63,6 +63,12 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
   private final LeaderStatusMonitor leaderMonitor;
 
   /**
+   * Determine how deep should sentry look for newer notifications
+   * Default value is -1 which means it gets till the max
+   */
+  private int sentryHMSFetchSize;
+
+  /**
    * Current generation of HMS snapshots. HMSFollower is single-threaded, so no need
    * to protect against concurrent modification.
    */
@@ -113,6 +119,12 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
       PubSub.getInstance().subscribe(PubSub.Topic.HDFS_SYNC_HMS, this);
     }
 
+    sentryHMSFetchSize = conf.getInt(ServerConfig.SENTRY_HMS_FETCH_SIZE, ServerConfig.SENTRY_HMS_FETCH_SIZE_DEFAULT);
+    if(sentryHMSFetchSize < 0) {
+      LOGGER.info("Sentry will fetch from HMS max depth");
+    } else {
+      LOGGER.info("Sentry will fetch from HMS with depth of {}", sentryHMSFetchSize);
+    }
   }
 
   @VisibleForTesting
@@ -203,8 +215,13 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
         return;
       }
 
-      Collection<NotificationEvent> notifications =
-          notificationFetcher.fetchNotifications(notificationId);
+      Collection<NotificationEvent> notifications = null;
+
+      if(sentryHMSFetchSize < 0 ) {
+        notifications = notificationFetcher.fetchNotifications(notificationId);
+      } else {
+        notifications = notificationFetcher.fetchNotifications(notificationId, sentryHMSFetchSize);
+      }
 
       // After getting notifications, it checks if the HMS did some clean-up and notifications
       // are out-of-sync with Sentry.
