@@ -84,7 +84,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-69573 is resolved")
+
   @Test
   public void testCreateDatabase() throws Exception {
     dbNames = new String[]{DB1};
@@ -204,7 +204,6 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testDropDatabase() throws Exception {
     dbNames = new String[]{DB1};
@@ -341,7 +340,6 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testCreateTable() throws Exception {
     dbNames = new String[]{DB1};
@@ -487,7 +485,6 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testDropTable() throws Exception {
     dbNames = new String[]{DB1};
@@ -523,7 +520,6 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-69573 is resolved")
   @Test
   public void testAlterTable() throws Exception {
     dbNames = new String[]{DB1};
@@ -555,34 +551,44 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     // for authorization
     statementUSER1_1.execute("INSERT INTO TABLE " + DB1 + "." + tableName1 + " VALUES (35)");
 
-    // Changing the owner to a role
-    statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " +
-        "owner_role");
+    if(ownerPrivilegeGrantEnabled) {
+      // Changing the owner to a role
+      statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " +
+              "owner_role");
 
-    // alter table rename is not blocked for notification processing in upstream due to
-    // hive bug HIVE-18783, which is fixed in Hive 2.4.0 and 3.0
-    Thread.sleep(WAIT_BEFORE_TESTVERIFY);
+      // alter table rename is not blocked for notification processing in upstream due to
+      // hive bug HIVE-18783, which is fixed in Hive 2.4.0 and 3.0
+      Thread.sleep(WAIT_BEFORE_TESTVERIFY);
 
-    // Verify that old owner does not have owner privilege
-    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
-        DB1, tableName1, 0);
-    // Verify that new owner has owner privilege
+      // Verify that old owner does not have owner privilege
+      verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+              DB1, tableName1, 0);
+      // Verify that new owner has owner privilege
 
-    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
-        DB1, tableName1, 1);
+      verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
+              DB1, tableName1, 1);
 
 
-    // Changing the owner to a user
-    statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
-        USER1_1);
+      // Changing the owner to a user
+      statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
+              USER1_1);
 
-    // Verify that old owner does not have owner privilege
-    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
-        DB1, tableName1, 0);
+      // Verify that old owner does not have owner privilege
+      verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.ROLE, Lists.newArrayList("owner_role"),
+              DB1, tableName1, 0);
 
-    // Verify that new owner has owner privilege
-    verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
-        DB1, tableName1, 1);
+      // Verify that new owner has owner privilege
+      verifyTableOwnerPrivilegeExistForEntity(statementUSER1_1, SentryEntityType.USER, Lists.newArrayList(USER1_1),
+              DB1, tableName1, 1);
+    } else {
+      // Changing the owner to a role should fail.
+      try {
+        statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " +
+                "owner_role");
+        Assert.fail("User without grant permission should not be allowed to change the owner");
+      } catch (Exception e) {
+      }
+    }
 
     statement.close();
     connection.close();
@@ -699,7 +705,6 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    * Verify that no owner privilege is granted when the ownership is changed to sentry admin user
    * @throws Exception
    */
-  @Ignore("Should be enabled once the bug that owner is set to be hive is resolved")
   @Test
   public void testAlterTableAdmin() throws Exception {
     dbNames = new String[]{DB1};
@@ -726,15 +731,24 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(USER1_1),
             DB1, tableName1, 1);
 
-    // Changing the owner to an admin user
-    statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
-            admin);
+    if(ownerPrivilegeGrantEnabled) {
+      // Changing the owner to an admin user
+      statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
+              admin);
 
-    // verify no owner privileges to the new owner as the owner is admin user
+      // verify no owner privileges to the new owner as the owner is admin user
 
-    verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
-            DB1, tableName1, 0);
-
+      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER, Lists.newArrayList(admin),
+              DB1, tableName1, 0);
+    } else {
+      // Changing the owner should fail.
+      try {
+        statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " +
+                admin);
+        Assert.fail("User without grant permission should not be allowed to change the owner");
+      } catch (Exception e) {
+      }
+    }
     statement.close();
     connection.close();
   }

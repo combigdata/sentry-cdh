@@ -814,6 +814,7 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.RPC_MIN_THREADS, "3");
           properties.put("sentry.hive.sync.drop", "true");
           properties.put("sentry.hive.sync.create", "true");
+          properties.put(HiveAuthzConf.AuthzConfVars.AUTHZ_SERVER_NAME.getVar(), SERVER_NAME);
 
           if(ownerPrivilegeEnabled) {
             properties.put("sentry.enable.owner.privileges", "true");

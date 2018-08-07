@@ -19,6 +19,7 @@ package org.apache.sentry.binding.hive;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.ql.security.HiveAuthenticationProvider;
+import org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessController;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthorizationValidator;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthorizer;
@@ -118,6 +119,8 @@ public class HiveAuthzBindingSessionHook
     sessionConf.set(HiveAuthzConf.HIVE_SENTRY_SUBJECT_NAME, sessionHookContext.getSessionUser());
     sessionConf.setVar(ConfVars.HIVE_AUTHORIZATION_MANAGER,
             "org.apache.sentry.binding.hive.HiveAuthzBindingSessionHook$SentryHiveAuthorizerFactory");
+    sessionConf.set(HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER.varname,
+            SessionStateUserAuthenticator.class.getName());
 
     // Set MR ACLs to session user
     appendConfVar(sessionConf, JobContext.JOB_ACL_VIEW_JOB,

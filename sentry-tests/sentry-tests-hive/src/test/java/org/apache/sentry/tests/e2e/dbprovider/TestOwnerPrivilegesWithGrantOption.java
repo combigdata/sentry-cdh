@@ -22,7 +22,6 @@ import java.sql.Connection;
 import java.sql.Statement;
 import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
@@ -38,7 +37,6 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
    *
    * @throws Exception
    */
-  @Ignore("Should be enabled once CDH-71449 is resolved")
   @Test
   public void testAuthorizeAlterTableSetOwnerByOwner() throws Exception {
     String ownerRole = "owner_role";
