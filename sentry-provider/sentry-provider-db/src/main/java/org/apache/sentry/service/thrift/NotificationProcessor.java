@@ -46,8 +46,8 @@ import org.apache.sentry.hdfs.SentryMalformedPathException;
 import org.apache.sentry.hdfs.UniquePathsUpdate;
 import org.apache.sentry.hdfs.Updateable.Update;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntityType;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntity;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipalType;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
 import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.SentryMetrics;
@@ -133,7 +133,7 @@ final class NotificationProcessor {
     PermissionsUpdate update = new PermissionsUpdate(ProviderConstants.INIT_CHANGE_ID, false);
     String authzObj = SentryServiceUtil.getAuthzObj(authorizable);
     update.addPrivilegeUpdate(authzObj)
-        .putToDelPrivileges(new TPrivilegeEntity(TPrivilegeEntityType.ROLE, PermissionsUpdate.ALL_ROLES),
+        .putToDelPrivileges(new TPrivilegePrincipal(TPrivilegePrincipalType.ROLE, PermissionsUpdate.ALL_ROLES),
         PermissionsUpdate.ALL_ROLES);
     return update;
   }
@@ -160,8 +160,8 @@ final class NotificationProcessor {
     String newAuthz = SentryServiceUtil.getAuthzObj(newAuthorizable);
     PermissionsUpdate update = new PermissionsUpdate(ProviderConstants.INIT_CHANGE_ID, false);
     TPrivilegeChanges privUpdate = update.addPrivilegeUpdate(PermissionsUpdate.RENAME_PRIVS);
-    privUpdate.putToAddPrivileges(new TPrivilegeEntity(TPrivilegeEntityType.AUTHZ_OBJ, newAuthz), newAuthz);
-    privUpdate.putToDelPrivileges(new TPrivilegeEntity(TPrivilegeEntityType.AUTHZ_OBJ, oldAuthz), oldAuthz);
+    privUpdate.putToAddPrivileges(new TPrivilegePrincipal(TPrivilegePrincipalType.AUTHZ_OBJ, newAuthz), newAuthz);
+    privUpdate.putToDelPrivileges(new TPrivilegePrincipal(TPrivilegePrincipalType.AUTHZ_OBJ, oldAuthz), oldAuthz);
     return update;
   }
 

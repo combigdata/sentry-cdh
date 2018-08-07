@@ -26,7 +26,7 @@ import java.util.Map;
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.sentry.core.model.db.AccessConstants;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntity;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
 import org.apache.sentry.service.thrift.SentryServiceState;
 import org.apache.sentry.service.thrift.SentryStateBank;
 import org.slf4j.Logger;
@@ -150,11 +150,11 @@ class DBUpdateForwarder<K extends Updateable.Update> {
    * Translate Owner Privilege
    * @param privMap Collection of privileges on an privilege entity.
    */
-  public static void translateOwnerPrivileges(Map<TPrivilegeEntity,String> privMap) {
+  public static void translateOwnerPrivileges(Map<TPrivilegePrincipal,String> privMap) {
     if(privMap == null) {
       return;
     }
-    for (Map.Entry<TPrivilegeEntity, String> priv : privMap.entrySet()) {
+    for (Map.Entry<TPrivilegePrincipal, String> priv : privMap.entrySet()) {
       if (priv.getValue().equalsIgnoreCase(AccessConstants.OWNER)) {
         //Translate owner privilege
         priv.setValue(AccessConstants.ALL);

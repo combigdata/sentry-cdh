@@ -32,9 +32,9 @@ import org.apache.hadoop.hive.metastore.events.AlterTableEvent;
 import org.apache.hadoop.hive.metastore.events.ListenerEvent;
 import org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
-import org.apache.sentry.provider.db.service.thrift.TSentryObjectOwnerType;
 
 import java.util.Map;
+import org.apache.sentry.provider.db.service.thrift.TSentryPrincipalType;
 
 /**
  * Sentry HMS Event holds the information from the HMS Event that sentry is interested in
@@ -44,13 +44,13 @@ class SentryHmsEvent {
   private long eventId;
   private final EventType eventType;
   private String ownerName;
-  private TSentryObjectOwnerType ownerType;
+  private TSentryPrincipalType ownerType;
   private TSentryAuthorizable authorizable;
   private final Boolean isMetastoreTransactionActive;
 
-  private static final Map<PrincipalType, TSentryObjectOwnerType> mapOwnerType = ImmutableMap.of(
-          PrincipalType.ROLE, TSentryObjectOwnerType.ROLE,
-          PrincipalType.USER, TSentryObjectOwnerType.USER
+  private static final Map<PrincipalType, TSentryPrincipalType> mapOwnerType = ImmutableMap.of(
+          PrincipalType.ROLE, TSentryPrincipalType.ROLE,
+          PrincipalType.USER, TSentryPrincipalType.USER
   );
 
   /**
@@ -165,7 +165,7 @@ class SentryHmsEvent {
     return eventId;
   }
 
-  public TSentryObjectOwnerType getOwnerType() {
+  public TSentryPrincipalType getOwnerType() {
     return ownerType;
   }
 
@@ -216,9 +216,9 @@ class SentryHmsEvent {
    * Converts Principle to Owner Type defined by sentry.
    *
    * @param principalType Hive Principle Type
-   * @return TSentryObjectOwnerType if the input is valid else null
+   * @return TSentryPrincipalType if the input is valid else null
    */
-  private TSentryObjectOwnerType getTSentryHmsObjectOwnerType(PrincipalType principalType) {
+  private TSentryPrincipalType getTSentryHmsObjectOwnerType(PrincipalType principalType) {
     return mapOwnerType.get(principalType);
   }
 

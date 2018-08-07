@@ -38,7 +38,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.provider.db.service.thrift.TSentryHmsEventNotification;
-import org.apache.sentry.provider.db.service.thrift.TSentryObjectOwnerType;
+import org.apache.sentry.provider.db.service.thrift.TSentryPrincipalType;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf;
 import org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars;
 import org.apache.sentry.SentryUserException;
@@ -119,25 +119,25 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.CREATE_DATABASE.toString()),
-      any(TSentryObjectOwnerType.class), anyString(), eq(database));
+      any(TSentryPrincipalType.class), anyString(), eq(database));
 
     callAllEventsThatSynchronize(EventType.DROP_DATABASE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.DROP_DATABASE.toString()),
-            any(TSentryObjectOwnerType.class), anyString(), eq(database));
+            any(TSentryPrincipalType.class), anyString(), eq(database));
 
     callAllEventsThatSynchronize(EventType.CREATE_TABLE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.CREATE_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), anyString(), eq(table));
+      eq(TSentryPrincipalType.USER), anyString(), eq(table));
 
     long latestEventId = callAllEventsThatSynchronize(EventType.DROP_TABLE, SUCCESSFUL_STATUS, eventId++);
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId-1), eq(EventType.DROP_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), anyString(), eq(table));
+      eq(TSentryPrincipalType.USER), anyString(), eq(table));
 
 
     Mockito.verify(
@@ -161,7 +161,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.CREATE_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, TABLENAME)));
+      eq(TSentryPrincipalType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, TABLENAME)));
   }
 
   @Test
@@ -178,7 +178,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.DROP_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, TABLENAME)));
+      eq(TSentryPrincipalType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, TABLENAME)));
   }
 
   @Test
@@ -195,7 +195,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.CREATE_DATABASE.toString()),
-      eq(TSentryObjectOwnerType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, "")));
+      eq(TSentryPrincipalType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, "")));
   }
 
   @Test
@@ -212,7 +212,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.DROP_DATABASE.toString()),
-      eq(TSentryObjectOwnerType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, "")));
+      eq(TSentryPrincipalType.USER), eq(OWNER), eq(toAuthorizable(DBNAME, "")));
   }
 
 
@@ -236,7 +236,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.ALTER_TABLE.toString()),
-      eq(TSentryObjectOwnerType.USER), eq(OWNER_NEW), eq(toAuthorizable(DBNAME, TABLENAME)));
+      eq(TSentryPrincipalType.USER), eq(OWNER_NEW), eq(toAuthorizable(DBNAME, TABLENAME)));
   }
 
   @Test
@@ -259,7 +259,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(1)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.ALTER_TABLE.toString()),
-      any(TSentryObjectOwnerType.class), anyString(), eq(toAuthorizable(DBNAME, TABLENAME_NEW)));
+      any(TSentryPrincipalType.class), anyString(), eq(toAuthorizable(DBNAME, TABLENAME_NEW)));
   }
 
   @Test
@@ -282,7 +282,7 @@ public class TestSentrySyncHMSNotificationsPostEventListener {
     Mockito.verify(
             mockSentryClient, Mockito.times(0)
     ).notifyHmsEvent(anyString(), eq(eventId), eq(EventType.ALTER_TABLE.toString()),
-            any(TSentryObjectOwnerType.class), anyString(), eq(toAuthorizable(DBNAME, TABLENAME)));
+            any(TSentryPrincipalType.class), anyString(), eq(toAuthorizable(DBNAME, TABLENAME)));
   }
 
   private long callAllEventsThatSynchronize(boolean status, boolean eventIdSet) throws MetaException {

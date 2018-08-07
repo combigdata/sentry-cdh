@@ -19,16 +19,16 @@
 package org.apache.sentry.service.thrift;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 
 /**
  * This class holds the owner name and the Type
  */
 public class SentryOwnerInfo {
   private String ownerName;
-  private SentryEntityType ownerType;
+  private SentryPrincipalType ownerType;
 
-  public SentryOwnerInfo (SentryEntityType type, String name) {
+  public SentryOwnerInfo (SentryPrincipalType type, String name) {
     ownerType = type;
     ownerName = name;
   }
@@ -41,11 +41,11 @@ public class SentryOwnerInfo {
     return ownerName;
   }
 
-  public SentryEntityType getOwnerType() {
+  public SentryPrincipalType getOwnerType() {
     return ownerType;
   }
 
-  public void setOwnerType(SentryEntityType type) {
+  public void setOwnerType(SentryPrincipalType type) {
     ownerType = type;
   }
 

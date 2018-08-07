@@ -40,7 +40,7 @@ import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServe
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.service.thrift.ServiceConstants;
-import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.sentry.service.thrift.Status;
 import org.junit.Before;
@@ -248,11 +248,11 @@ public class TestSentryPolicyStoreProcessor {
     TListSentryPrivilegesResponse returnedResp;
     TListSentryPrivilegesResponse expectedResp;
 
-    // Request privileges when user is null must throw an exception that entityName must not be null
+    // Request privileges when user is null must throw an exception that principalName must not be null
     returnedResp = policyStoreProcessor.list_sentry_privileges_by_user(newPrivilegesRequest("admin", null, null));
     expectedResp = new TListSentryPrivilegesResponse();
-    expectedResp.setStatus(Status.InvalidInput("entityName parameter must not be null",
-      new SentryInvalidInputException("entityName parameter must not be null")));
+    expectedResp.setStatus(Status.InvalidInput("principalName parameter must not be null",
+      new SentryInvalidInputException("principalName parameter must not be null")));
     Assert.assertEquals(expectedResp.getStatus().getValue(), returnedResp.getStatus().getValue());
 
     // Prepare privileges for user1
@@ -292,7 +292,7 @@ public class TestSentryPolicyStoreProcessor {
 
     user1Privileges = Sets.newHashSet(
       newSentryPrivilege("database", "db1", "t1", "*"));
-    Mockito.when(sentryStore.getTSentryPrivileges(SentryEntityType.USER,Sets.newHashSet("user1"), authorizable)).thenReturn(user1Privileges);
+    Mockito.when(sentryStore.getTSentryPrivileges(SentryPrincipalType.USER,Sets.newHashSet("user1"), authorizable)).thenReturn(user1Privileges);
 
     returnedResp = policyStoreProcessor.list_sentry_privileges_by_user(newPrivilegesRequest("user1", "user1", authorizable));
     Assert.assertEquals(1, returnedResp.getPrivileges().size());
@@ -301,10 +301,10 @@ public class TestSentryPolicyStoreProcessor {
       returnedResp.getPrivileges().contains(newSentryPrivilege("database", "db1", "t1", "*")));
   }
 
-  private TListSentryPrivilegesRequest newPrivilegesRequest(String requestorUser, String entityName, TSentryAuthorizable authorizable) {
+  private TListSentryPrivilegesRequest newPrivilegesRequest(String requestorUser, String principalName, TSentryAuthorizable authorizable) {
     TListSentryPrivilegesRequest request = new TListSentryPrivilegesRequest();
     request.setRequestorUserName(requestorUser);
-    request.setEntityName(entityName);
+    request.setPrincipalName(principalName);
     request.setAuthorizableHierarchy(authorizable);
     return request;
   }
@@ -329,7 +329,7 @@ public class TestSentryPolicyStoreProcessor {
 
     TSentryHmsEventNotification notification = new TSentryHmsEventNotification();
     notification.setId(1L);
-    notification.setOwnerType(TSentryObjectOwnerType.ROLE);
+    notification.setOwnerType(TSentryPrincipalType.ROLE);
     notification.setOwnerName(OWNER);
     notification.setAuthorizable(authorizable);
     notification.setEventType(EventMessage.EventType.CREATE_TABLE.toString());
@@ -339,23 +339,23 @@ public class TestSentryPolicyStoreProcessor {
     TSentryPrivilege ownerPrivilege = sentryServiceHandler.constructOwnerPrivilege(authorizable);
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.ROLE, ownerPrivilege, null);
+    ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.ROLE, ownerPrivilege, null);
 
-    notification.setOwnerType(TSentryObjectOwnerType.USER);
+    notification.setOwnerType(TSentryPrincipalType.USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
 
     //Verify Sentry Store is invoked to grant privilege.
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.USER, ownerPrivilege, null);
+    ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER, ownerPrivilege, null);
 
     Mockito.reset(sentryStore);
     // Verify that owner privilege is not granted when owner belongs to sentry admin group.
-    notification.setOwnerType(TSentryObjectOwnerType.USER);
+    notification.setOwnerType(TSentryPrincipalType.USER);
     notification.setOwnerName(ADMIN_USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
     Mockito.verify(
-        sentryStore, Mockito.times(0)).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.USER,
+        sentryStore, Mockito.times(0)).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER,
         ownerPrivilege, null);
   }
 
@@ -370,7 +370,7 @@ public class TestSentryPolicyStoreProcessor {
 
     TSentryHmsEventNotification notification = new TSentryHmsEventNotification();
     notification.setId(1L);
-    notification.setOwnerType(TSentryObjectOwnerType.ROLE);
+    notification.setOwnerType(TSentryPrincipalType.ROLE);
     notification.setOwnerName(OWNER);
     notification.setAuthorizable(authorizable);
     notification.setEventType(EventType.CREATE_DATABASE.toString());
@@ -381,23 +381,23 @@ public class TestSentryPolicyStoreProcessor {
     TSentryPrivilege ownerPrivilege = sentryServiceHandler.constructOwnerPrivilege(authorizable);
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.ROLE, ownerPrivilege, null);
+    ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.ROLE, ownerPrivilege, null);
 
-    notification.setOwnerType(TSentryObjectOwnerType.USER);
+    notification.setOwnerType(TSentryPrincipalType.USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
 
     //Verify Sentry Store is invoked to grant privilege.
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.USER, ownerPrivilege, null);
+    ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER, ownerPrivilege, null);
 
     Mockito.reset(sentryStore);
     // Verify that owner privilege is not granted when owner belongs to sentry admin group.
-    notification.setOwnerType(TSentryObjectOwnerType.USER);
+    notification.setOwnerType(TSentryPrincipalType.USER);
     notification.setOwnerName(ADMIN_USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
     Mockito.verify(
-        sentryStore, Mockito.times(0)).alterSentryGrantOwnerPrivilege(OWNER, SentryEntityType.USER,
+        sentryStore, Mockito.times(0)).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER,
         ownerPrivilege, null);
   }
 
@@ -413,7 +413,7 @@ public class TestSentryPolicyStoreProcessor {
 
     TSentryHmsEventNotification notification = new TSentryHmsEventNotification();
     notification.setId(1L);
-    notification.setOwnerType(TSentryObjectOwnerType.ROLE);
+    notification.setOwnerType(TSentryPrincipalType.ROLE);
     notification.setOwnerName(OWNER);
     notification.setAuthorizable(authorizable);
     notification.setEventType(EventType.ALTER_TABLE.toString());
@@ -423,17 +423,17 @@ public class TestSentryPolicyStoreProcessor {
     //Verify Sentry Store is invoked to grant privilege.
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryEntityType.ROLE),
+    ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryPrincipalType.ROLE),
         Mockito.anyList());
 
 
-    notification.setOwnerType(TSentryObjectOwnerType.USER);
+    notification.setOwnerType(TSentryPrincipalType.USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
 
     //Verify Sentry Store is invoked to grant privilege.
     Mockito.verify(
         sentryStore, Mockito.times(1)
-    ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryEntityType.ROLE),
+    ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryPrincipalType.ROLE),
         Mockito.anyList());
   }
 

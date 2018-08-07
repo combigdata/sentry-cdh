@@ -46,7 +46,7 @@ import org.apache.sentry.provider.db.service.thrift.TSentryRole;
 import org.apache.sentry.service.thrift.CounterWait;
 import org.apache.sentry.service.thrift.SentryOwnerInfo;
 import org.apache.sentry.service.thrift.ServiceConstants;
-import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 
 /**
  * Interface for backend sentry store.
@@ -169,15 +169,15 @@ public interface SentryStoreInterface {
 
   /**
    * Gets sentry privilege objects for criteria from the persistence layer
-   * @param entityType : the type of the entity (required)
-   * @param entityNames : entity names to look up (required)
+   * @param principalType : the type of the principal (required)
+   * @param principalNames : principal names to look up (required)
    * @param authHierarchy : filter push down based on auth hierarchy (optional)
    * @return : Set of thrift sentry privilege objects
    * @throws SentryInvalidInputException
    */
 
-  Set<TSentryPrivilege> getTSentryPrivileges(ServiceConstants.SentryEntityType entityType,
-      Set<String> entityNames,
+  Set<TSentryPrivilege> getTSentryPrivileges(ServiceConstants.SentryPrincipalType principalType,
+      Set<String> principalNames,
       TSentryAuthorizable authHierarchy) throws Exception;
 
   /**
@@ -444,13 +444,13 @@ public interface SentryStoreInterface {
    * permission change to MSentryPermChange table in a single transaction.
    * Creates User, if it is not already there.
    * Internally calls alterSentryGrantPrivilege.
-   * @param entityName Entity name to which permissions should be granted.
-   * @param entityType Entity Type
+   * @param principalName Principal name to which permissions should be granted.
+   * @param principalType Principal Type
    * @param privilege Privilege to be granted
    * @param update DeltaTransactionBlock
    * @throws Exception
    */
-  void alterSentryGrantOwnerPrivilege(final String entityName, SentryEntityType entityType,
+  void alterSentryGrantOwnerPrivilege(final String principalName, SentryPrincipalType principalType,
       final TSentryPrivilege privilege,
       final Update update) throws Exception;
 
@@ -487,12 +487,12 @@ public interface SentryStoreInterface {
    * privilege based on the arguments provided.
    * @param tAuthorizable Authorizable to which owner privilege should be granted.
    * @param ownerName
-   * @param entityType
+   * @param principalType
    * @param updates Delta Updates.
    * @throws Exception
    */
    void updateOwnerPrivilege(final TSentryAuthorizable tAuthorizable,
-      final String ownerName,  final ServiceConstants.SentryEntityType entityType,
+      final String ownerName,  final ServiceConstants.SentryPrincipalType principalType,
       final List<Update> updates) throws Exception;
 
   /**

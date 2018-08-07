@@ -53,7 +53,7 @@ import org.apache.sentry.provider.db.service.thrift.validator.GrantPrivilegeRequ
 import org.apache.sentry.provider.db.service.thrift.validator.RevokePrivilegeRequestValidator;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.ConfUtilties;
-import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.sentry.service.thrift.ServiceConstants.ThriftConstants;
 import org.apache.sentry.service.thrift.Status;
@@ -84,9 +84,9 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   private static final Logger AUDIT_LOGGER = LoggerFactory.getLogger(Constants.AUDIT_LOGGER_NAME);
 
   static final String SENTRY_POLICY_SERVICE_NAME = "SentryPolicyService";
-  private static final Map<TSentryObjectOwnerType, SentryEntityType> mapOwnerType = ImmutableMap.of(
-          TSentryObjectOwnerType.ROLE, SentryEntityType.ROLE,
-          TSentryObjectOwnerType.USER, SentryEntityType.USER
+  private static final Map<TSentryPrincipalType, SentryPrincipalType> mapOwnerType = ImmutableMap.of(
+          TSentryPrincipalType.ROLE, SentryPrincipalType.ROLE,
+          TSentryPrincipalType.USER, SentryPrincipalType.USER
   );
 
   private final String name;
@@ -303,10 +303,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     }
 
     try {
-      Set<JsonLogEntity> jsonLogEntitys = JsonLogEntityFactory.getInstance().createJsonLogEntitys(
+      Set<JsonLogEntity> JsonLogEntitys = JsonLogEntityFactory.getInstance().createJsonLogEntitys(
           request, response, conf);
-      for (JsonLogEntity jsonLogEntity : jsonLogEntitys) {
-        AUDIT_LOGGER.info(jsonLogEntity.toJsonFormatLog());
+      for (JsonLogEntity JsonLogEntity : JsonLogEntitys) {
+        AUDIT_LOGGER.info(JsonLogEntity.toJsonFormatLog());
       }
     } catch (Exception e) {
       // if any exception, log the exception.
@@ -389,10 +389,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     }
 
     try {
-      Set<JsonLogEntity> jsonLogEntitys = JsonLogEntityFactory.getInstance().createJsonLogEntitys(
+      Set<JsonLogEntity> JsonLogEntitys = JsonLogEntityFactory.getInstance().createJsonLogEntitys(
           request, response, conf);
-      for (JsonLogEntity jsonLogEntity : jsonLogEntitys) {
-        AUDIT_LOGGER.info(jsonLogEntity.toJsonFormatLog());
+      for (JsonLogEntity JsonLogEntity : JsonLogEntitys) {
+        AUDIT_LOGGER.info(JsonLogEntity.toJsonFormatLog());
       }
     } catch (Exception e) {
       // if any exception, log the exception.
@@ -629,11 +629,11 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     Set<TSentryPrivilege> privilegeSet = new HashSet<TSentryPrivilege>();
     String subject = request.getRequestorUserName();
 
-    // The 'roleName' parameter is deprecated in Sentry 2.x. If the new 'entityName' is not
+    // The 'roleName' parameter is deprecated in Sentry 2.x. If the new 'principalName' is not
     // null, then use it to get the role name otherwise fall back to the old 'roleName' which
     // is required to be set.
-    String roleName = (request.getEntityName() != null)
-      ? request.getEntityName() : request.getRoleName();
+    String roleName = (request.getPrincipalName() != null)
+      ? request.getPrincipalName() : request.getRoleName();
 
     try {
       validateClientVersion(request.getProtocol_version());
@@ -647,7 +647,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       }
       if (request.isSetAuthorizableHierarchy()) {
         TSentryAuthorizable authorizableHierarchy = request.getAuthorizableHierarchy();
-        privilegeSet = sentryStore.getTSentryPrivileges(SentryEntityType.ROLE, Sets.newHashSet(roleName), authorizableHierarchy);
+        privilegeSet = sentryStore.getTSentryPrivileges(SentryPrincipalType.ROLE, Sets.newHashSet(roleName), authorizableHierarchy);
       } else {
         privilegeSet = sentryStore.getAllTSentryPrivilegesByRoleName(roleName);
       }
@@ -700,16 +700,16 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     Set<TSentryPrivilege> privilegeSet = new HashSet<TSentryPrivilege>();
     String subject = request.getRequestorUserName();
 
-    // The 'entityName' parameter is made optional in thrift, so we need to check that is not
+    // The 'principalName' parameter is made optional in thrift, so we need to check that is not
     // null before proceed.
     TSentryResponseStatus status =
-      checkRequiredParameter(request.getEntityName(), "entityName parameter must not be null");
+      checkRequiredParameter(request.getPrincipalName(), "principalName parameter must not be null");
     if (status != null) {
       response.setStatus(status);
       return response;
     }
 
-    String userName = request.getEntityName().trim();
+    String userName = request.getPrincipalName().trim();
 
     try {
       validateClientVersion(request.getProtocol_version());
@@ -724,7 +724,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
 
       if (request.isSetAuthorizableHierarchy()) {
         TSentryAuthorizable authorizableHierarchy = request.getAuthorizableHierarchy();
-        privilegeSet = sentryStore.getTSentryPrivileges(SentryEntityType.USER, Sets.newHashSet(userName), authorizableHierarchy);
+        privilegeSet = sentryStore.getTSentryPrivileges(SentryPrincipalType.USER, Sets.newHashSet(userName), authorizableHierarchy);
       } else {
         privilegeSet = sentryStore.getAllTSentryPrivilegesByUserName(userName);
       }
@@ -1237,7 +1237,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       return;
     }
 
-    if(request.getOwnerType() == TSentryObjectOwnerType.USER &&
+    if(request.getOwnerType() == TSentryPrincipalType.USER &&
             isSentryAdminUser(request.getOwnerName())) {
         LOGGER.debug(String.format("%s, belongs to Sentry Admin group, Owner privilege not granted to %s",
             request.getOwnerName(), request.getAuthorizable().toString()));
@@ -1250,8 +1250,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       return;
     }
 
-    SentryEntityType entityType = getSentryEntityType(request.getOwnerType());
-    if (entityType == null) {
+    SentryPrincipalType principalType = getSentryPrincipalType(request.getOwnerType());
+    if (principalType == null) {
       String error = "Invalid owner type : " + request.getOwnerType() +
           " in event of Type: " + request.getEventType();
       LOGGER.error(error);
@@ -1262,8 +1262,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
     Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
     getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
-    // Grants owner privilege to the entity
-    sentryStore.alterSentryGrantOwnerPrivilege(request.getOwnerName(), entityType,
+    // Grants owner privilege to the principal
+    sentryStore.alterSentryGrantOwnerPrivilege(request.getOwnerName(), principalType,
             ownerPrivilege, privilegesUpdateMap.get(ownerPrivilege));
     //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
     //TODO Implement Audit Log API's and invoke them here.
@@ -1290,8 +1290,8 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       return;
     }
 
-    SentryEntityType entityType = getSentryEntityType(request.getOwnerType());
-    if(entityType == null ) {
+    SentryPrincipalType principalType = getSentryPrincipalType(request.getOwnerType());
+    if(principalType == null ) {
       String error = "Invalid owner type : " + request.getEventType();
       LOGGER.error(error);
       throw new SentryInvalidInputException(error);
@@ -1308,11 +1308,11 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     // This logic makes sure of revoking all the owner privilege.
     for (SentryPolicyStorePlugin plugin : sentryPlugins) {
       for (SentryOwnerInfo ownerInfo : ownerInfoList) {
-        if (SentryEntityType.USER.equals(ownerInfo.getOwnerType())) {
+        if (SentryPrincipalType.USER.equals(ownerInfo.getOwnerType())) {
           plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
           privilegesUpdateMap.clear();
-        } else if (SentryEntityType.ROLE.equals(ownerInfo.getOwnerType())) {
+        } else if (SentryPrincipalType.ROLE.equals(ownerInfo.getOwnerType())) {
           plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
           privilegesUpdateMap.clear();
@@ -1320,7 +1320,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       }
     }
 
-    if(request.getOwnerType() == TSentryObjectOwnerType.USER &&
+    if(request.getOwnerType() == TSentryPrincipalType.USER &&
             isSentryAdminUser(request.getOwnerName())) {
       LOGGER.debug(String.format("%s, belongs to Sentry Admin group, Owner privilege not granted to %s",
               request.getOwnerName(), request.getAuthorizable().toString()));
@@ -1332,13 +1332,13 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
 
       // Revokes old owner privileges and grants owner privilege for new owner.
       sentryStore.updateOwnerPrivilege(request.getAuthorizable(), request.getOwnerName(),
-              entityType, updateList);
+              principalType, updateList);
     }
     //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
     //TODO Implement Audit Log API's and invoke them here.
   }
 
-  private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryObjectOwnerType ownerType,
+  private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryPrincipalType ownerType,
       Set<TSentryPrivilege> privSet,
       Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
     for (SentryPolicyStorePlugin plugin : sentryPlugins) {
@@ -1396,10 +1396,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   /**
    *
    * @param ownerType
-   * @return SentryEntityType if input was valid, otherwise returns null
+   * @return SentryPrincipalType if input was valid, otherwise returns null
    * @throws Exception
    */
-  private SentryEntityType getSentryEntityType(TSentryObjectOwnerType ownerType) throws Exception {
+  private SentryPrincipalType getSentryPrincipalType(TSentryPrincipalType ownerType) throws Exception {
     return mapOwnerType.get(ownerType);
   }
 

@@ -20,7 +20,7 @@ package org.apache.sentry.tests.e2e.dbprovider;
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.Statement;
-import org.apache.sentry.service.thrift.ServiceConstants.SentryEntityType;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -70,7 +70,7 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
           .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER USER " + USER2_1);
 
       // verify privileges is transferred to USER2_1
-      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.USER,
+      verifyTableOwnerPrivilegeExistForPrincipal(statement, SentryPrincipalType.USER,
           Lists.newArrayList(USER2_1),
           DB1, tableName1, 1);
 
@@ -79,7 +79,7 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
           .execute("ALTER TABLE " + DB1 + "." + tableName1 + " SET OWNER ROLE " + ownerRole);
 
       // verify privileges is transferred to ownerRole
-      verifyTableOwnerPrivilegeExistForEntity(statement, SentryEntityType.ROLE,
+      verifyTableOwnerPrivilegeExistForPrincipal(statement, SentryPrincipalType.ROLE,
           Lists.newArrayList(ownerRole),
           DB1, tableName1, 1);
 
