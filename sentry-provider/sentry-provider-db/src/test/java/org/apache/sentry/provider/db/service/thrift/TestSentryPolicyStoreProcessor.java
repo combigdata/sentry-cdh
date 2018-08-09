@@ -44,6 +44,7 @@ import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.sentry.service.thrift.Status;
 import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -132,6 +133,13 @@ public class TestSentryPolicyStoreProcessor {
       }
     });
   }
+
+  @After
+  public void reset () {
+    Mockito.reset(sentryStore);
+    Mockito.reset(counterWait);
+  }
+
   @Test(expected=SentryConfigurationException.class)
   public void testConfigNotNotificationHandler() throws Exception {
     conf.set(PolicyStoreServerConfig.NOTIFICATION_HANDLERS, Object.class.getName());
@@ -341,6 +349,14 @@ public class TestSentryPolicyStoreProcessor {
         sentryStore, Mockito.times(1)
     ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.ROLE, ownerPrivilege, null);
 
+    // Verify that owner privilege is granted when owner belongs to sentry admin group.
+    notification.setOwnerType(TSentryPrincipalType.USER);
+    notification.setOwnerName(ADMIN_USER);
+    sentryServiceHandler.sentry_notify_hms_event(notification);
+    Mockito.verify(
+          sentryStore, Mockito.times(1)).alterSentryGrantOwnerPrivilege(ADMIN_USER, SentryPrincipalType.USER,
+          ownerPrivilege, null);
+    notification.setOwnerName(OWNER);
     notification.setOwnerType(TSentryPrincipalType.USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
 
@@ -391,13 +407,13 @@ public class TestSentryPolicyStoreProcessor {
         sentryStore, Mockito.times(1)
     ).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER, ownerPrivilege, null);
 
-    Mockito.reset(sentryStore);
-    // Verify that owner privilege is not granted when owner belongs to sentry admin group.
+  //  Mockito.reset(sentryStore);
+    // Verify that owner privilege is granted when owner belongs to sentry admin group.
     notification.setOwnerType(TSentryPrincipalType.USER);
     notification.setOwnerName(ADMIN_USER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
     Mockito.verify(
-        sentryStore, Mockito.times(0)).alterSentryGrantOwnerPrivilege(OWNER, SentryPrincipalType.USER,
+        sentryStore, Mockito.times(1)).alterSentryGrantOwnerPrivilege(ADMIN_USER, SentryPrincipalType.USER,
         ownerPrivilege, null);
   }
 
@@ -418,6 +434,20 @@ public class TestSentryPolicyStoreProcessor {
     notification.setAuthorizable(authorizable);
     notification.setEventType(EventType.ALTER_TABLE.toString());
 
+
+    // Verify that owner privilege is granted when owner belongs to sentry admin group.
+    notification.setOwnerType(TSentryPrincipalType.USER);
+    notification.setOwnerName(ADMIN_USER);
+    sentryServiceHandler.sentry_notify_hms_event(notification);
+    // Verify Sentry Store API to update the privilege is not invoked when ownership is transferred to
+    // user belonging to admin group
+    Mockito.verify(
+            sentryStore, Mockito.times(1)
+    ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(ADMIN_USER), Mockito.eq(SentryPrincipalType.USER),
+            Mockito.anyList());
+
+    notification.setOwnerType(TSentryPrincipalType.ROLE);
+    notification.setOwnerName(OWNER);
     sentryServiceHandler.sentry_notify_hms_event(notification);
 
     //Verify Sentry Store is invoked to grant privilege.
