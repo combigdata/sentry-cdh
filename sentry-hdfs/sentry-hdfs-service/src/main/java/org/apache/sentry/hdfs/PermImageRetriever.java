@@ -24,7 +24,7 @@ import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 import org.apache.sentry.hdfs.service.thrift.sentry_hdfs_serviceConstants;
 import org.apache.sentry.provider.db.service.persistent.PermissionsImage;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
@@ -42,9 +42,9 @@ import java.util.Map;
 @ThreadSafe
 public class PermImageRetriever implements ImageRetriever<PermissionsUpdate> {
 
-  private final SentryStore sentryStore;
+  private final SentryStoreInterface sentryStore;
 
-  PermImageRetriever(SentryStore sentryStore) {
+  PermImageRetriever(SentryStoreInterface sentryStore) {
     this.sentryStore = sentryStore;
   }
 
@@ -73,9 +73,10 @@ public class PermImageRetriever implements ImageRetriever<PermissionsUpdate> {
 
       for (Map.Entry<String, Map<TPrivilegeEntity, String>> privEnt : privilegeImage.entrySet()) {
         String authzObj = privEnt.getKey();
-        Map<TPrivilegeEntity,String> privs = privEnt.getValue();
+        Map<TPrivilegeEntity,String> privMap = privEnt.getValue();
+        DBUpdateForwarder.translateOwnerPrivileges(privMap);
         tPermUpdate.putToPrivilegeChanges(authzObj, new TPrivilegeChanges(
-        authzObj, privs, new HashMap<TPrivilegeEntity, String>()));
+        authzObj, privMap, new HashMap<TPrivilegeEntity, String>()));
       }
 
       for (Map.Entry<String, List<String>> privEnt : roleImage.entrySet()) {

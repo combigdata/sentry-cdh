@@ -56,6 +56,30 @@ public interface SentryPolicyServiceClient extends AutoCloseable {
   Set<TSentryPrivilege> listPrivilegesByRoleName(String requestorUserName, String roleName,
       List<? extends Authorizable> authorizable) throws SentryUserException;
 
+  /**
+   * Gets sentry privilege objects for a given userName using the Sentry service.
+   *
+   * @param requestorUserName : user on whose behalf the request is issued
+   * @param userName : userName to look up
+   * @return Set of thrift sentry privilege objects
+   * @throws SentryUserException
+   */
+  Set<TSentryPrivilege> listAllPrivilegesByUserName(String requestorUserName, String userName)
+      throws SentryUserException;
+
+  /**
+   * Gets sentry privileges for a given userName for a specific authorizable object
+   * using the Sentry service.
+   *
+   * @param requestorUserName : user on whose behalf the request is issued
+   * @param userName : userName to look up
+   * @param authorizable : authorizable Hierarchy (server->db->table etc)
+   * @return Set of thrift sentry privilege objects
+   * @throws SentryUserException
+   */
+  Set<TSentryPrivilege> listPrivilegesByUserName(String requestorUserName, String userName,
+      List<? extends Authorizable> authorizable) throws SentryUserException;
+
   Set<TSentryRole> listAllRoles(String requestorUserName) throws SentryUserException;
 
   Set<TSentryRole> listUserRoles(String requestorUserName) throws SentryUserException;
@@ -197,6 +221,50 @@ public interface SentryPolicyServiceClient extends AutoCloseable {
       Set<String> groups, ActiveRoleSet roleSet) throws SentryUserException;
 
   /**
+   * Returns a list of privileges assigned to a set of users and/or groups available in a
+   * set of authorizable objects.
+   *
+   * @param requestorUserName The user who is requesting the list of privileges.
+   * @param authorizables A list of authorizable objects to look for privileges.
+   *                      If null, then privileges of any authorizable object should be returned.
+   * @param groups A list of groups to look for privileges assigned.
+   *               If null, then privileges of any group on the specified authorizable object
+   *               should be returned.
+   * @param users A list of users to look for privileges assigned.
+   *              If null, then privileges of any user on the specified authorizable object
+   *              should be returned.
+   * @param roleSet The active role the group and/or user has. If null, then privileges of
+   *                any role on the specified group or user should be returned.
+   * @return A list of privileges on the specified authorizable object.
+   * @throws SentryUserException In case an error occurs while getting the list of privileges.
+   */
+  Map<TSentryAuthorizable, TSentryPrivilegeMap> listPrivilegsbyAuthorizable(
+    String requestorUserName, Set<List<? extends Authorizable>> authorizables,
+    Set<String> groups, Set<String> users, ActiveRoleSet roleSet) throws SentryUserException;
+
+  /**
+   * Returns an encapsulation of objects for all types assigned to a set of users and/or groups available in a
+   * set of authorizable objects.
+   *
+   * @param requestorUserName The user who is requesting the list of privileges.
+   * @param authorizables A list of authorizable objects to look for privileges.
+   *                      If null, then privileges of any authorizable object should be returned.
+   * @param groups A list of groups to look for privileges assigned.
+   *               If null, then privileges of any group on the specified authorizable object
+   *               should be returned.
+   * @param users A list of users to look for privileges assigned.
+   *              If null, then privileges of any user on the specified authorizable object
+   *              should be returned.
+   * @param roleSet The active role the group and/or user has. If null, then privileges of
+   *                any role on the specified group or user should be returned.
+   * @return A an instance of SentryObjectPrivileges on the specified authorizable object.
+   * @throws SentryUserException In case an error occurs while getting the list of privileges.
+   */
+  SentryObjectPrivileges getAllPrivilegsbyAuthorizable(
+      String requestorUserName, Set<List<? extends Authorizable>> authorizables,
+      Set<String> groups, Set<String> users, ActiveRoleSet roleSet) throws SentryUserException;
+
+  /**
    * Returns the configuration value in the sentry server associated with propertyName, or if
    * propertyName does not exist, the defaultValue. There is no "requestorUserName" because this is
    * regarded as an internal interface.
@@ -224,4 +292,34 @@ public interface SentryPolicyServiceClient extends AutoCloseable {
    * @return The most recent processed notification ID.
    */
   long syncNotifications(long id) throws SentryUserException;
+
+  /**
+   * Notifies sentry server with the HMS Event and related metadata.
+   * @param sentryHmsEventNotification Event Notification message.
+   * @return The most recent processed notification ID.
+   */
+  long notifyHmsNotification(TSentryHmsEventNotification sentryHmsEventNotification) throws SentryUserException;
+
+  /**
+   * Lists all roles and their privileges found on the Sentry server. If a role does not have
+   * any privileges assigned, then returns an empty set of privileges for that role.
+   *
+   * @param requestorUserName : user on whose behalf the request is issued
+   * @return A mapping between role and privileges in the form [roleName, set<privileges>].
+   *         If a role does not have privileges, then an empty set is returned for that role.
+   * @throws SentryUserException if an error occurs requesting the privileges from the server.
+   */
+  Map<String, Set<TSentryPrivilege>> listAllRolesPrivileges(String requestorUserName) throws SentryUserException;
+
+  /**
+   * Lists all users and their privileges found on the Sentry server. Sentry does not keep
+   * users without privileges, but if a user name is stale, then this method returns an
+   * empty set of privileges for that user.
+   *
+   * @param requestorUserName : user on whose behalf the request is issued
+   * @return A mapping between user and privileges in the form [userName, set<privileges>].
+   *         If a stale user does not have privileges, then an empty set is returned for that user.
+   * @throws SentryUserException if an error occurs requesting the privileges from the server.
+   */
+  Map<String, Set<TSentryPrivilege>> listAllUsersPrivileges(String requestorUserName) throws SentryUserException;
 }

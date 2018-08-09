@@ -33,11 +33,11 @@ import javax.jdo.Query;
 import javax.jdo.Transaction;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.sentry.core.common.utils.SentryConstants;
 import org.apache.sentry.core.model.solr.Collection;
 import org.apache.sentry.provider.db.service.model.MSentryGMPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.service.common.ServiceConstants.ServerConfig;
 import org.junit.After;
 import org.junit.Before;
@@ -102,7 +102,7 @@ public class TestSentryRole {
     //add hivePrivilege to role
     pm = openTransaction();
     MSentryRole role = getMSentryRole(pm, roleName);
-    hivePrivilege.appendRole(role);
+    hivePrivilege.appendEntity(role);
     pm.makePersistent(hivePrivilege);
     commitTransaction(pm);
     //check hivePrivlege and solrPrivilege
@@ -138,8 +138,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(SentryConstants.NULL_COL);
+    hivePrivilege.setColumnName(SentryConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
     //The same hivePrivilege
     MSentryPrivilege hivePrivilege2 = new MSentryPrivilege(hivePrivilege);
@@ -163,7 +163,7 @@ public class TestSentryRole {
     pm = openTransaction();
     MSentryRole role = getMSentryRole(pm, roleName);
     solrPrivilege.appendRole(role);
-    hivePrivilege.appendRole(role);
+    hivePrivilege.appendEntity(role);
     pm.makePersistent(solrPrivilege);
     pm.makePersistent(hivePrivilege);
     commitTransaction(pm);
@@ -200,8 +200,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(SentryConstants.NULL_COL);
+    hivePrivilege.setColumnName(SentryConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -221,7 +221,7 @@ public class TestSentryRole {
     //grant hivePrivilege and solrPrivilege to role
     pm = openTransaction();
     MSentryRole role = getMSentryRole(pm, roleName);
-    hivePrivilege.appendRole(role);
+    hivePrivilege.appendEntity(role);
     solrPrivilege.appendRole(role);
     pm.makePersistent(hivePrivilege);
     pm.makePersistent(solrPrivilege);
@@ -256,7 +256,7 @@ public class TestSentryRole {
     role = getMSentryRole(pm, roleName);
     pm.retrieve(role);
     hivePrivilege = (MSentryPrivilege)role.getPrivileges().toArray()[0];
-    hivePrivilege.removeRole(role);
+    hivePrivilege.removeEntity(role);
     pm.makePersistent(hivePrivilege);
     commitTransaction(pm);
 
@@ -279,8 +279,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(SentryConstants.NULL_COL);
+    hivePrivilege.setColumnName(SentryConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -300,7 +300,7 @@ public class TestSentryRole {
     //grant hivePrivilege and solrPrivilege to role
     pm = openTransaction();
     MSentryRole role = getMSentryRole(pm, roleName);
-    hivePrivilege.appendRole(role);
+    hivePrivilege.appendEntity(role);
     solrPrivilege.appendRole(role);
     pm.makePersistent(hivePrivilege);
     pm.makePersistent(solrPrivilege);
@@ -358,8 +358,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(SentryConstants.NULL_COL);
+    hivePrivilege.setColumnName(SentryConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -379,7 +379,7 @@ public class TestSentryRole {
     //grant hivePrivilege and solrPrivilege to role
     pm = openTransaction();
     MSentryRole role = getMSentryRole(pm, roleName);
-    hivePrivilege.appendRole(role);
+    hivePrivilege.appendEntity(role);
     solrPrivilege.appendRole(role);
     pm.makePersistent(hivePrivilege);
     pm.makePersistent(solrPrivilege);
@@ -438,8 +438,8 @@ public class TestSentryRole {
     hivePrivilege.setTableName("tb1");
     hivePrivilege.setPrivilegeScope("table");
     hivePrivilege.setAction("select");
-    hivePrivilege.setURI(SentryStore.NULL_COL);
-    hivePrivilege.setColumnName(SentryStore.NULL_COL);
+    hivePrivilege.setURI(SentryConstants.NULL_COL);
+    hivePrivilege.setColumnName(SentryConstants.NULL_COL);
     hivePrivilege.setGrantOption(true);
 
     //solr privilege
@@ -465,9 +465,9 @@ public class TestSentryRole {
     pm = openTransaction();
     MSentryRole role1 = getMSentryRole(pm, roleName1);
     MSentryRole role2 = getMSentryRole(pm, roleName2);
-    hivePrivilege.appendRole(role1);
+    hivePrivilege.appendEntity(role1);
     solrPrivilege.appendRole(role1);
-    hivePrivilege.appendRole(role2);
+    hivePrivilege.appendEntity(role2);
     solrPrivilege.appendRole(role2);
     pm.makePersistent(hivePrivilege);
     pm.makePersistent(solrPrivilege);

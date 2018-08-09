@@ -38,6 +38,11 @@ enum TSentryGrantOption {
   UNSET = -1
 }
 
+enum TSentryObjectOwnerType {
+  ROLE = 1,
+  USER = 2
+}
+
 # Represents a Privilege in transport from the client to the server
 struct TSentryPrivilege {
 1: required string privilegeScope, # Valid values are SERVER, DATABASE, TABLE, COLUMN, URI
@@ -184,9 +189,18 @@ struct TSentryAuthorizable {
 struct TListSentryPrivilegesRequest {
 1: required i32 protocol_version = sentry_common_service.TSENTRY_SERVICE_V2,
 2: required string requestorUserName, # user on whose behalf the request is issued
+
+# @Deprecated Use entityName instead to set role names or user names. This parameter will be
+# removed in the next major version of Sentry 3.0
 4: required string roleName, # get privileges assigned for this role
-5: optional TSentryAuthorizable authorizableHierarchy # get privileges assigned for this role
+5: optional TSentryAuthorizable authorizableHierarchy, # get privileges assigned for this role
+
+# Get privileges assigned for this entity name. This entityName should be set to a a role name
+# or user name depending of which function you call, either list_sentry_privileges_by_role or
+# list_sentry_privileges_by_user
+6: optional string entityName
 }
+
 struct TListSentryPrivilegesResponse {
 1: required sentry_common_service.TSentryResponseStatus status
 2: optional set<TSentryPrivilege> privileges
@@ -244,11 +258,19 @@ struct TListSentryPrivilegesByAuthRequest {
 2: required string requestorUserName, # user on whose behalf the request is issued
 3: required set<TSentryAuthorizable> authorizableSet,
 4: optional set<string> groups,
-5: optional TSentryActiveRoleSet roleSet
+5: optional TSentryActiveRoleSet roleSet,
+6: optional set<string> users
 }
 struct TListSentryPrivilegesByAuthResponse {
 1: required sentry_common_service.TSentryResponseStatus status,
-2: optional map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMapByAuth # will not be set in case of an error
+
+# privilegesMapByAuth (legacy & compatible parameter) contains role privileges
+# (will not be set in case of an error)
+2: optional map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMapByAuth,
+
+# privilegesMapByAuthForUsers contains user privileges
+# (will not be set in case of an error)
+3: optional map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMapByAuthForUsers
 }
 
 # Obtain a config value from the Sentry service
@@ -323,6 +345,48 @@ struct TSentrySyncIDResponse {
 2: required i64 id // Most recent processed ID
 }
 
+/*
+ * This request is an extension to TSentrySyncIDRequest. Additionally this request
+ * is used to update the HMS events and the owner changes associated with events.
+ * To be backward compatible, TSentrySyncIDRequest is not updated. Instead new request
+ * is created extending it.
+*/
+
+struct TSentryHmsEventNotification {
+1: required i32 protocol_version = sentry_common_service.TSENTRY_SERVICE_V2,
+2: required i64 id, # Requested ID
+#  Constructed from enum org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType
+3: required string eventType, # Type of the event which resulted in owner update request
+4: required TSentryObjectOwnerType ownerType, # Type of the owner
+5: required string ownerName, # owner name
+6: required TSentryAuthorizable authorizable
+}
+
+struct TSentryHmsEventNotificationResponse {
+1: required sentry_common_service.TSentryResponseStatus status
+2: required i64 id // Most recent processed ID
+}
+
+/**
+* API that requests all roles and users privileges from the Sentry server.
+**/
+struct TSentryPrivilegesRequest {
+1: required i32 protocol_version = sentry_common_service.TSENTRY_SERVICE_V2,
+2: required string requestorUserName # user on whose behalf the request is issued
+}
+
+/**
+* API that returns either all users or roles privileges found on the Sentry server.
+*
+* The response returns a mapping object that maps the role or user name to the privileges
+* they have in the server. An empty set of privileges may be returned to each role or user
+* name. Null values are not returned.
+**/
+struct TSentryPrivilegesResponse {
+1: required sentry_common_service.TSentryResponseStatus status
+2: required map<string, set<TSentryPrivilege>> privilegesMap;
+}
+
 service SentryPolicyService
 {
   TCreateSentryRoleResponse create_sentry_role(1:TCreateSentryRoleRequest request)
@@ -341,6 +405,7 @@ service SentryPolicyService
   TListSentryRolesResponse list_sentry_roles_by_user(1:TListSentryRolesForUserRequest request)
 
   TListSentryPrivilegesResponse list_sentry_privileges_by_role(1:TListSentryPrivilegesRequest request)
+  TListSentryPrivilegesResponse list_sentry_privileges_by_user(1:TListSentryPrivilegesRequest request)
 
   # For use with ProviderBackend.getPrivileges only
   TListSentryPrivilegesForProviderResponse list_sentry_privileges_for_provider(1:TListSentryPrivilegesForProviderRequest request)
@@ -361,4 +426,16 @@ service SentryPolicyService
 
   # Synchronize between HMS notifications and Sentry
   TSentrySyncIDResponse sentry_sync_notifications(1:TSentrySyncIDRequest request);
+
+  # Notify Sentry about new events in HMS. Currently used to synchronize between HMS/Sentry
+  # and also update sentry with the owner information.
+  TSentryHmsEventNotificationResponse sentry_notify_hms_event(1:TSentryHmsEventNotification request);
+
+  # Returns a map of all roles and their privileges that exist in the Sentry server.
+  # The mapping object returned will be in the form of [roleName, set<privileges>]
+  TSentryPrivilegesResponse list_roles_privileges(1:TSentryPrivilegesRequest request);
+
+  # Returns a map of all users and their privileges that exist in the Sentry server.
+  # The mapping object returned will be in the form of [userName, set<privileges>]
+  TSentryPrivilegesResponse list_users_privileges(1:TSentryPrivilegesRequest request);
 }

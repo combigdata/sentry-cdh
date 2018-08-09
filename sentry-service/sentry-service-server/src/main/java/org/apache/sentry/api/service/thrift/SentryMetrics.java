@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.service.thrift.SentryService;
 import org.apache.sentry.api.common.SentryServiceUtil;
 import org.slf4j.Logger;
@@ -106,10 +107,14 @@ public final class SentryMetrics {
       name(SentryPolicyStoreProcessor.class, "list-roles-by-group"));
   final Timer listPrivilegesByRoleTimer = METRIC_REGISTRY.timer(
       name(SentryPolicyStoreProcessor.class, "list-privileges-by-role"));
+  final Timer listPrivilegesByUserTimer = METRIC_REGISTRY.timer(
+    name(SentryPolicyStoreProcessor.class, "list-privileges-by-user"));
   final Timer listPrivilegesForProviderTimer = METRIC_REGISTRY.timer(
       name(SentryPolicyStoreProcessor.class, "list-privileges-for-provider"));
   final Timer listPrivilegesByAuthorizableTimer = METRIC_REGISTRY.timer(
       name(SentryPolicyStoreProcessor.class, "list-privileges-by-authorizable"));
+  final Timer notificationProcessTimer = METRIC_REGISTRY.timer(
+          name(SentryPolicyStoreProcessor.class, "process-hsm-notification"));
 
   /**
    * Return a Timer with name.
@@ -151,7 +156,7 @@ public final class SentryMetrics {
     return sentryMetrics;
   }
 
-  void addSentryStoreGauges(SentryStore sentryStore) {
+  void addSentryStoreGauges(SentryStoreInterface sentryStore) {
     if (!gaugesAdded) {
       addGauge(SentryStore.class, "role_count", sentryStore.getRoleCountGauge());
       addGauge(SentryStore.class, "privilege_count",

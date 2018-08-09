@@ -78,6 +78,15 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
   }
 
   /**
+   * Sets the Client object which is usually a mock object of the Client class used for testing.
+   * @param client
+   */
+  @VisibleForTesting
+  void setClient(Client client) {
+    this.client = client;
+  }
+
+  /**
    * Connect to the sentry server
    *
    * @throws IOException
@@ -223,6 +232,12 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
     TListSentryPrivilegesRequest request = new TListSentryPrivilegesRequest();
     request.setProtocol_version(ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT);
     request.setRequestorUserName(requestorUserName);
+
+    // TODO: Switch from setRoleName() to setEntityName()
+    // The 'roleName' parameter is deprecated in Sentry 2.x, but it is still required by older
+    // versions of Sentry 2.0. To keep compatibility when connecting to older versions of Sentry 2.x,
+    // then we'll use this parameter, but it will be switched for setEntityName once the roleName
+    // is removed.
     request.setRoleName(roleName);
     if (authorizable != null && !authorizable.isEmpty()) {
       TSentryAuthorizable tSentryAuthorizable = setupSentryAuthorizable(authorizable);
@@ -231,6 +246,42 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
     TListSentryPrivilegesResponse response;
     try {
       response = client.list_sentry_privileges_by_role(request);
+      Status.throwIfNotOk(response.getStatus());
+      return response.getPrivileges();
+    } catch (TException e) {
+      throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
+    }
+  }
+
+  @Override
+  public Set<TSentryPrivilege> listAllPrivilegesByUserName(String requestorUserName,
+                                                                    String userName)
+    throws SentryUserException {
+    return listPrivilegesByUserName(requestorUserName, userName, null);
+  }
+
+  @Override
+  public Set<TSentryPrivilege> listPrivilegesByUserName(String requestorUserName, String userName,
+                                                                  List<? extends Authorizable> authorizable)
+    throws SentryUserException {
+    TListSentryPrivilegesRequest request = new TListSentryPrivilegesRequest();
+    request.setProtocol_version(ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT);
+    request.setRequestorUserName(requestorUserName);
+    // TODO: Remove setRoleName() once the required field is removed
+    request.setRoleName(""); // roleName is unused by it is required by Thrift
+    request.setEntityName(userName);
+    if (authorizable != null && !authorizable.isEmpty()) {
+      TSentryAuthorizable tSentryAuthorizable = setupSentryAuthorizable(authorizable);
+      request.setAuthorizableHierarchy(tSentryAuthorizable);
+    }
+    TListSentryPrivilegesResponse response;
+    try {
+      response = client.list_sentry_privileges_by_user(request);
+      if (response == null) {
+        throw new SentryUserException("The Sentry server has returned a NULL response. "
+          + "See the Sentry server logs for more information about the error.");
+      }
+
       Status.throwIfNotOk(response.getStatus());
       return response.getPrivileges();
     } catch (TException e) {
@@ -875,10 +926,40 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
   }
 
   @Override
+  public Map<TSentryAuthorizable, TSentryPrivilegeMap> listPrivilegsbyAuthorizable(
+    String requestorUserName, Set<List<? extends Authorizable>> authorizables, Set<String> groups,
+    ActiveRoleSet roleSet) throws SentryUserException {
+    return listPrivilegsbyAuthorizable(requestorUserName, authorizables, groups, null, roleSet);
+  }
+
+  @Override
   public Map<TSentryAuthorizable, TSentryPrivilegeMap> listPrivilegsbyAuthorizable
     (
       String requestorUserName,
       Set<List<? extends Authorizable>> authorizables, Set<String> groups,
+      Set<String> users, ActiveRoleSet roleSet) throws SentryUserException {
+
+    TListSentryPrivilegesByAuthResponse response =
+        getSentryPrivilegeByAuthResponse(requestorUserName, authorizables, groups, users, roleSet);
+
+    return response.getPrivilegesMapByAuth();
+  }
+
+  @Override
+  public SentryObjectPrivileges getAllPrivilegsbyAuthorizable
+  (
+    String requestorUserName,
+    Set<List<? extends Authorizable>> authorizables, Set<String> groups,
+    Set<String> users, ActiveRoleSet roleSet) throws SentryUserException {
+
+    TListSentryPrivilegesByAuthResponse response =
+        getSentryPrivilegeByAuthResponse(requestorUserName, authorizables, groups, users, roleSet);
+
+    return new SentryObjectPrivileges(response);
+  }
+
+  public TListSentryPrivilegesByAuthResponse getSentryPrivilegeByAuthResponse(String requestorUserName,
+      Set<List<? extends Authorizable>> authorizables, Set<String> groups, Set<String> users,
       ActiveRoleSet roleSet) throws SentryUserException {
     Set<TSentryAuthorizable> authSet = Sets.newTreeSet();
 
@@ -886,20 +967,27 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
       authSet.add(setupSentryAuthorizable(authorizableHierarchy));
     }
     TListSentryPrivilegesByAuthRequest request = new TListSentryPrivilegesByAuthRequest(
-      ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT, requestorUserName,
-      authSet);
+        ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT, requestorUserName,
+        authSet);
     if (groups != null) {
       request.setGroups(groups);
     }
     if (roleSet != null) {
       request.setRoleSet(new TSentryActiveRoleSet(roleSet.isAll(), roleSet.getRoles()));
     }
+    if (users != null) {
+      request.setUsers(users);
+    }
 
     try {
       TListSentryPrivilegesByAuthResponse response = client
         .list_sentry_privileges_by_authorizable(request);
       Status.throwIfNotOk(response.getStatus());
-      return response.getPrivilegesMapByAuth();
+
+      if(response == null) {
+        throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE + ": received a NULL response while requesting for sentry privileges by authorizable");
+      }
+      return response;
     } catch (TException e) {
       throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
     }
@@ -1074,6 +1162,51 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
       TSentrySyncIDResponse response = client.sentry_sync_notifications(request);
       Status.throwIfNotOk(response.getStatus());
       return response.getId();
+    } catch (TException e) {
+      throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
+    }
+  }
+
+  public long notifyHmsNotification(TSentryHmsEventNotification request)
+          throws SentryUserException {
+    try {
+      TSentryHmsEventNotificationResponse response = client.sentry_notify_hms_event(request);
+      Status.throwIfNotOk(response.getStatus());
+      return response.getId();
+    } catch (TException e) {
+      throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
+    }
+  }
+
+  @Override
+  public Map<String, Set<TSentryPrivilege>> listAllRolesPrivileges(String requestorUserName)
+    throws SentryUserException {
+    TSentryPrivilegesRequest request = new TSentryPrivilegesRequest();
+    request.setProtocol_version(ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT);
+    request.setRequestorUserName(requestorUserName);
+
+    try {
+      TSentryPrivilegesResponse response = client.list_roles_privileges(request);
+      Status.throwIfNotOk(response.getStatus());
+
+      return response.getPrivilegesMap();
+    } catch (TException e) {
+      throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
+    }
+  }
+
+  @Override
+  public Map<String, Set<TSentryPrivilege>> listAllUsersPrivileges(String requestorUserName)
+    throws SentryUserException {
+    TSentryPrivilegesRequest request = new TSentryPrivilegesRequest();
+    request.setProtocol_version(ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT);
+    request.setRequestorUserName(requestorUserName);
+
+    try {
+      TSentryPrivilegesResponse response = client.list_users_privileges(request);
+      Status.throwIfNotOk(response.getStatus());
+
+      return response.getPrivilegesMap();
     } catch (TException e) {
       throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
     }
