@@ -28,7 +28,9 @@ import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.db.generic.service.thrift.TAuthorizable;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleGrantPrivilegeRequest;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleRevokePrivilegeRequest;
+import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.provider.db.service.thrift.TSentryGrantOption;
+import org.apache.sentry.provider.db.service.thrift.TSentryPrincipalType;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.apache.sentry.service.thrift.ServiceConstants.PrivilegeScope;
 import org.datanucleus.util.StringUtils;
@@ -196,6 +198,50 @@ public class CommandUtil {
     if (privilege.getGrantOption() == org.apache.sentry.provider.db.generic.service.thrift.TSentryGrantOption.TRUE) {
       sb.append(" WITH GRANT OPTION");
     }
+
+    return sb.toString();
+  }
+
+  public static String createCmdForImplicitGrantOwnerPrivilege(TSentryPrincipalType ownerType,
+    String ownerName, TSentryAuthorizable authorizable) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append("OWNER privilege on");
+    if (StringUtils.isEmpty(authorizable.getTable())) {
+      sb.append(" database ");
+      sb.append(authorizable.getDb());
+    } else {
+      sb.append(" table ");
+      sb.append(authorizable.getDb());
+      sb.append(".");
+      sb.append(authorizable.getTable());
+    }
+
+    sb.append(" is granted to ");
+    sb.append(ownerType.toString()).append(": ");
+    sb.append(ownerName);
+
+    return sb.toString();
+  }
+
+  public static String createCmdForImplicitTransferOwnerPrivilege(TSentryPrincipalType ownerType,
+    String ownerName, TSentryAuthorizable authorizable) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append("OWNER privilege on");
+    if (StringUtils.isEmpty(authorizable.getTable())) {
+      sb.append(" database ");
+      sb.append(authorizable.getDb());
+    } else {
+      sb.append(" table ");
+      sb.append(authorizable.getDb());
+      sb.append(".");
+      sb.append(authorizable.getTable());
+    }
+
+    sb.append(" is transferred to ");
+    sb.append(ownerType.toString()).append(": ");
+    sb.append(ownerName);
 
     return sb.toString();
   }

@@ -124,7 +124,7 @@ public class TestJsonLogEntityFactory {
     response.setStatus(Status.OK());
     DBAuditMetadataLogEntity amle = new DBAuditMetadataLogEntity();
     Set<JsonLogEntity> amles =  JsonLogEntityFactory
-        .getInstance().createJsonLogEntitys(request, response, conf);
+        .getInstance().createJsonLogEntities(request, response, conf);
     assertEquals(amles.size(),1);
     for (JsonLogEntity amle1 : amles) {
       amle = (DBAuditMetadataLogEntity) amle1;
@@ -141,7 +141,7 @@ public class TestJsonLogEntityFactory {
     request.setPrivileges(privileges);
     response.setStatus(Status.InvalidInput("", null));
     amles =  JsonLogEntityFactory.getInstance()
-        .createJsonLogEntitys(request, response, conf);
+        .createJsonLogEntities(request, response, conf);
     assertEquals(amles.size(),1);
     for (JsonLogEntity amle1 : amles) {
       amle = (DBAuditMetadataLogEntity) amle1;
@@ -167,7 +167,7 @@ public class TestJsonLogEntityFactory {
     response.setStatus(Status.OK());
     DBAuditMetadataLogEntity amle = new DBAuditMetadataLogEntity();
     Set<JsonLogEntity> amles =  JsonLogEntityFactory
-        .getInstance().createJsonLogEntitys(request, response, conf);
+        .getInstance().createJsonLogEntities(request, response, conf);
     assertEquals(amles.size(),1);
     for (JsonLogEntity amle1 : amles) {
       amle = (DBAuditMetadataLogEntity) amle1;
@@ -184,7 +184,7 @@ public class TestJsonLogEntityFactory {
     request.setPrivileges(privileges);
     response.setStatus(Status.InvalidInput("", null));
     amles =  JsonLogEntityFactory.getInstance()
-        .createJsonLogEntitys(request, response, conf);
+        .createJsonLogEntities(request, response, conf);
     assertEquals(amles.size(),1);
     for (JsonLogEntity amle1 : amles) {
       amle = (DBAuditMetadataLogEntity) amle1;
