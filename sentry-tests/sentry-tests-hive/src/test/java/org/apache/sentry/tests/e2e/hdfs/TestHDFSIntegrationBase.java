@@ -196,15 +196,18 @@ public abstract class TestHDFSIntegrationBase {
   protected String tmpHDFSDirStr;
   protected String tmpHDFSPartitionStr;
   protected Path partitionDir;
+  protected static final String SERVER_NAME = "server1";
   protected String[] dbNames;
   protected String[] roles;
   protected String admin;
   protected static Boolean hdfsSyncEnabled = true;
   protected static Boolean hiveSyncOnCreate = false;
   protected static Boolean hiveSyncOnDrop = true;
+  protected static Boolean ownerPrivilegeEnabled = false;
+  protected static Boolean ownerPrivilegeGrantEnabled = false;
   protected static Configuration hadoopConf;
   protected static final Map<String, String> sentryProperties = Maps.newHashMap();
-  protected static Configuration sentryConf = new Configuration(false);
+  protected static Configuration sentryConf = new Configuration(true);
 
   protected static File assertCreateDir(File dir) {
     if(!dir.isDirectory()) {
@@ -581,7 +584,7 @@ public abstract class TestHDFSIntegrationBase {
         hiveConf.set("sentry.hive.provider", LocalGroupResourceAuthorizationProvider.class.getName());
         hiveConf.set("sentry.hive.provider.resource", policyFileLocation.getPath());
         hiveConf.set("sentry.hive.testing.mode", "true");
-        hiveConf.set("sentry.hive.server", "server1");
+        hiveConf.set("sentry.hive.server", SERVER_NAME);
 
         hiveConf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING, ServerConfig.SENTRY_STORE_LOCAL_GROUP_MAPPING);
         hiveConf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING_RESOURCE, policyFileLocation.getPath());
@@ -860,6 +863,9 @@ public abstract class TestHDFSIntegrationBase {
           sentryProperties.put(ServerConfig.SENTRY_HMSFOLLOWER_INIT_DELAY_MILLS, "10000");
           sentryProperties.put(ServerConfig.SENTRY_HMSFOLLOWER_INTERVAL_MILLS, String.valueOf(HMSFOLLOWER_INTERVAL_MILLS));
           sentryProperties.put(ServerConfig.RPC_MIN_THREADS, "3");
+          sentryProperties.put("sentry.hive.sync.drop", "true");
+          sentryProperties.put("sentry.hive.sync.create", "true");
+
           if(hiveSyncOnCreate) {
             sentryProperties.put("sentry.hive.sync.create", "true");
           } else {
@@ -875,7 +881,15 @@ public abstract class TestHDFSIntegrationBase {
                     "org.apache.sentry.api.service.thrift.SentryPolicyStoreProcessorFactory,org.apache.sentry.hdfs.SentryHDFSServiceProcessorFactory");
             sentryProperties.put("sentry.policy.store.plugins", "org.apache.sentry.hdfs.SentryPlugin");
           }
-            for (Map.Entry<String, String> entry : sentryProperties.entrySet()) {
+          if(ownerPrivilegeEnabled) {
+            sentryProperties.put("sentry.enable.owner.privileges", "true");
+
+            if(ownerPrivilegeGrantEnabled) {
+              sentryProperties.put("sentry.grant.owner.privileges.with.grant", "true");
+            }
+          }
+
+          for (Map.Entry<String, String> entry : sentryProperties.entrySet()) {
             sentryConf.set(entry.getKey(), entry.getValue());
           }
           sentryServer = SentrySrvFactory.create(SentrySrvFactory.SentrySrvType.INTERNAL_SERVER,

@@ -25,14 +25,14 @@ import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.events.CreateDatabaseEvent;
 import org.apache.hadoop.hive.metastore.events.DropDatabaseEvent;
+// import org.apache.hadoop.hive.metastore.events.AlterDatabaseEvent; TODO: enable one HIVE-18031 is available
 import org.apache.hadoop.hive.metastore.events.CreateTableEvent;
 import org.apache.hadoop.hive.metastore.events.DropTableEvent;
 import org.apache.hadoop.hive.metastore.events.AlterTableEvent;
 import org.apache.hadoop.hive.metastore.events.ListenerEvent;
 import org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType;
 import org.apache.sentry.api.service.thrift.TSentryAuthorizable;
-import org.apache.sentry.api.service.thrift.TSentryHmsEventNotification;
-import org.apache.sentry.api.service.thrift.TSentryObjectOwnerType;
+import org.apache.sentry.api.service.thrift.TSentryPrincipalType;
 
 import java.util.Map;
 
@@ -44,13 +44,13 @@ class SentryHmsEvent {
   private long eventId;
   private final EventType eventType;
   private String ownerName;
-  private TSentryObjectOwnerType ownerType;
+  private TSentryPrincipalType ownerType;
   private TSentryAuthorizable authorizable;
   private final Boolean isMetastoreTransactionActive;
 
-  private static final Map<PrincipalType, TSentryObjectOwnerType> mapOwnerType = ImmutableMap.of(
-          PrincipalType.ROLE, TSentryObjectOwnerType.ROLE,
-          PrincipalType.USER, TSentryObjectOwnerType.USER
+  private static final Map<PrincipalType, TSentryPrincipalType> mapOwnerType = ImmutableMap.of(
+          PrincipalType.ROLE, TSentryPrincipalType.ROLE,
+          PrincipalType.USER, TSentryPrincipalType.USER
   );
 
   /**
@@ -72,63 +72,91 @@ class SentryHmsEvent {
    * Construct SentryHmsEvent from CreateTableEvent
    *
    * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
    * @param event CreateTableEvent
    */
-  public SentryHmsEvent(CreateTableEvent event) {
+  public SentryHmsEvent(String inServerName, CreateTableEvent event) {
     this(event, EventType.CREATE_TABLE);
     setOwnerInfo(event.getTable());
-    setAuthorizable(event.getTable());
+    setAuthorizable(inServerName, event.getTable());
   }
 
   /**
    * Construct SentryHmsEvent from DropTableEvent
    *
    * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
    * @param event DropTableEvent
    */
-  public SentryHmsEvent(DropTableEvent event) {
+  public SentryHmsEvent(String inServerName, DropTableEvent event) {
     this(event, EventType.DROP_TABLE);
     setOwnerInfo(event.getTable());
-    setAuthorizable(event.getTable());
+    setAuthorizable(inServerName, event.getTable());
   }
 
   /**
    * Construct SentryHmsEvent from AlterTableEvent
    *
    * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
    * @param event AlterTableEvent
    */
-  public SentryHmsEvent(AlterTableEvent event) {
+  public SentryHmsEvent(String inServerName, AlterTableEvent event) {
     this(event, EventType.ALTER_TABLE);
     if(!StringUtils.equals(event.getOldTable().getOwner(), event.getNewTable().getOwner())) {
-      // Owner Changed.
+      // Owner Changed. We don't set owner info for other cases of alter table.
+      // In this way, sentry server only updates owner privilege when object is created, dropped or
+      // owner is updated
       setOwnerInfo(event.getNewTable());
     }
-    setAuthorizable(event.getNewTable());
+    setAuthorizable(inServerName, event.getNewTable());
   }
+
+  /**
+   * Construct SentryHmsEvent from AlterDatabaseEvent
+   *
+   * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
+   * @param event AlterDatabaseEvent
+   */
+  /* TODO: Enable once HIVE-18031 is available
+  public SentryHmsEvent(String inServerName, AlterDatabaseEvent event) {
+    this(event, EventType.ALTER_DATABASE);
+
+    if (!StringUtils.equals(event.getOldDatabase().getOwnerName(), event.getNewDatabase().getOwnerName())) {
+      // Owner Changed. We don't set owner info for other cases of alter database.
+      // In this way, sentry server only updates owner privilege when object is created, dropped or
+      // owner is updated
+      setOwnerInfo(event.getNewDatabase());
+    }
+    setAuthorizable(inServerName, event.getNewDatabase());
+  }
+  */
 
   /**
    * Construct SentryHmsEvent from CreateDatabaseEvent
    *
    * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
    * @param event CreateDatabaseEvent
    */
-  public SentryHmsEvent(CreateDatabaseEvent event) {
+  public SentryHmsEvent(String inServerName, CreateDatabaseEvent event) {
     this(event, EventType.CREATE_DATABASE);
     setOwnerInfo(event.getDatabase());
-    setAuthorizable(event.getDatabase());
+    setAuthorizable(inServerName, event.getDatabase());
   }
 
   /**
    * Construct SentryHmsEvent from DropDatabaseEvent
    *
    * event, transaction, owner and authorizable info is initialized from event.
+   * @param inServerName name of the server associated with the event
    * @param event DropDatabaseEvent
    */
-  public SentryHmsEvent(DropDatabaseEvent event) {
+  public SentryHmsEvent(String inServerName, DropDatabaseEvent event) {
     this(event, EventType.DROP_DATABASE);
     setOwnerInfo(event.getDatabase());
-    setAuthorizable(event.getDatabase());
+    setAuthorizable(inServerName, event.getDatabase());
   }
 
   public EventType getEventType() {
@@ -139,12 +167,24 @@ class SentryHmsEvent {
     return eventId;
   }
 
+  public TSentryPrincipalType getOwnerType() {
+    return ownerType;
+  }
+
+  public String getOwnerName() {
+    return ownerName;
+  }
+
+  public TSentryAuthorizable getAuthorizable() {
+    return authorizable;
+  }
+
   private void setOwnerInfo(Table table) {
     ownerName = (table != null) ? table.getOwner() : null;
     // Hive 2.3.2 currently support owner type. Assuming user as the type for now.
     // TODO once sentry dependency is changed to a hive version that suppots user type for table this
     // hard coding should be rempved.
-    ownerType = TSentryObjectOwnerType.USER;
+    ownerType = TSentryPrincipalType.USER;
   }
 
   private void setOwnerInfo(Database database) {
@@ -153,17 +193,17 @@ class SentryHmsEvent {
             getTSentryHmsObjectOwnerType(database.getOwnerType()) : null;
   }
 
-  private void setAuthorizable(Table table) {
+  private void setAuthorizable(String serverName, Table table) {
     if (authorizable == null) {
-      authorizable = new TSentryAuthorizable();
+      authorizable = new TSentryAuthorizable(serverName);
     }
     authorizable.setDb((table != null) ? table.getDbName() : null);
     authorizable.setTable((table != null) ? table.getTableName() : null);
   }
 
-  private void setAuthorizable(Database database) {
+  private void setAuthorizable(String serverName, Database database) {
     if (authorizable == null) {
-      authorizable = new TSentryAuthorizable();
+      authorizable = new TSentryAuthorizable(serverName);
     }
     authorizable.setDb((database != null) ? database.getName() : null);
   }
@@ -177,27 +217,12 @@ class SentryHmsEvent {
   }
 
   /**
-   * Constructs notification message that is sent to sentry server.
-   *
-   * @return notification event.
-   */
-  public TSentryHmsEventNotification getHmsEventNotification() {
-    TSentryHmsEventNotification updateAndSyncIDRequest = new TSentryHmsEventNotification();
-    updateAndSyncIDRequest.setOwnerName(ownerName);
-    updateAndSyncIDRequest.setOwnerType(ownerType);
-    updateAndSyncIDRequest.setAuthorizable(authorizable);
-    updateAndSyncIDRequest.setId(eventId);
-    updateAndSyncIDRequest.setEventType(eventType.toString());
-    return updateAndSyncIDRequest;
-  }
-
-  /**
    * Converts Principle to Owner Type defined by sentry.
    *
    * @param principalType Hive Principle Type
-   * @return TSentryObjectOwnerType if the input is valid else null
+   * @return TSentryPrincipalType if the input is valid else null
    */
-  private TSentryObjectOwnerType getTSentryHmsObjectOwnerType(PrincipalType principalType) {
+  private TSentryPrincipalType getTSentryHmsObjectOwnerType(PrincipalType principalType) {
     return mapOwnerType.get(principalType);
   }
 

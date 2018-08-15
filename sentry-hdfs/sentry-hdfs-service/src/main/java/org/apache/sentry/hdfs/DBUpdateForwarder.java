@@ -25,8 +25,9 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.concurrent.ThreadSafe;
 
+import org.apache.sentry.api.common.SentryServiceUtil;
 import org.apache.sentry.core.model.db.AccessConstants;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntity;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
 import org.apache.sentry.service.thrift.SentryServiceState;
 import org.apache.sentry.service.thrift.SentryStateBank;
 import org.slf4j.Logger;
@@ -93,11 +94,17 @@ class DBUpdateForwarder<K extends Updateable.Update> {
 
       if (curImgNum > imgNum) {
         // In case a new HMS snapshot has been processed, then return a full paths image.
+        String logMessage = String.format("(%s) Current image num %d is greater than requested "
+            + "image num %d. Request a full update", retrieverType, curImgNum, imgNum);
+        LOGGER.info(logMessage);
+        System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
         List<K>fullImage = retrieveFullImage();
         //Only log if we have received full image
         if( !fullImage.isEmpty()) {
-          LOGGER.info("({}) A newer full update with image number {} was found and being sent to HDFS",
-              retrieverType, curImgNum);
+          logMessage = String.format("(%s) A newer full update with image number %d "
+              + "is less than requested image number %d. Send full update to HDFS", retrieverType, curImgNum, imgNum);
+          LOGGER.info(logMessage);
+          System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
         }
         return fullImage;
       }
@@ -128,11 +135,16 @@ class DBUpdateForwarder<K extends Updateable.Update> {
 
     // If the sequence number is < 0 or the requested delta is not available, then we
     // return a full update.
+    String logMessage = String.format("(%s) Requested sequence number %d is less than 0 or "
+        + "requested deltas for that sequence number are not available. Fetch a full update", retrieverType, seqNum);
+    LOGGER.info(logMessage);
+    System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
     List<K>fullImage = retrieveFullImage();
     //Only log if we have received full image
     if( fullImage != null && !fullImage.isEmpty()) {
-      LOGGER.info("({}) A full update is returned due to an unavailable sequence number: {}",
-          retrieverType, seqNum);
+      logMessage = String.format("(%s) A full update is returned due to an unavailable sequence number: %d", retrieverType, seqNum);
+      LOGGER.info(logMessage);
+      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
     }
     return fullImage;
   }
@@ -151,11 +163,11 @@ class DBUpdateForwarder<K extends Updateable.Update> {
    * Translate Owner Privilege
    * @param privMap Collection of privileges on an privilege entity.
    */
-  public static void translateOwnerPrivileges(Map<TPrivilegeEntity,String> privMap) {
+  public static void translateOwnerPrivileges(Map<TPrivilegePrincipal,String> privMap) {
     if(privMap == null) {
       return;
     }
-    for (Map.Entry<TPrivilegeEntity, String> priv : privMap.entrySet()) {
+    for (Map.Entry<TPrivilegePrincipal, String> priv : privMap.entrySet()) {
       if (priv.getValue().equalsIgnoreCase(AccessConstants.OWNER)) {
         //Translate owner privilege
         priv.setValue(AccessConstants.ALL);

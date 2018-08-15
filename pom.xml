@@ -495,6 +495,10 @@ limitations under the License.
             <artifactId>log4j-web</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>com.yammer.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
           </exclusion>

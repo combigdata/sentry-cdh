@@ -39,11 +39,12 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
   private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("TSentryHmsEventNotification");
 
   private static final org.apache.thrift.protocol.TField PROTOCOL_VERSION_FIELD_DESC = new org.apache.thrift.protocol.TField("protocol_version", org.apache.thrift.protocol.TType.I32, (short)1);
-  private static final org.apache.thrift.protocol.TField ID_FIELD_DESC = new org.apache.thrift.protocol.TField("id", org.apache.thrift.protocol.TType.I64, (short)2);
-  private static final org.apache.thrift.protocol.TField EVENT_TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("eventType", org.apache.thrift.protocol.TType.STRING, (short)3);
-  private static final org.apache.thrift.protocol.TField OWNER_TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("ownerType", org.apache.thrift.protocol.TType.I32, (short)4);
-  private static final org.apache.thrift.protocol.TField OWNER_NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("ownerName", org.apache.thrift.protocol.TType.STRING, (short)5);
-  private static final org.apache.thrift.protocol.TField AUTHORIZABLE_FIELD_DESC = new org.apache.thrift.protocol.TField("authorizable", org.apache.thrift.protocol.TType.STRUCT, (short)6);
+  private static final org.apache.thrift.protocol.TField REQUESTOR_USER_NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("requestorUserName", org.apache.thrift.protocol.TType.STRING, (short)2);
+  private static final org.apache.thrift.protocol.TField ID_FIELD_DESC = new org.apache.thrift.protocol.TField("id", org.apache.thrift.protocol.TType.I64, (short)3);
+  private static final org.apache.thrift.protocol.TField EVENT_TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("eventType", org.apache.thrift.protocol.TType.STRING, (short)4);
+  private static final org.apache.thrift.protocol.TField AUTHORIZABLE_FIELD_DESC = new org.apache.thrift.protocol.TField("authorizable", org.apache.thrift.protocol.TType.STRUCT, (short)5);
+  private static final org.apache.thrift.protocol.TField OWNER_TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("ownerType", org.apache.thrift.protocol.TType.I32, (short)6);
+  private static final org.apache.thrift.protocol.TField OWNER_NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("ownerName", org.apache.thrift.protocol.TType.STRING, (short)7);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -52,24 +53,26 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
   }
 
   private int protocol_version; // required
+  private String requestorUserName; // required
   private long id; // required
   private String eventType; // required
-  private TSentryObjectOwnerType ownerType; // required
-  private String ownerName; // required
   private TSentryAuthorizable authorizable; // required
+  private TSentryPrincipalType ownerType; // optional
+  private String ownerName; // optional
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
     PROTOCOL_VERSION((short)1, "protocol_version"),
-    ID((short)2, "id"),
-    EVENT_TYPE((short)3, "eventType"),
+    REQUESTOR_USER_NAME((short)2, "requestorUserName"),
+    ID((short)3, "id"),
+    EVENT_TYPE((short)4, "eventType"),
+    AUTHORIZABLE((short)5, "authorizable"),
     /**
      * 
-     * @see TSentryObjectOwnerType
+     * @see TSentryPrincipalType
      */
-    OWNER_TYPE((short)4, "ownerType"),
-    OWNER_NAME((short)5, "ownerName"),
-    AUTHORIZABLE((short)6, "authorizable");
+    OWNER_TYPE((short)6, "ownerType"),
+    OWNER_NAME((short)7, "ownerName");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -86,16 +89,18 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       switch(fieldId) {
         case 1: // PROTOCOL_VERSION
           return PROTOCOL_VERSION;
-        case 2: // ID
+        case 2: // REQUESTOR_USER_NAME
+          return REQUESTOR_USER_NAME;
+        case 3: // ID
           return ID;
-        case 3: // EVENT_TYPE
+        case 4: // EVENT_TYPE
           return EVENT_TYPE;
-        case 4: // OWNER_TYPE
-          return OWNER_TYPE;
-        case 5: // OWNER_NAME
-          return OWNER_NAME;
-        case 6: // AUTHORIZABLE
+        case 5: // AUTHORIZABLE
           return AUTHORIZABLE;
+        case 6: // OWNER_TYPE
+          return OWNER_TYPE;
+        case 7: // OWNER_NAME
+          return OWNER_NAME;
         default:
           return null;
       }
@@ -139,21 +144,24 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
   private static final int __PROTOCOL_VERSION_ISSET_ID = 0;
   private static final int __ID_ISSET_ID = 1;
   private byte __isset_bitfield = 0;
+  private static final _Fields optionals[] = {_Fields.OWNER_TYPE,_Fields.OWNER_NAME};
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
     tmpMap.put(_Fields.PROTOCOL_VERSION, new org.apache.thrift.meta_data.FieldMetaData("protocol_version", org.apache.thrift.TFieldRequirementType.REQUIRED, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
+    tmpMap.put(_Fields.REQUESTOR_USER_NAME, new org.apache.thrift.meta_data.FieldMetaData("requestorUserName", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.ID, new org.apache.thrift.meta_data.FieldMetaData("id", org.apache.thrift.TFieldRequirementType.REQUIRED, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
     tmpMap.put(_Fields.EVENT_TYPE, new org.apache.thrift.meta_data.FieldMetaData("eventType", org.apache.thrift.TFieldRequirementType.REQUIRED, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-    tmpMap.put(_Fields.OWNER_TYPE, new org.apache.thrift.meta_data.FieldMetaData("ownerType", org.apache.thrift.TFieldRequirementType.REQUIRED, 
-        new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, TSentryObjectOwnerType.class)));
-    tmpMap.put(_Fields.OWNER_NAME, new org.apache.thrift.meta_data.FieldMetaData("ownerName", org.apache.thrift.TFieldRequirementType.REQUIRED, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.AUTHORIZABLE, new org.apache.thrift.meta_data.FieldMetaData("authorizable", org.apache.thrift.TFieldRequirementType.REQUIRED, 
         new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TSentryAuthorizable.class)));
+    tmpMap.put(_Fields.OWNER_TYPE, new org.apache.thrift.meta_data.FieldMetaData("ownerType", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, TSentryPrincipalType.class)));
+    tmpMap.put(_Fields.OWNER_NAME, new org.apache.thrift.meta_data.FieldMetaData("ownerName", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TSentryHmsEventNotification.class, metaDataMap);
   }
@@ -165,20 +173,18 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
 
   public TSentryHmsEventNotification(
     int protocol_version,
+    String requestorUserName,
     long id,
     String eventType,
-    TSentryObjectOwnerType ownerType,
-    String ownerName,
     TSentryAuthorizable authorizable)
   {
     this();
     this.protocol_version = protocol_version;
     setProtocol_versionIsSet(true);
+    this.requestorUserName = requestorUserName;
     this.id = id;
     setIdIsSet(true);
     this.eventType = eventType;
-    this.ownerType = ownerType;
-    this.ownerName = ownerName;
     this.authorizable = authorizable;
   }
 
@@ -188,18 +194,21 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
   public TSentryHmsEventNotification(TSentryHmsEventNotification other) {
     __isset_bitfield = other.__isset_bitfield;
     this.protocol_version = other.protocol_version;
+    if (other.isSetRequestorUserName()) {
+      this.requestorUserName = other.requestorUserName;
+    }
     this.id = other.id;
     if (other.isSetEventType()) {
       this.eventType = other.eventType;
+    }
+    if (other.isSetAuthorizable()) {
+      this.authorizable = new TSentryAuthorizable(other.authorizable);
     }
     if (other.isSetOwnerType()) {
       this.ownerType = other.ownerType;
     }
     if (other.isSetOwnerName()) {
       this.ownerName = other.ownerName;
-    }
-    if (other.isSetAuthorizable()) {
-      this.authorizable = new TSentryAuthorizable(other.authorizable);
     }
   }
 
@@ -211,12 +220,13 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
   public void clear() {
     this.protocol_version = 2;
 
+    this.requestorUserName = null;
     setIdIsSet(false);
     this.id = 0;
     this.eventType = null;
+    this.authorizable = null;
     this.ownerType = null;
     this.ownerName = null;
-    this.authorizable = null;
   }
 
   public int getProtocol_version() {
@@ -239,6 +249,29 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
 
   public void setProtocol_versionIsSet(boolean value) {
     __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __PROTOCOL_VERSION_ISSET_ID, value);
+  }
+
+  public String getRequestorUserName() {
+    return this.requestorUserName;
+  }
+
+  public void setRequestorUserName(String requestorUserName) {
+    this.requestorUserName = requestorUserName;
+  }
+
+  public void unsetRequestorUserName() {
+    this.requestorUserName = null;
+  }
+
+  /** Returns true if field requestorUserName is set (has been assigned a value) and false otherwise */
+  public boolean isSetRequestorUserName() {
+    return this.requestorUserName != null;
+  }
+
+  public void setRequestorUserNameIsSet(boolean value) {
+    if (!value) {
+      this.requestorUserName = null;
+    }
   }
 
   public long getId() {
@@ -286,19 +319,42 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     }
   }
 
+  public TSentryAuthorizable getAuthorizable() {
+    return this.authorizable;
+  }
+
+  public void setAuthorizable(TSentryAuthorizable authorizable) {
+    this.authorizable = authorizable;
+  }
+
+  public void unsetAuthorizable() {
+    this.authorizable = null;
+  }
+
+  /** Returns true if field authorizable is set (has been assigned a value) and false otherwise */
+  public boolean isSetAuthorizable() {
+    return this.authorizable != null;
+  }
+
+  public void setAuthorizableIsSet(boolean value) {
+    if (!value) {
+      this.authorizable = null;
+    }
+  }
+
   /**
    * 
-   * @see TSentryObjectOwnerType
+   * @see TSentryPrincipalType
    */
-  public TSentryObjectOwnerType getOwnerType() {
+  public TSentryPrincipalType getOwnerType() {
     return this.ownerType;
   }
 
   /**
    * 
-   * @see TSentryObjectOwnerType
+   * @see TSentryPrincipalType
    */
-  public void setOwnerType(TSentryObjectOwnerType ownerType) {
+  public void setOwnerType(TSentryPrincipalType ownerType) {
     this.ownerType = ownerType;
   }
 
@@ -340,29 +396,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     }
   }
 
-  public TSentryAuthorizable getAuthorizable() {
-    return this.authorizable;
-  }
-
-  public void setAuthorizable(TSentryAuthorizable authorizable) {
-    this.authorizable = authorizable;
-  }
-
-  public void unsetAuthorizable() {
-    this.authorizable = null;
-  }
-
-  /** Returns true if field authorizable is set (has been assigned a value) and false otherwise */
-  public boolean isSetAuthorizable() {
-    return this.authorizable != null;
-  }
-
-  public void setAuthorizableIsSet(boolean value) {
-    if (!value) {
-      this.authorizable = null;
-    }
-  }
-
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case PROTOCOL_VERSION:
@@ -370,6 +403,14 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
         unsetProtocol_version();
       } else {
         setProtocol_version((Integer)value);
+      }
+      break;
+
+    case REQUESTOR_USER_NAME:
+      if (value == null) {
+        unsetRequestorUserName();
+      } else {
+        setRequestorUserName((String)value);
       }
       break;
 
@@ -389,11 +430,19 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       }
       break;
 
+    case AUTHORIZABLE:
+      if (value == null) {
+        unsetAuthorizable();
+      } else {
+        setAuthorizable((TSentryAuthorizable)value);
+      }
+      break;
+
     case OWNER_TYPE:
       if (value == null) {
         unsetOwnerType();
       } else {
-        setOwnerType((TSentryObjectOwnerType)value);
+        setOwnerType((TSentryPrincipalType)value);
       }
       break;
 
@@ -405,14 +454,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       }
       break;
 
-    case AUTHORIZABLE:
-      if (value == null) {
-        unsetAuthorizable();
-      } else {
-        setAuthorizable((TSentryAuthorizable)value);
-      }
-      break;
-
     }
   }
 
@@ -421,20 +462,23 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     case PROTOCOL_VERSION:
       return getProtocol_version();
 
+    case REQUESTOR_USER_NAME:
+      return getRequestorUserName();
+
     case ID:
       return getId();
 
     case EVENT_TYPE:
       return getEventType();
 
+    case AUTHORIZABLE:
+      return getAuthorizable();
+
     case OWNER_TYPE:
       return getOwnerType();
 
     case OWNER_NAME:
       return getOwnerName();
-
-    case AUTHORIZABLE:
-      return getAuthorizable();
 
     }
     throw new IllegalStateException();
@@ -449,16 +493,18 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     switch (field) {
     case PROTOCOL_VERSION:
       return isSetProtocol_version();
+    case REQUESTOR_USER_NAME:
+      return isSetRequestorUserName();
     case ID:
       return isSetId();
     case EVENT_TYPE:
       return isSetEventType();
+    case AUTHORIZABLE:
+      return isSetAuthorizable();
     case OWNER_TYPE:
       return isSetOwnerType();
     case OWNER_NAME:
       return isSetOwnerName();
-    case AUTHORIZABLE:
-      return isSetAuthorizable();
     }
     throw new IllegalStateException();
   }
@@ -485,6 +531,15 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
         return false;
     }
 
+    boolean this_present_requestorUserName = true && this.isSetRequestorUserName();
+    boolean that_present_requestorUserName = true && that.isSetRequestorUserName();
+    if (this_present_requestorUserName || that_present_requestorUserName) {
+      if (!(this_present_requestorUserName && that_present_requestorUserName))
+        return false;
+      if (!this.requestorUserName.equals(that.requestorUserName))
+        return false;
+    }
+
     boolean this_present_id = true;
     boolean that_present_id = true;
     if (this_present_id || that_present_id) {
@@ -500,6 +555,15 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       if (!(this_present_eventType && that_present_eventType))
         return false;
       if (!this.eventType.equals(that.eventType))
+        return false;
+    }
+
+    boolean this_present_authorizable = true && this.isSetAuthorizable();
+    boolean that_present_authorizable = true && that.isSetAuthorizable();
+    if (this_present_authorizable || that_present_authorizable) {
+      if (!(this_present_authorizable && that_present_authorizable))
+        return false;
+      if (!this.authorizable.equals(that.authorizable))
         return false;
     }
 
@@ -521,15 +585,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
         return false;
     }
 
-    boolean this_present_authorizable = true && this.isSetAuthorizable();
-    boolean that_present_authorizable = true && that.isSetAuthorizable();
-    if (this_present_authorizable || that_present_authorizable) {
-      if (!(this_present_authorizable && that_present_authorizable))
-        return false;
-      if (!this.authorizable.equals(that.authorizable))
-        return false;
-    }
-
     return true;
   }
 
@@ -542,6 +597,11 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     if (present_protocol_version)
       list.add(protocol_version);
 
+    boolean present_requestorUserName = true && (isSetRequestorUserName());
+    list.add(present_requestorUserName);
+    if (present_requestorUserName)
+      list.add(requestorUserName);
+
     boolean present_id = true;
     list.add(present_id);
     if (present_id)
@@ -552,6 +612,11 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     if (present_eventType)
       list.add(eventType);
 
+    boolean present_authorizable = true && (isSetAuthorizable());
+    list.add(present_authorizable);
+    if (present_authorizable)
+      list.add(authorizable);
+
     boolean present_ownerType = true && (isSetOwnerType());
     list.add(present_ownerType);
     if (present_ownerType)
@@ -561,11 +626,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     list.add(present_ownerName);
     if (present_ownerName)
       list.add(ownerName);
-
-    boolean present_authorizable = true && (isSetAuthorizable());
-    list.add(present_authorizable);
-    if (present_authorizable)
-      list.add(authorizable);
 
     return list.hashCode();
   }
@@ -584,6 +644,16 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     }
     if (isSetProtocol_version()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.protocol_version, other.protocol_version);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = Boolean.valueOf(isSetRequestorUserName()).compareTo(other.isSetRequestorUserName());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetRequestorUserName()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.requestorUserName, other.requestorUserName);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -608,6 +678,16 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetAuthorizable()).compareTo(other.isSetAuthorizable());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetAuthorizable()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.authorizable, other.authorizable);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     lastComparison = Boolean.valueOf(isSetOwnerType()).compareTo(other.isSetOwnerType());
     if (lastComparison != 0) {
       return lastComparison;
@@ -624,16 +704,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     }
     if (isSetOwnerName()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ownerName, other.ownerName);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
-    lastComparison = Boolean.valueOf(isSetAuthorizable()).compareTo(other.isSetAuthorizable());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetAuthorizable()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.authorizable, other.authorizable);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -662,6 +732,14 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     sb.append(this.protocol_version);
     first = false;
     if (!first) sb.append(", ");
+    sb.append("requestorUserName:");
+    if (this.requestorUserName == null) {
+      sb.append("null");
+    } else {
+      sb.append(this.requestorUserName);
+    }
+    first = false;
+    if (!first) sb.append(", ");
     sb.append("id:");
     sb.append(this.id);
     first = false;
@@ -674,22 +752,6 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     }
     first = false;
     if (!first) sb.append(", ");
-    sb.append("ownerType:");
-    if (this.ownerType == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.ownerType);
-    }
-    first = false;
-    if (!first) sb.append(", ");
-    sb.append("ownerName:");
-    if (this.ownerName == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.ownerName);
-    }
-    first = false;
-    if (!first) sb.append(", ");
     sb.append("authorizable:");
     if (this.authorizable == null) {
       sb.append("null");
@@ -697,6 +759,26 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       sb.append(this.authorizable);
     }
     first = false;
+    if (isSetOwnerType()) {
+      if (!first) sb.append(", ");
+      sb.append("ownerType:");
+      if (this.ownerType == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ownerType);
+      }
+      first = false;
+    }
+    if (isSetOwnerName()) {
+      if (!first) sb.append(", ");
+      sb.append("ownerName:");
+      if (this.ownerName == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ownerName);
+      }
+      first = false;
+    }
     sb.append(")");
     return sb.toString();
   }
@@ -707,20 +789,16 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       throw new org.apache.thrift.protocol.TProtocolException("Required field 'protocol_version' is unset! Struct:" + toString());
     }
 
+    if (!isSetRequestorUserName()) {
+      throw new org.apache.thrift.protocol.TProtocolException("Required field 'requestorUserName' is unset! Struct:" + toString());
+    }
+
     if (!isSetId()) {
       throw new org.apache.thrift.protocol.TProtocolException("Required field 'id' is unset! Struct:" + toString());
     }
 
     if (!isSetEventType()) {
       throw new org.apache.thrift.protocol.TProtocolException("Required field 'eventType' is unset! Struct:" + toString());
-    }
-
-    if (!isSetOwnerType()) {
-      throw new org.apache.thrift.protocol.TProtocolException("Required field 'ownerType' is unset! Struct:" + toString());
-    }
-
-    if (!isSetOwnerName()) {
-      throw new org.apache.thrift.protocol.TProtocolException("Required field 'ownerName' is unset! Struct:" + toString());
     }
 
     if (!isSetAuthorizable()) {
@@ -777,7 +855,15 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 2: // ID
+          case 2: // REQUESTOR_USER_NAME
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+              struct.requestorUserName = iprot.readString();
+              struct.setRequestorUserNameIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
+          case 3: // ID
             if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
               struct.id = iprot.readI64();
               struct.setIdIsSet(true);
@@ -785,7 +871,7 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 3: // EVENT_TYPE
+          case 4: // EVENT_TYPE
             if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
               struct.eventType = iprot.readString();
               struct.setEventTypeIsSet(true);
@@ -793,27 +879,27 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 4: // OWNER_TYPE
+          case 5: // AUTHORIZABLE
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+              struct.authorizable = new TSentryAuthorizable();
+              struct.authorizable.read(iprot);
+              struct.setAuthorizableIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
+          case 6: // OWNER_TYPE
             if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
-              struct.ownerType = org.apache.sentry.api.service.thrift.TSentryObjectOwnerType.findByValue(iprot.readI32());
+              struct.ownerType = org.apache.sentry.api.service.thrift.TSentryPrincipalType.findByValue(iprot.readI32());
               struct.setOwnerTypeIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 5: // OWNER_NAME
+          case 7: // OWNER_NAME
             if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
               struct.ownerName = iprot.readString();
               struct.setOwnerNameIsSet(true);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-            }
-            break;
-          case 6: // AUTHORIZABLE
-            if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
-              struct.authorizable = new TSentryAuthorizable();
-              struct.authorizable.read(iprot);
-              struct.setAuthorizableIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
@@ -834,6 +920,11 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       oprot.writeFieldBegin(PROTOCOL_VERSION_FIELD_DESC);
       oprot.writeI32(struct.protocol_version);
       oprot.writeFieldEnd();
+      if (struct.requestorUserName != null) {
+        oprot.writeFieldBegin(REQUESTOR_USER_NAME_FIELD_DESC);
+        oprot.writeString(struct.requestorUserName);
+        oprot.writeFieldEnd();
+      }
       oprot.writeFieldBegin(ID_FIELD_DESC);
       oprot.writeI64(struct.id);
       oprot.writeFieldEnd();
@@ -842,20 +933,24 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
         oprot.writeString(struct.eventType);
         oprot.writeFieldEnd();
       }
-      if (struct.ownerType != null) {
-        oprot.writeFieldBegin(OWNER_TYPE_FIELD_DESC);
-        oprot.writeI32(struct.ownerType.getValue());
-        oprot.writeFieldEnd();
-      }
-      if (struct.ownerName != null) {
-        oprot.writeFieldBegin(OWNER_NAME_FIELD_DESC);
-        oprot.writeString(struct.ownerName);
-        oprot.writeFieldEnd();
-      }
       if (struct.authorizable != null) {
         oprot.writeFieldBegin(AUTHORIZABLE_FIELD_DESC);
         struct.authorizable.write(oprot);
         oprot.writeFieldEnd();
+      }
+      if (struct.ownerType != null) {
+        if (struct.isSetOwnerType()) {
+          oprot.writeFieldBegin(OWNER_TYPE_FIELD_DESC);
+          oprot.writeI32(struct.ownerType.getValue());
+          oprot.writeFieldEnd();
+        }
+      }
+      if (struct.ownerName != null) {
+        if (struct.isSetOwnerName()) {
+          oprot.writeFieldBegin(OWNER_NAME_FIELD_DESC);
+          oprot.writeString(struct.ownerName);
+          oprot.writeFieldEnd();
+        }
       }
       oprot.writeFieldStop();
       oprot.writeStructEnd();
@@ -875,11 +970,24 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
     public void write(org.apache.thrift.protocol.TProtocol prot, TSentryHmsEventNotification struct) throws org.apache.thrift.TException {
       TTupleProtocol oprot = (TTupleProtocol) prot;
       oprot.writeI32(struct.protocol_version);
+      oprot.writeString(struct.requestorUserName);
       oprot.writeI64(struct.id);
       oprot.writeString(struct.eventType);
-      oprot.writeI32(struct.ownerType.getValue());
-      oprot.writeString(struct.ownerName);
       struct.authorizable.write(oprot);
+      BitSet optionals = new BitSet();
+      if (struct.isSetOwnerType()) {
+        optionals.set(0);
+      }
+      if (struct.isSetOwnerName()) {
+        optionals.set(1);
+      }
+      oprot.writeBitSet(optionals, 2);
+      if (struct.isSetOwnerType()) {
+        oprot.writeI32(struct.ownerType.getValue());
+      }
+      if (struct.isSetOwnerName()) {
+        oprot.writeString(struct.ownerName);
+      }
     }
 
     @Override
@@ -887,17 +995,24 @@ public class TSentryHmsEventNotification implements org.apache.thrift.TBase<TSen
       TTupleProtocol iprot = (TTupleProtocol) prot;
       struct.protocol_version = iprot.readI32();
       struct.setProtocol_versionIsSet(true);
+      struct.requestorUserName = iprot.readString();
+      struct.setRequestorUserNameIsSet(true);
       struct.id = iprot.readI64();
       struct.setIdIsSet(true);
       struct.eventType = iprot.readString();
       struct.setEventTypeIsSet(true);
-      struct.ownerType = org.apache.sentry.api.service.thrift.TSentryObjectOwnerType.findByValue(iprot.readI32());
-      struct.setOwnerTypeIsSet(true);
-      struct.ownerName = iprot.readString();
-      struct.setOwnerNameIsSet(true);
       struct.authorizable = new TSentryAuthorizable();
       struct.authorizable.read(iprot);
       struct.setAuthorizableIsSet(true);
+      BitSet incoming = iprot.readBitSet(2);
+      if (incoming.get(0)) {
+        struct.ownerType = org.apache.sentry.api.service.thrift.TSentryPrincipalType.findByValue(iprot.readI32());
+        struct.setOwnerTypeIsSet(true);
+      }
+      if (incoming.get(1)) {
+        struct.ownerName = iprot.readString();
+        struct.setOwnerNameIsSet(true);
+      }
     }
   }
 

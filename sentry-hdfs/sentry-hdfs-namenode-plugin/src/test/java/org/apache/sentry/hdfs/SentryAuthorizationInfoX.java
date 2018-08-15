@@ -25,8 +25,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.collect.Lists;
 import org.apache.sentry.hdfs.service.thrift.TPathChanges;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntity;
-import org.apache.sentry.hdfs.service.thrift.TPrivilegeEntityType;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
+import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipalType;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 import org.apache.hadoop.conf.Configuration;
 
@@ -60,7 +60,7 @@ public class SentryAuthorizationInfoX extends SentryAuthorizationInfo {
       // Add a permission
       permUpdate = new PermissionsUpdate(seqNumber, false);
       permUpdate.addPrivilegeUpdate(entry.getKey()).putToAddPrivileges(
-          new TPrivilegeEntity(TPrivilegeEntityType.ROLE, ROLE), "*");
+          new TPrivilegePrincipal(TPrivilegePrincipalType.ROLE, ROLE), "*");
       getAuthzPermissions().updatePartial(Lists.newArrayList(permUpdate), lock);
       seqNumber++;
     }
