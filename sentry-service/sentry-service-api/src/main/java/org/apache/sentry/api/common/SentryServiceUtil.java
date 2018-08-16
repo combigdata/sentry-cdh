@@ -19,9 +19,7 @@
 
 package org.apache.sentry.api.common;
 
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -320,15 +318,5 @@ public final class SentryServiceUtil {
 
   private static boolean isNULL(String s) {
     return Strings.isNullOrEmpty(s) || s.equals("__NULL__");
-  }
-
-  public static String getCurrentTimeStampWithMessage(String logMessage) {
-    String date = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
-
-    if(StringUtils.isBlank(logMessage)) {
-      return date;
-    }
-
-    return String.format("%s: %s", date, logMessage);
   }
 }

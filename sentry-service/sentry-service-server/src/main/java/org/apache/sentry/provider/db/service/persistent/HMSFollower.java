@@ -291,19 +291,16 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
    */
   private boolean isFullSnapshotRequired(long latestSentryNotificationId) throws Exception {
     if (sentryStore.isHmsNotificationEmpty()) {
-      String logMessage = String.format("Sentry Store has no HMS Notifications. Create Full HMS Snapshot. "
-          + "latest sentry notification Id = %d", latestSentryNotificationId);
-      LOGGER.debug(logMessage);
-      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+      LOGGER.debug("Sentry Store has no HMS Notifications. Create Full HMS Snapshot. "
+          + "latest sentry notification Id = {}", latestSentryNotificationId);
       return true;
     }
 
     // Once HDFS sync is enabled, and if MAuthzPathsMapping
     // table is still empty, we need to request a full snapshot
     if (sentryStore.isAuthzPathsSnapshotEmpty()) {
-      String logMessage = String.format("HDFSSync is enabled and MAuthzPathsMapping table is empty. Need to request a full snapshot", latestSentryNotificationId);
-      LOGGER.debug(logMessage);
-      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+      LOGGER.debug("HDFSSync is enabled and MAuthzPathsMapping table is empty." +
+              " Need to request a full snapshot");
       return true;
     }
 
@@ -314,11 +311,10 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
     // check if forced full update is required, reset update flag to false
     // to only do it once per forced full update request.
     if (fullUpdateHMS.compareAndSet(true, false)) {
-      String logMessage = FULL_UPDATE_TRIGGER + "initiating full HMS snapshot request";
-      LOGGER.info(logMessage);
-      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+      LOGGER.info(FULL_UPDATE_TRIGGER + "initiating full HMS snapshot request");
       return true;
     }
+
     return false;
   }
 
@@ -379,10 +375,8 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
     long firstNotificationId = eventList.get(0).getEventId();
 
     if (firstNotificationId > (latestProcessedId + 1)) {
-      String logMessage = String.format("First HMS event notification Id = %d is greater than latest Sentry processed"
-          + "notification Id = %d + 1. Need to request a full HMS snapshot.", firstNotificationId, latestProcessedId);
-      LOGGER.info(logMessage);
-      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+      LOGGER.info("First HMS event notification Id = {} is greater than latest Sentry processed"
+          + "notification Id = {} + 1. Need to request a full HMS snapshot.", firstNotificationId, latestProcessedId);
       return true;
     }
 
@@ -419,9 +413,7 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
       }
       try {
         if (hdfsSyncEnabled) {
-          String logMessage = String.format("Persisting full snapshot for notification Id = %d", snapshotInfo.getId());
-          LOGGER.info(logMessage);
-          System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+          LOGGER.info("Persisting full snapshot for notification Id = {}", snapshotInfo.getId());
           sentryStore.persistFullPathsImage(snapshotInfo.getPathImage(), snapshotInfo.getId());
         } else {
           // We need to persist latest notificationID for next poll
@@ -438,9 +430,7 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
       wakeUpWaitingClientsForSync(snapshotInfo.getId());
       // HMSFollower connected to HMS and it finished full snapshot if that was required
       // Log this message only once
-      String logMessage = String.format("Create full snapshot process is complete: snapshot Id %d", snapshotInfo.getId());
-      LOGGER.info(logMessage);
-      System.out.println(SentryServiceUtil.getCurrentTimeStampWithMessage(logMessage));
+      LOGGER.info("Sentry HMS support is ready");
       return snapshotInfo.getId();
     } catch(Exception failure) {
       LOGGER.error("Received exception while creating HMS path full snapshot ");
