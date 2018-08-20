@@ -52,6 +52,7 @@ import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServerConfig;
 import org.apache.sentry.provider.db.service.thrift.validator.GrantPrivilegeRequestValidator;
 import org.apache.sentry.provider.db.service.thrift.validator.RevokePrivilegeRequestValidator;
+import org.apache.sentry.service.thrift.SentryOwnerPrivilegeType;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.ConfUtilties;
 import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
@@ -1314,17 +1315,15 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
    * @return null if owner privilege can not be constructed, else instance of {@Link TSentryPrivilege}
    */
   TSentryPrivilege constructOwnerPrivilege(TSentryAuthorizable authorizable) {
-    Boolean isOwnerPrivEnabled = conf.getBoolean(ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES,
-      ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES_DEFAULT);
-    if(!isOwnerPrivEnabled) {
+    SentryOwnerPrivilegeType ownerPrivilegeType = SentryOwnerPrivilegeType.get(conf);
+    if(ownerPrivilegeType == SentryOwnerPrivilegeType.NONE) {
       return null;
     }
+
     if(Strings.isNullOrEmpty(authorizable.getDb())) {
       LOGGER.error("Received authorizable with out DB Name");
       return null;
     }
-    Boolean privilegeWithGrantOption = conf.getBoolean(ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
-            ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT_DEFAULT);
 
     TSentryPrivilege ownerPrivilege = new TSentryPrivilege();
     ownerPrivilege.setServerName(authorizable.getServer());
@@ -1335,7 +1334,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     } else {
       ownerPrivilege.setPrivilegeScope("DATABASE");
     }
-    if(privilegeWithGrantOption) {
+    if(ownerPrivilegeType == SentryOwnerPrivilegeType.ALL_WITH_GRANT) {
       ownerPrivilege.setGrantOption(TSentryGrantOption.TRUE);
     }
     ownerPrivilege.setAction(AccessConstants.OWNER);

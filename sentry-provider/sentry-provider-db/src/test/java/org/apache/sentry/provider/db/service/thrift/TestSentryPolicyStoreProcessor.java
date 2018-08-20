@@ -18,6 +18,7 @@
 package org.apache.sentry.provider.db.service.thrift;
 
 import static org.apache.sentry.provider.db.service.thrift.SentryPolicyStoreProcessor.SENTRY_POLICY_SERVICE_NAME;
+import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -39,6 +40,7 @@ import org.apache.sentry.service.thrift.CounterWait;
 import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServerConfig;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.core.model.db.AccessConstants;
+import org.apache.sentry.service.thrift.SentryOwnerPrivilegeType;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
@@ -68,7 +70,7 @@ public class TestSentryPolicyStoreProcessor {
     conf = new Configuration(false);
 
     //Check behaviour when DB name is not set
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
 
     Mockito.when(sentryStore.getRoleCountGauge()).thenReturn(new Gauge< Long >() {
       @Override
@@ -186,7 +188,7 @@ public class TestSentryPolicyStoreProcessor {
 
   @Test
   public void testConstructOwnerPrivilege() throws Exception {
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, false);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
     SentryPolicyStoreProcessor sentryServiceHandler =
         new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
             conf, sentryStore);
@@ -200,7 +202,7 @@ public class TestSentryPolicyStoreProcessor {
 
 
     //Check behaviour when DB name is not set
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
     sentryServiceHandler =
         new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
             conf, sentryStore);
@@ -228,8 +230,8 @@ public class TestSentryPolicyStoreProcessor {
     Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
 
     //Check the behavior when grant option is configured.
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
-        true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+
     sentryServiceHandler =
         new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
             conf, sentryStore);

@@ -71,6 +71,7 @@ import org.apache.sentry.hdfs.SentryHDFSServiceClientFactory;
 import org.apache.sentry.provider.db.SimpleDBProviderBackend;
 import org.apache.sentry.provider.file.LocalGroupResourceAuthorizationProvider;
 import org.apache.sentry.provider.file.PolicyFile;
+import org.apache.sentry.service.thrift.SentryOwnerPrivilegeType;
 import org.apache.sentry.service.thrift.SentryServiceClientFactory;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
@@ -93,6 +94,7 @@ import com.google.common.io.Files;
 import com.google.common.io.Resources;
 
 import static org.apache.sentry.hdfs.ServiceConstants.ServerConfig.SENTRY_HDFS_INTEGRATION_PATH_PREFIXES;
+import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE;
 
 /**
  * Base abstract class for HDFS Sync integration
@@ -805,6 +807,7 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(ServerConfig.SENTRY_STORE_JDBC_URL,
               "jdbc:derby:;databaseName=" + baseDir.getPath()
                   + "/sentrystore_db;create=true");
+
           properties.put(ServerConfig.SENTRY_STORE_JDBC_PASS, "dummy");
           properties.put("sentry.service.processor.factories",
               "org.apache.sentry.provider.db.service.thrift.SentryPolicyStoreProcessorFactory,org.apache.sentry.hdfs.SentryHDFSServiceProcessorFactory");
@@ -817,11 +820,16 @@ public abstract class TestHDFSIntegrationBase {
           properties.put(HiveAuthzConf.AuthzConfVars.AUTHZ_SERVER_NAME.getVar(), SERVER_NAME);
 
           if(ownerPrivilegeEnabled) {
-            properties.put("sentry.enable.owner.privileges", "true");
-
             if(ownerPrivilegeGrantEnabled) {
-              properties.put("sentry.grant.owner.privileges.with.grant", "true");
+              properties.put(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE,
+                SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+            } else {
+              properties.put(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE,
+                SentryOwnerPrivilegeType.ALL.toString());
             }
+          } else {
+            properties.put(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE,
+              SentryOwnerPrivilegeType.NONE.toString());
           }
 
           for (Map.Entry<String, String> entry : properties.entrySet()) {
