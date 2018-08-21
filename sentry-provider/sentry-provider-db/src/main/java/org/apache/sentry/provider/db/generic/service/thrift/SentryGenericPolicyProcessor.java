@@ -578,7 +578,12 @@ public class SentryGenericPolicyProcessor implements SentryGenericPolicyService.
           groups.add(request.getGroupName());
         }
 
-        Set<TSentryRole> tSentryRoles = store.getTSentryRolesByGroupName(request.getComponent(), groups);
+        Set<String> roleNames = store.getRolesByGroups(request.getComponent(), groups);
+        Set<TSentryRole> tSentryRoles = Sets.newHashSet();
+        for (String roleName : roleNames) {
+          Set<String> groupsForRoleName = store.getGroupsByRoles(request.getComponent(), Sets.newHashSet(roleName));
+          tSentryRoles.add(new TSentryRole(roleName, groupsForRoleName));
+        }
         return new Response<Set<TSentryRole>>(Status.OK(), tSentryRoles);
       }
     });

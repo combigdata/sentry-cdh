@@ -25,7 +25,6 @@ import java.util.Set;
 
 import javax.jdo.PersistenceManager;
 
-import javax.jdo.Query;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.Authorizable;
@@ -36,12 +35,12 @@ import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.service.model.MSentryGMPrivilege;
 import org.apache.sentry.provider.db.service.model.MSentryGroup;
 import org.apache.sentry.provider.db.service.model.MSentryRole;
-import org.apache.sentry.provider.db.service.persistent.QueryParamBuilder;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.persistent.TransactionBlock;
 import org.apache.sentry.provider.db.service.thrift.SentryPolicyStoreProcessor;
 import org.apache.sentry.provider.db.service.thrift.TSentryGroup;
-import org.apache.sentry.provider.db.generic.service.thrift.TSentryRole;
+import org.apache.sentry.provider.db.service.thrift.TSentryRole;
+import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -241,74 +240,43 @@ public class DelegateSentryStore implements SentryStoreLayer {
     if (groups == null || groups.isEmpty()) {
       return Collections.emptySet();
     }
+
     Set<String> roles = Sets.newHashSet();
-    if(groups.contains(null)) {
-      roles = delegate.getAllRoleNames();
-    } else {
-      roles = delegate.getRoleNamesForGroups(groups);
+    for (TSentryRole tSentryRole : delegate.getTSentryRolesByGroupName(groups,
+            true)) {
+      roles.add(tSentryRole.getRoleName());
     }
     return roles;
   }
 
   @Override
-  public Set<TSentryRole> getTSentryRolesByGroupName(String component, final Set<String> groups)
-      throws Exception {
-    if (groups == null || groups.isEmpty()) {
-      return Collections.emptySet();
-    }
-
-    return delegate.getTransactionManager().executeTransaction(
-        new TransactionBlock<Set<TSentryRole>>() {
-          public Set<TSentryRole> execute(PersistenceManager pm) throws Exception {
-            Set<TSentryRole> tRoles = Sets.newHashSet();
-            pm.setDetachAllOnCommit(false); // No need to detach objects
-            Set<MSentryRole> mSentryRoles = Sets.newHashSet();
-            if(groups.contains(null)) {
-              mSentryRoles.addAll(delegate.getAllRoles(pm));
-            } else {
-              mSentryRoles = delegate.getRolesForGroups(pm, groups);
-            }
-            for(MSentryRole mSentryRole: mSentryRoles) {
-              String roleName = mSentryRole.getRoleName().intern();
-              Set<String> groupNames = Sets.newHashSet();
-              Set<MSentryGroup> mSentryGroups = mSentryRole.getGroups();
-              for(MSentryGroup mSentryGroup: mSentryGroups) {
-                groupNames.add(mSentryGroup.getGroupName());
-              }
-              tRoles.add(new TSentryRole(roleName, groupNames));
-            }
-
-            return tRoles;
-          }
-        });
-  }
-
-  @Override
   public Set<String> getGroupsByRoles(final String component, final Set<String> roles)
       throws Exception {
+    // In all calls roles contain exactly one group
     if (roles.isEmpty()) {
       return Collections.emptySet();
     }
 
-    return delegate.getTransactionManager().executeTransaction(
-        new TransactionBlock<Set<String>>() {
-          public Set<String> execute(PersistenceManager pm) throws Exception {
-            pm.setDetachAllOnCommit(false); // No need to detach objects
-            Query query = pm.newQuery(MSentryGroup.class);
-            // Find privileges matching all roles
-            QueryParamBuilder paramBuilder = QueryParamBuilder.addRolesFilter(query, null,
-                roles);
-            query.setFilter(paramBuilder.toString());
-            List<MSentryGroup> mGroups =
-                (List<MSentryGroup>)query.executeWithMap(paramBuilder.getArguments());
+    // Collect resulting group names in a set
+    Set<String> groupNames = new HashSet<>();
+    for (String role : roles) {
+      MSentryRole sentryRole = null;
+      try {
+        sentryRole = delegate.getMSentryRoleByName(role);
+      }
+      catch (SentryNoSuchObjectException e) {
+        // Role disappeared - not a big deal, just ognore it
+        continue;
+      }
+      // Collect all group names for this role.
+      // Since we use a set, a group can appear multiple times and will only
+      // show up once in a set
+      for (MSentryGroup group : sentryRole.getGroups()) {
+        groupNames.add(group.getGroupName());
+      }
+    }
 
-            Set<String> groupNames = new HashSet<>();
-            for(MSentryGroup g: mGroups) {
-              groupNames.add(g.getGroupName());
-            }
-            return groupNames;
-          }
-        });
+    return groupNames;
   }
 
   @Override

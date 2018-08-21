@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.sentry.core.common.Authorizable;
-import org.apache.sentry.provider.db.generic.service.thrift.TSentryRole;
 import org.apache.sentry.provider.db.service.model.MSentryGMPrivilege;
 
 /**
@@ -124,15 +123,6 @@ public interface SentryStoreLayer {
    * @throws Exception
    */
   Set<String> getRolesByGroups(String component, Set<String> groups) throws Exception;
-
-  /**
-   * Get roles
-   * @param component: The request respond to which component
-   * @param groups: The name of groups
-   * @returns the set of roles
-   * @throws Exception
-   */
-  Set<TSentryRole> getTSentryRolesByGroupName(String component, Set<String> groups) throws Exception;
 
   /**
    * Get groups

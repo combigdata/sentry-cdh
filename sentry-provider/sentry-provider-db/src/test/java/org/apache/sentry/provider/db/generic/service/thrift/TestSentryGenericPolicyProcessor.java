@@ -247,12 +247,6 @@ public class TestSentryGenericPolicyProcessor {
     when(mockStore.getGroupsByRoles(anyString(), anySetOf(String.class)))
     .thenReturn(Sets.newHashSet(groupName));
 
-    Set<TSentryRole> mockTRoles = Sets.newHashSet();
-    TSentryRole tSentryRole = new TSentryRole(roleName, Sets.newHashSet(groupName));
-    mockTRoles.add(tSentryRole);
-    when(mockStore.getTSentryRolesByGroupName(anyString(), anySetOf(String.class)))
-        .thenReturn(mockTRoles);
-
     when(mockStore.getPrivilegesByAuthorizable(anyString(), anyString(), anySetOf(String.class), anyListOf(Authorizable.class)))
     .thenReturn(Sets.newHashSet(mSentryGMPrivilege));
 
