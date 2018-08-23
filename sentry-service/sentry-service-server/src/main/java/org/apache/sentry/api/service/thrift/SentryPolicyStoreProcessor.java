@@ -58,10 +58,13 @@ import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServe
 import org.apache.sentry.api.service.thrift.validator.GrantPrivilegeRequestValidator;
 import org.apache.sentry.api.service.thrift.validator.RevokePrivilegeRequestValidator;
 import org.apache.sentry.api.common.SentryServiceUtil;
+import org.apache.sentry.service.common.SentryOwnerPrivilegeType;
 import org.apache.sentry.service.common.ServiceConstants.ConfUtilties;
 import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.common.ServiceConstants.ServerConfig;
 import org.apache.sentry.api.common.Status;
+import org.apache.sentry.service.thrift.FullUpdateInitializerState;
+import org.apache.sentry.service.thrift.SentryStateBank;
 import org.apache.sentry.service.thrift.TSentryResponseStatus;
 import org.apache.thrift.TException;
 import org.apache.log4j.Logger;
@@ -1459,20 +1462,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     Preconditions.checkState(sentryPlugins.size() <= 1);
     Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
     Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
-    switch (request.getOwnerType()) {
-      case ROLE:
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-          plugin.onAlterSentryRoleGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
-        }
-        break;
-      case USER:
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-          plugin.onAlterSentryUserGrantPrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
-        }
-        break;
-      default:
-        LOGGER.error("Invalid owner Type");
-    }
+    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
 
     // Grants owner privilege to the principal
     try {
@@ -1529,19 +1519,21 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     // There should only one owner privilege for an authorizable but the current schema
     // doesn't have constraints to limit it. It is possible to have multiple owners for an authorizable (which is unlikely)
     // This logic makes sure of revoking all the owner privilege.
-    for (SentryOwnerInfo ownerInfo : ownerInfoList) {
-      if (ownerInfo.getOwnerType() == SentryPrincipalType.USER) {
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+      for (SentryOwnerInfo ownerInfo : ownerInfoList) {
+        if (ownerInfo.getOwnerType().equals(SentryPrincipalType.USER)) {
           plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
-        }
-      } else if (ownerInfo.getOwnerType() == SentryPrincipalType.ROLE) {
-        for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+          privilegesUpdateMap.clear();
+        } else if (ownerInfo.getOwnerType().equals(SentryPrincipalType.ROLE)) {
           plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
           updateList.add(privilegesUpdateMap.get(ownerPrivilege));
+          privilegesUpdateMap.clear();
         }
       }
     }
+    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
+    updateList.add(privilegesUpdateMap.get(ownerPrivilege));
 
     // Revokes old owner privileges and grants owner privilege for new owner.
     try {
@@ -1563,6 +1555,33 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
   }
 
   /**
+   * Adds privilege update for grant into the privilegesUpdateMap provided.
+   * @param ownerName
+   * @param ownerType
+   * @param privSet
+   * @param privilegesUpdateMap
+   * @throws Exception
+   */
+  private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryPrincipalType ownerType,
+      Set<TSentryPrivilege> privSet,
+      Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
+    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
+      switch (ownerType) {
+        case ROLE:
+          plugin.onAlterSentryRoleGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        case USER:
+          plugin.onAlterSentryUserGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
+          break;
+        default:
+          String error = "Invalid owner type : " + ownerType;
+          LOGGER.error(error);
+          throw new SentryInvalidInputException(error);
+      }
+    }
+  }
+
+  /**
    * This API constructs (@Link TSentryPrivilege} for authorizable provided
    * based on the configurations.
    *
@@ -1570,17 +1589,15 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
    * @return null if owner privilege can not be constructed, else instance of {@Link TSentryPrivilege}
    */
   TSentryPrivilege constructOwnerPrivilege(TSentryAuthorizable authorizable) {
-    Boolean isOwnerPrivEnabled = conf.getBoolean(ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES,
-      ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES_DEFAULT);
-    if(!isOwnerPrivEnabled) {
+    SentryOwnerPrivilegeType ownerPrivilegeType = SentryOwnerPrivilegeType.get(conf);
+    if(ownerPrivilegeType == SentryOwnerPrivilegeType.NONE) {
       return null;
     }
+
     if(Strings.isNullOrEmpty(authorizable.getDb())) {
       LOGGER.error("Received authorizable with out DB Name");
       return null;
     }
-    Boolean privilegeWithGrantOption = conf.getBoolean(ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
-            ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT_DEFAULT);
 
     TSentryPrivilege ownerPrivilege = new TSentryPrivilege();
     ownerPrivilege.setServerName(authorizable.getServer());
@@ -1591,7 +1608,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     } else {
       ownerPrivilege.setPrivilegeScope("DATABASE");
     }
-    if(privilegeWithGrantOption) {
+    if(ownerPrivilegeType == SentryOwnerPrivilegeType.ALL_WITH_GRANT) {
       ownerPrivilege.setGrantOption(TSentryGrantOption.TRUE);
     }
     ownerPrivilege.setAction(AccessConstants.OWNER);
@@ -1616,7 +1633,14 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
    */
   long syncEventId(long eventId) {
     try {
-      return sentryStore.getCounterWait().waitFor(eventId);
+        if (!SentryStateBank.isEnabled(FullUpdateInitializerState.COMPONENT,
+            FullUpdateInitializerState.FULL_SNAPSHOT_INPROGRESS)) {
+          return sentryStore.getCounterWait().waitFor(eventId);
+        } else {
+          LOGGER.info("HMS event synchronization is disabled temporarily as sentry is in the process of " +
+                  "fetching full snapshot. No action needed");
+          return eventId;
+        }
     } catch (InterruptedException e) {
       String msg = String.format("wait request for id %d is interrupted",
               eventId);

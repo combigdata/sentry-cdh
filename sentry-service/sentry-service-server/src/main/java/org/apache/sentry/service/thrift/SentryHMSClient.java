@@ -245,6 +245,7 @@ public class SentryHMSClient implements AutoCloseable {
     try (FullUpdateInitializer updateInitializer =
              new FullUpdateInitializer(hiveConnectionFactory, conf);
          Context context = updateTimer.time()) {
+      SentryStateBank.enableState(FullUpdateInitializerState.COMPONENT,FullUpdateInitializerState.FULL_SNAPSHOT_INPROGRESS);
       Map<String, Collection<String>> pathsUpdate = updateInitializer.getFullHMSSnapshot();
       LOGGER.info("Obtained full HMS snapshot");
       return pathsUpdate;
@@ -252,6 +253,8 @@ public class SentryHMSClient implements AutoCloseable {
       failedSnapshotsCount.inc();
       LOGGER.error("Snapshot created failed ", exception);
       throw exception;
+    } finally {
+      SentryStateBank.disableState(FullUpdateInitializerState.COMPONENT,FullUpdateInitializerState.FULL_SNAPSHOT_INPROGRESS);
     }
   }
 }

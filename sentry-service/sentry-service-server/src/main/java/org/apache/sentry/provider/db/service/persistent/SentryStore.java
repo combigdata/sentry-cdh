@@ -92,6 +92,7 @@ import org.apache.sentry.api.service.thrift.TSentryMappingData;
 import org.apache.sentry.api.service.thrift.TSentryPrivilege;
 import org.apache.sentry.api.service.thrift.TSentryPrivilegeMap;
 import org.apache.sentry.api.service.thrift.TSentryRole;
+import org.apache.sentry.service.common.SentryOwnerPrivilegeType;
 import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.common.ServiceConstants.ServerConfig;
 import org.datanucleus.store.rdbms.exceptions.MissingTableException;
@@ -273,8 +274,8 @@ public class SentryStore implements SentryStoreInterface {
     long notificationTimeout = conf.getInt(ServerConfig.SENTRY_NOTIFICATION_SYNC_TIMEOUT_MS,
             ServerConfig.SENTRY_NOTIFICATION_SYNC_TIMEOUT_DEFAULT);
     counterWait = new CounterWait(notificationTimeout, TimeUnit.MILLISECONDS);
-    ownerPrivilegeWithGrant = conf.getBoolean(ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
-            ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT_DEFAULT);
+
+    ownerPrivilegeWithGrant = SentryOwnerPrivilegeType.ALL_WITH_GRANT.isConfSet(conf);
   }
 
   public void setPersistUpdateDeltas(boolean persistUpdateDeltas) {
@@ -332,7 +333,7 @@ public class SentryStore implements SentryStoreInterface {
    * @return List of all roles
    */
   @SuppressWarnings("unchecked")
-  private List<MSentryRole> getAllRoles(PersistenceManager pm) {
+  public List<MSentryRole> getAllRoles(PersistenceManager pm) {
     Query query = pm.newQuery(MSentryRole.class);
     query.addExtension(LOAD_RESULTS_AT_COMMIT, "false");
     return (List<MSentryRole>) query.execute();
@@ -2011,6 +2012,12 @@ public class SentryStore implements SentryStoreInterface {
     return mSentryUser.getPrivileges();
   }
 
+  private Set<MSentryPrivilege> getMSentryPrivilegesByUserNameIfExists(String userName)
+          throws Exception {
+    MSentryUser mSentryUser = getMSentryUserByName(userName, false);
+    return mSentryUser != null ? mSentryUser.getPrivileges() : Collections.emptySet();
+  }
+
   /**
    * Gets sentry privilege objects for a given userName from the persistence layer
    * @param userName : userName to look up
@@ -2998,7 +3005,7 @@ public class SentryStore implements SentryStoreInterface {
    */
   private void grantOptionCheck(PersistenceManager pm, String grantorPrincipal,
                                 TSentryPrivilege privilege)
-      throws SentryUserException {
+      throws Exception {
     MSentryPrivilege mPrivilege = convertToMSentryPrivilege(privilege);
     if (grantorPrincipal == null) {
       throw new SentryInvalidInputException("grantorPrincipal should not be null");
@@ -3020,20 +3027,28 @@ public class SentryStore implements SentryStoreInterface {
 
     if (!isAdminGroup) {
       boolean hasGrant = false;
-      // get all privileges for group and user
+      Set<MSentryPrivilege> privilegeSet = new HashSet<>();
+      Set<MSentryPrivilege> enityPrivilegeSet = null;
+      // Collect the privileges granted to all roles to that user.
       Set<MSentryRole> roles = getRolesForGroups(pm, groups);
       roles.addAll(getRolesForUsers(pm, Sets.newHashSet(grantorPrincipal)));
       for (MSentryRole role : roles) {
-        Set<MSentryPrivilege> privilegeSet = role.getPrivileges();
-        if (privilegeSet != null && !privilegeSet.isEmpty()) {
-          // if role has a privilege p with grant option
-          // and mPrivilege is a child privilege of p
-          for (MSentryPrivilege p : privilegeSet) {
-            if (p.getGrantOption() && p.implies(mPrivilege)) {
-              hasGrant = true;
-              break;
-            }
-          }
+        enityPrivilegeSet = role.getPrivileges();
+        if(enityPrivilegeSet != null && !enityPrivilegeSet.isEmpty()) {
+          privilegeSet.addAll(enityPrivilegeSet);
+        }
+      }
+      // Collect the privileges granted to user
+      enityPrivilegeSet = getMSentryPrivilegesByUserNameIfExists(grantorPrincipal.trim());
+      if(enityPrivilegeSet != null && !enityPrivilegeSet.isEmpty()) {
+        privilegeSet.addAll(enityPrivilegeSet);
+
+      }
+      // Compare the privileges that user has with the privilege he/she is trying to grant.
+      for (MSentryPrivilege p : privilegeSet) {
+        if (p.getGrantOption() && p.implies(mPrivilege)) {
+          hasGrant = true;
+          break;
         }
       }
 

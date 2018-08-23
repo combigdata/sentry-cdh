@@ -17,6 +17,7 @@
  */
 package org.apache.sentry.api.service.thrift;
 
+import static org.apache.sentry.service.common.ServiceConstants.ServerConfig.SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -34,11 +35,13 @@ import org.apache.sentry.core.common.exception.SentryInvalidInputException;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.common.GroupMappingService;
 import org.apache.sentry.provider.db.service.persistent.CounterWait;
-import org.apache.sentry.service.common.ServiceConstants;
+import org.apache.sentry.service.common.SentryOwnerPrivilegeType;
 import org.apache.sentry.core.common.exception.SentrySiteConfigurationException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.apache.sentry.service.common.ServiceConstants.ServerConfig;
+import org.apache.sentry.service.thrift.FullUpdateInitializerState;
+import org.apache.sentry.service.thrift.SentryStateBank;
 import org.junit.After;
 import org.junit.Assert;
 
@@ -81,7 +84,7 @@ public class TestSentryPolicyStoreProcessor {
   public void setup() throws Exception{
     conf = new Configuration(true);
     //Check behaviour when DB name is not set
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
     conf.set(ServerConfig.ADMIN_GROUPS, ADMIN_GROUP);
     conf.set(ServerConfig.SENTRY_STORE_GROUP_MAPPING,
             MockGroupMapping.class.getName());
@@ -195,7 +198,7 @@ public class TestSentryPolicyStoreProcessor {
 
   @Test
   public void testConstructOwnerPrivilege() throws Exception {
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, false);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
     SentryPolicyStoreProcessor sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
@@ -209,7 +212,7 @@ public class TestSentryPolicyStoreProcessor {
 
 
     //Check behaviour when DB name is not set
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
     sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
@@ -237,8 +240,7 @@ public class TestSentryPolicyStoreProcessor {
     Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
 
     //Check the behavior when grant option is configured.
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_OWNER_PRIVILEGE_WITH_GRANT,
-            true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
     sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
                     conf, sentryStore);
@@ -419,9 +421,50 @@ public class TestSentryPolicyStoreProcessor {
   }
 
   @Test
+  public void testNotificationSync() throws Exception {
+
+    SentryPolicyStoreProcessor sentryServiceHandler =
+            new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
+                    conf, sentryStore);
+    TSentryAuthorizable authorizable = new TSentryAuthorizable();
+    authorizable.setDb(DBNAME);
+
+    TSentryHmsEventNotification notification = new TSentryHmsEventNotification();
+    notification.setId(1L);
+    notification.setOwnerType(TSentryPrincipalType.ROLE);
+    notification.setOwnerName(OWNER);
+    notification.setAuthorizable(authorizable);
+    notification.setEventType(EventType.CREATE_DATABASE.toString());
+
+    sentryServiceHandler.sentry_notify_hms_event(notification);
+
+    // Verify that synchronization is attempted
+    Mockito.verify(
+            sentryStore, Mockito.times(1)
+    ).getCounterWait();
+
+    Mockito.verify(counterWait, Mockito.times(1)).waitFor(1L);
+
+    SentryStateBank.enableState(FullUpdateInitializerState.COMPONENT,
+        FullUpdateInitializerState.FULL_SNAPSHOT_INPROGRESS);
+
+    sentryServiceHandler.sentry_notify_hms_event(notification);
+
+    // Verify that synchronization is not attempted because
+    // full snapshot is in progress
+    Mockito.reset(sentryStore);
+    Mockito.reset(counterWait);
+    Mockito.verify(
+            sentryStore, Mockito.times(0)
+    ).getCounterWait();
+    Mockito.verify(counterWait, Mockito.times(0)).waitFor(1L);
+
+  }
+
+  @Test
   public void testAlterTableEventProcessing() throws Exception {
 
-    conf.setBoolean(ServiceConstants.ServerConfig.SENTRY_ENABLE_OWNER_PRIVILEGES, true);
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
 
     SentryPolicyStoreProcessor sentryServiceHandler =
             new SentryPolicyStoreProcessor(ApiConstants.SentryPolicyServiceConstants.SENTRY_POLICY_SERVICE_NAME,
