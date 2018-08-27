@@ -65,6 +65,12 @@ limitations under the License.
       <artifactId>hive-hcatalog-server-extensions</artifactId>
       <version>${hive.version}</version>
       <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>jackson-mapper-asl</artifactId>
+          <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 
