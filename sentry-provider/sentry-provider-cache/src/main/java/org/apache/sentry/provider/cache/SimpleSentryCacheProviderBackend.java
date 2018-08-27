@@ -31,19 +31,4 @@ public class SimpleSentryCacheProviderBackend extends SimpleCacheProviderBackend
     super(conf, resourcePath);
   }
 
- /*
-  This is temporary change as Impala does not have implementation for user privileges.
-  Once Impala has support for user privileges this API should be moved to SimpleCacheProviderBackend.
-  TODO Move this API back to SimpleCacheProviderBackend once IMPALA-7343 is resolved.
- */
-  @Override
-  public ImmutableSet<String> getPrivileges(Set<String> groups, Set<String> users,
-                                            ActiveRoleSet roleSet, Authorizable... authorizableHierarchy) {
-    if (!initialized()) {
-      throw new IllegalStateException(
-              "Backend has not been properly initialized");
-    }
-    return ImmutableSet.copyOf(((SentryPrivilegeCache) cacheHandle).listPrivileges(groups, users,
-            roleSet));
-  }
 }
