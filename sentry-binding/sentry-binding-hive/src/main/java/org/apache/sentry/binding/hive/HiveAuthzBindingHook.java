@@ -20,6 +20,7 @@ import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -274,6 +275,22 @@ public class HiveAuthzBindingHook extends HiveAuthzBindingHookBase {
           currDB = extractDatabase((ASTNode)ast.getChild(0));
           ASTNode newTableNode = (ASTNode)childASTNode.getChild(0);
           currOutDB = extractDatabase(newTableNode);
+        }
+        if ("TOK_TABNAME".equals(childASTNode.getText())) {
+          ArrayList<Node> tabNameNodes = childASTNode.getChildren();
+          if (tabNameNodes.size() > 1) {
+            ASTNode dbNameNode = (ASTNode) childASTNode.getChild(0);
+            currDB = new Database(dbNameNode.getText());
+            ASTNode tableNameNode = (ASTNode) childASTNode.getChild(1);
+            if (tableNameNode != null) {
+              currTab = new Table(tableNameNode.getText());
+            }
+          } else if (tabNameNodes.size() == 1) {
+            ASTNode tableNameNode = (ASTNode) childASTNode.getChild(0);
+            if (tableNameNode != null) {
+              currTab = new Table(tableNameNode.getText());
+            }
+          }
         }
       }
 

@@ -25,7 +25,7 @@ import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.events.CreateDatabaseEvent;
 import org.apache.hadoop.hive.metastore.events.DropDatabaseEvent;
-// import org.apache.hadoop.hive.metastore.events.AlterDatabaseEvent; TODO: enable one HIVE-18031 is available
+import org.apache.hadoop.hive.metastore.events.AlterDatabaseEvent;
 import org.apache.hadoop.hive.metastore.events.CreateTableEvent;
 import org.apache.hadoop.hive.metastore.events.DropTableEvent;
 import org.apache.hadoop.hive.metastore.events.AlterTableEvent;
@@ -119,7 +119,6 @@ class SentryHmsEvent {
    * @param inServerName name of the server associated with the event
    * @param event AlterDatabaseEvent
    */
-  /* TODO: Enable once HIVE-18031 is available
   public SentryHmsEvent(String inServerName, AlterDatabaseEvent event) {
     this(event, EventType.ALTER_DATABASE);
 
@@ -131,7 +130,6 @@ class SentryHmsEvent {
     }
     setAuthorizable(inServerName, event.getNewDatabase());
   }
-  */
 
   /**
    * Construct SentryHmsEvent from CreateDatabaseEvent

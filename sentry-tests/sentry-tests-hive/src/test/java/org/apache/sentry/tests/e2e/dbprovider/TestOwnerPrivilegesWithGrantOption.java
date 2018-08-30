@@ -25,7 +25,6 @@ import java.sql.Statement;
 import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 
@@ -42,7 +41,6 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
    *
    * @throws Exception
    */
-  @Ignore("Enable the test once HIVE-18762 is in the hiver version integrated with Sentry")
   @Test
   public void testAuthorizeAlterTableSetOwnerByOwner() throws Throwable {
     String ownerRole = "owner_role";
@@ -138,17 +136,17 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
     Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
     Statement statementUSER1_1 = connectionUSER1_1.createStatement();
     statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
-            + " (under_col int comment 'the under column')");
+        + " (under_col int comment 'the under column')");
 
-   // Verify that the user who created the table has owner privilege on the table created.
+    // Verify that the user who created the table has owner privilege on the table created.
     verifyTableOwnerPrivilegeExistForPrincipal(statementAdmin, SentryPrincipalType.USER,
-            Lists.newArrayList(USER1_1),
-            DB1, tableName1, 1);
+        Lists.newArrayList(USER1_1),
+        DB1, tableName1, 1);
 
     // Owner granting privileges to another user
     try {
       statementUSER1_1
-              .execute("GRANT ALL ON " + DB1 + "." + tableName1 + " TO ROLE " + newOwnerRole);
+          .execute("GRANT ALL ON " + DB1 + "." + tableName1 + " TO ROLE " + newOwnerRole);
     } catch (Exception ex) {
       Assert.fail("Exception received while granting permissions");
     }
@@ -158,7 +156,7 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
     Statement statementUSER2_1 = connectionUSER2_1.createStatement();
     try {
       statementUSER2_1
-              .execute("DROP TABLE " + DB1 + "." + tableName1 );
+          .execute("DROP TABLE " + DB1 + "." + tableName1 );
     } catch (Exception ex) {
       Assert.fail("Exception received while dropping the table");
     }

@@ -1330,7 +1330,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
              1. Owner Update
              2. Table Rename
           */
-        // case ALTER_DATABASE: TODO: Enable once HIVE-18031 is available
+        case ALTER_DATABASE:
           // Wait till Sentry server processes HMS Notification Event.
           if(request.getId() > 0) {
             response.setId(syncEventId(request.getId()));
