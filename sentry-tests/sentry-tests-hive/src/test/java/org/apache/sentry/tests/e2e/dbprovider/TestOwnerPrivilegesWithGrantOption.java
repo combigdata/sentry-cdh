@@ -81,10 +81,11 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
           DB1, tableName1, 1);
 
       // Verify that HDFS ACL are not set.
+      Thread.sleep(WAIT_BEFORE_TESTVERIFY);
       verifyHdfsAcl(Lists.newArrayList(USER1_1), null, DB1, tableName1, null, false);
 
       // Verify that HDFS ACL are set.
-      verifyHdfsAcl(null, Lists.newArrayList(USERGROUP2), DB1, tableName1, null, true);
+      verifyHdfsAcl(Lists.newArrayList(USER2_1), null, DB1, tableName1, null, true);
 
 
       // alter table set owner for role
@@ -96,8 +97,9 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
           Lists.newArrayList(ownerRole),
           DB1, tableName1, 1);
 
-      // Verify that HDFS ACL are not set.
-      verifyHdfsAcl(null, Lists.newArrayList(USERGROUP2), DB1, tableName1, null, false);
+      // Verify that HDFS ACL are set for USERGROUP1, which has ownerRole.
+      Thread.sleep(WAIT_BEFORE_TESTVERIFY);
+      verifyHdfsAcl(null, Lists.newArrayList(USERGROUP1), DB1, tableName1, null, true);
 
     } finally {
       statementAdmin.close();

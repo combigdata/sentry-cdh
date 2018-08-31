@@ -325,10 +325,10 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
           DB2, "", 1);
 
       // Verify that HDFS ACL are not set.
-      verifyHdfsAcl(Lists.newArrayList(USER1_1), null, DB1, null, null, false);
+      verifyHdfsAcl(Lists.newArrayList(USER1_1), null, DB2, null, null, false);
 
       // Verify that HDFS ACL are set.
-      verifyHdfsAcl(null, Lists.newArrayList(USERGROUP2), DB1, null, null, true);
+      verifyHdfsAcl(null, Lists.newArrayList(USERGROUP1), DB2, null, null, true);
 
       // alter database set owner to user USER1_1 and verify privileges is transferred to USER USER1_1
       statementUSER2_1
@@ -344,7 +344,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
           DB2, "", 1);
 
       // Verify that HDFS ACL are set.
-      verifyHdfsAcl(Lists.newArrayList(USER2_1), null, DB1, tableName1, null, true);
+      verifyHdfsAcl(Lists.newArrayList(USER2_1), null, DB2, null, null, true);
 
 
     } finally {
@@ -404,6 +404,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     statementUSER1_1.execute("ALTER TABLE " + DB1 + "." + tableName1 + " RENAME TO " +
         DB1 + "." + tableName1 + renameTag );
 
+    Thread.sleep(WAIT_BEFORE_TESTVERIFY);
     statementUSER1_1.execute("DROP TABLE " + DB1 + "." + tableName1 + renameTag);
 
     statementAdmin.close();
@@ -594,6 +595,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
           "owner_role");
 
       // Verify that HDFS ACL are not set.
+      Thread.sleep(WAIT_BEFORE_TESTVERIFY);
       verifyHdfsAcl(Lists.newArrayList(USER1_1), null, DB1, tableName1, null, false);
 
       // Verify that HDFS ACL are set.
