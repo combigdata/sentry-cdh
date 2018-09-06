@@ -1102,7 +1102,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     TSentryPrivilegesResponse response = new TSentryPrivilegesResponse();
     String requestor = request.getRequestorUserName();
 
-    try {
+    try (Timer.Context timerContext = sentryMetrics.listRolesPrivilegesTimer.time()) {
       // Throws SentryThriftAPIMismatchException if protocol version mismatch
       validateClientVersion(request.getProtocol_version());
 
@@ -1136,7 +1136,7 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     TSentryPrivilegesResponse response = new TSentryPrivilegesResponse();
     String requestor = request.getRequestorUserName();
 
-    try {
+    try (Timer.Context timerContext = sentryMetrics.listUsersPrivilegesTimer.time()) {
       // Throws SentryThriftAPIMismatchException if protocol version mismatch
       validateClientVersion(request.getProtocol_version());
 
