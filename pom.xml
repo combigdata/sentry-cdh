@@ -74,7 +74,7 @@ limitations under the License.
     <hamcrest.version>1.3</hamcrest.version>
     <hive.version>${cdh.hive.version}</hive.version>
     <jackson.version>${cdh.jackson.version}</jackson.version>
-    <jackson-databind.version>2.2.3</jackson-databind.version>
+    <jackson-databind.version>${cdh.jackson2.version}</jackson-databind.version>
     <jackson-mapper-asl.version>${cdh.jackson-mapper-asl.version}</jackson-mapper-asl.version>
     <jdo-api.version>3.0.1</jdo-api.version>
     <jetty.version>${cdh.jetty9.version}</jetty.version>
@@ -214,6 +214,14 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-jaxrs</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -246,6 +254,10 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -262,6 +274,10 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -271,6 +287,10 @@ limitations under the License.
         <exclusions>
           <exclusion>
             <artifactId>jackson-mapper-asl</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
         </exclusions>
@@ -323,6 +343,14 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-annotations</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-dataformat-smile</artifactId>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -337,6 +365,14 @@ limitations under the License.
           <exclusion>
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-annotations</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-dataformat-smile</artifactId>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -538,7 +574,17 @@ limitations under the License.
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-web</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${lombok.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.hive</groupId>
@@ -621,6 +667,10 @@ limitations under the License.
           </exclusion>
           <exclusion>
             <artifactId>jackson-mapper-asl</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
         </exclusions>
@@ -941,6 +991,10 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>jackson-xc</artifactId>
+            <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -1180,6 +1234,8 @@ limitations under the License.
                   <exclude>**/THIRD-PARTY.properties</exclude>
                   <exclude>**/THIRD-PARTY.ftl</exclude>
                   <exclude>**/resources/licences/*</exclude>
+                  <!-- Lombok Config File -->
+                  <exclude>lombok.config</exclude>
                 </excludes>
               </configuration>
             </execution>
