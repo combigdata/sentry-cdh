@@ -101,6 +101,10 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
   // require table-level privileges.
   public boolean isDescTableBasic = false;
 
+  // Flag that specifies if the operation to validate is an ALTER VIEW AS SELECT.
+  // Note: Hive sends CREATEVIEW even if ALTER VIEW AS SELECT is used.
+  private boolean isAlterViewAs = false;
+
   protected AccessURI serdeURI;
   protected boolean serdeURIPrivilegesEnabled;
   protected final List<String> serdeWhiteList;
@@ -201,6 +205,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       case HiveParser.TOK_UNLOCKTABLE:
         currTab = extractTable((ASTNode)ast.getFirstChildWithType(HiveParser.TOK_TABNAME));
         currDB = extractDatabase((ASTNode) ast.getChild(0));
+        isAlterViewAs = isAlterViewAsOperation(ast);
         break;
       case HiveParser.TOK_CREATEINDEX:
         currTab = extractTable((ASTNode)ast.getFirstChildWithType(HiveParser.TOK_TABNAME));
@@ -523,6 +528,13 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     HiveOperation stmtOperation = getCurrentHiveStmtOp();
     HiveAuthzPrivileges stmtAuthObject;
 
+    // Hive has a bug that changes the operation of the ALTER VIEW AS SELECT to CREATEVIEW.
+    // isAlterViewAs is validated in the preAnalyze method which looks fo this operation
+    // in the ASTNode tree.
+    if (stmtOperation == HiveOperation.CREATEVIEW && isAlterViewAs) {
+      stmtOperation = HiveOperation.ALTERVIEW_AS;
+    }
+
     stmtAuthObject = HiveAuthzPrivilegesMap.getHiveAuthzPrivileges(stmtOperation);
 
     // must occur above the null check on stmtAuthObject
@@ -698,8 +710,9 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
         outputHierarchy.add(entityHierarchy);
       }
       // workaround for metadata queries.
-      // Capture the table name in pre-analyze and include that in the input entity list
-      if (currTab != null) {
+      // Capture the table name in pre-analyze and include that in the input entity list.
+      // the view as output. Having the view as input again will case extra privileges to be given.
+      if (currTab != null && stmtOperation != HiveOperation.ALTERVIEW_AS) {
         List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
         externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
         externalAuthorizableHierarchy.add(currDB);
@@ -1158,5 +1171,28 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       LOG.error("Can not create HiveAuthzBinding with privilege cache.");
       throw new SemanticException(e);
     }
+  }
+
+  /**
+   * Returns true if the ASTNode tree is an ALTER VIEW AS SELECT operation.
+   * <p>
+   * The ASTNode with an ALTER VIEW AS SELECT is formed as follows:*
+   *   Root: TOK_ALTERVIEW
+   *     Child(0): TOK_TABNAME
+   *     Child(1): TOK_QUERY    <-- This is the SELECT operation
+   *
+   * @param ast The ASTNode that Hive created while parsing the ALTER VIEW operation.
+   * @return True if it is an ALTER VIEW AS SELECT operation; False otherwise.
+   */
+  protected boolean isAlterViewAsOperation(ASTNode ast) {
+    if (ast == null || ast.getToken().getType() != HiveParser.TOK_ALTERVIEW) {
+      return false;
+    }
+
+    if (ast.getChildCount() <= 1 || ast.getChild(1).getType() != HiveParser.TOK_QUERY) {
+      return false;
+    }
+
+    return true;
   }
 }
