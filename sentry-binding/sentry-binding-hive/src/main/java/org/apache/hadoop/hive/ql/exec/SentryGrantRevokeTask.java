@@ -432,10 +432,7 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
         throw new HiveException(msg);
       }
 
-      Map<TSentryAuthorizable, TSentryPrivilegeMap> rolePrivilegesMap = sentryObjectPrivileges.getPrivilegesForRoles();
-      writeToFile(rolePrivilegesMap, desc, "ROLE");
-      Map<TSentryAuthorizable, TSentryPrivilegeMap> userPrivilegesMap = sentryObjectPrivileges.getPrivilegesForUsers();
-      writeToFile(userPrivilegesMap, desc, "USER");
+      writeToFile(writeGrantObjectInfo(sentryObjectPrivileges), desc.getResFile());
       return RETURN_CODE_SUCCESS;
     } catch (IOException e) {
       String msg = "IO Error in show grant " + e.getMessage();
@@ -504,6 +501,34 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
     } finally {
       closeQuiet(out);
     }
+  }
+
+  private String writeGrantObjectInfo(SentryObjectPrivileges objectPrivileges) {
+    Map<TSentryAuthorizable, TSentryPrivilegeMap> rolesPrivileges = objectPrivileges.getPrivilegesForRoles();
+    Map<TSentryAuthorizable, TSentryPrivilegeMap> usersPrivileges = objectPrivileges.getPrivilegesForUsers();
+
+    StringBuilder sb = new StringBuilder();
+    sb.append(writeGrantObjectInfo(rolesPrivileges, PrincipalType.ROLE));
+    sb.append(writeGrantObjectInfo(usersPrivileges, PrincipalType.USER));
+
+    return sb.toString();
+  }
+
+  private String writeGrantObjectInfo(Map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMap, PrincipalType principalType) {
+    StringBuilder sb = new StringBuilder();
+
+    if (privilegesMap != null && !privilegesMap.isEmpty()) {
+      for (TSentryPrivilegeMap map : privilegesMap.values()) {
+        Map<String, Set<TSentryPrivilege>> principalNameToPrivilegeMap = map.getPrivilegeMap();
+        for (String principalName : principalNameToPrivilegeMap.keySet()) {
+          for (TSentryPrivilege priv : principalNameToPrivilegeMap.get(principalName)) {
+            sb.append(writeGrantInfo(priv, principalType.toString(), principalName));
+          }
+        }
+      }
+    }
+
+    return sb.toString();
   }
 
   private void writeToFile(Map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMap, ShowGrantDesc desc,

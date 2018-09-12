@@ -115,6 +115,10 @@ public class TestCrossDbOps extends AbstractTestWithStaticConfiguration {
       pRset.verifyResultSetColumn("database", DB1);
       pRset.verifyResultSetColumn("table", "tab1");
 
+      pRset = new PrivilegeResultSet(statement, "SHOW GRANT ON DATABASE " + DB1);
+      pRset.verifyResultSetColumn("database", DB1);
+      LOGGER.info("SHOW GRANT ON DATABASE " + DB1 + " : " + pRset.toString());
+
       pRset = new PrivilegeResultSet(statement, "SHOW GRANT ROLE insert_tab2 ON DATABASE " + DB2);
       LOGGER.info("SHOW GRANT ROLE insert_tab2 ON DATABASE " + DB2 + " : " + pRset.toString());
       pRset.verifyResultSetColumn("database", DB2);
