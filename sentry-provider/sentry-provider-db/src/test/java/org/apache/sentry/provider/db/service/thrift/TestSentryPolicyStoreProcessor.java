@@ -67,7 +67,7 @@ public class TestSentryPolicyStoreProcessor {
 
   @Before
   public void setup() throws TimeoutException, InterruptedException {
-    conf = new Configuration(false);
+    conf = new Configuration(true);
 
     //Check behaviour when DB name is not set
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
