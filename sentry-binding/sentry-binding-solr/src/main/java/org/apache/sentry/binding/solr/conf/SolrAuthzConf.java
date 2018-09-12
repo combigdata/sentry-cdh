@@ -68,7 +68,7 @@ public class SolrAuthzConf extends Configuration {
 
   public SolrAuthzConf(URL solrAuthzSiteURL) {
     super(true);
-    addResource(solrAuthzSiteURL);
+    addResource(solrAuthzSiteURL, true);
   }
 
   @Override

@@ -86,7 +86,7 @@ public class SentryShellKafka extends SentryShellCommon {
 
   private Configuration getSentryConf() {
     Configuration conf = new Configuration();
-    conf.addResource(new Path(confPath));
+    conf.addResource(new Path(confPath), true);
     return conf;
   }
 
