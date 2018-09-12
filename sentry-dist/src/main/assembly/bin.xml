@@ -45,6 +45,9 @@
         <exclude>org.apache.derby:derby</exclude>
         <!-- SENTRY-2283 multiple versions of metrics cause failures on startup -->
         <exclude>io.dropwizard.metrics:*</exclude>
+        <!-- exclude the original jars, we'll add them in later with the shaded versions. -->
+        <exclude>org.apache.sentry:sentry-service-server</exclude>
+        <exclude>org.apache.sentry:sentry-hdfs-service</exclude>
       </excludes>
     </dependencySet>
 <!--
@@ -102,6 +105,7 @@
         <exclude>sentry-tests/**</exclude>
         <exclude>sentry-hdfs/**</exclude>
         <exclude>sentry-solr/**</exclude>
+        <exclude>sentry-service/**</exclude>
       </excludes>
 
       <includes>
@@ -114,6 +118,14 @@
         <include>README*</include>
       </includes>
       <outputDirectory>/</outputDirectory>
+    </fileSet>
+    <fileSet>
+      <directory>${project.parent.basedir}/sentry-thirdparty/sentry-shaded/target/</directory>
+      <includes>
+        <include>sentry-service-server-${project.version}.jar</include>
+        <include>sentry-hdfs-service-${project.version}.jar</include>
+      </includes>
+      <outputDirectory>lib/</outputDirectory>
     </fileSet>
     <fileSet>
       <directory>${project.parent.basedir}/sentry-hdfs/sentry-hdfs-dist/target</directory>
