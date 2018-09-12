@@ -573,7 +573,7 @@ public class SentryService implements Callable, SigUtils.SigListener {
           + configFile);
     }
     Configuration conf = new Configuration(false);
-    conf.addResource(configFile.toURL());
+    conf.addResource(configFile.toURL(), true);
     return conf;
   }
 
