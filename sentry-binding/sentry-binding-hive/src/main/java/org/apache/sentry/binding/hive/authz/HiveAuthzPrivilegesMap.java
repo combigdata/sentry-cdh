@@ -192,6 +192,13 @@ public class HiveAuthzPrivilegesMap {
         setOperationType(HiveOperationType.DDL).
         build();
 
+    HiveAuthzPrivileges alterViewAsPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
+      addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALTER)).
+      addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.SELECT)).
+      setOperationScope(HiveOperationScope.TABLE).
+      setOperationType(HiveOperationType.DDL).
+      build();
+
     HiveAuthzPrivileges createViewPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
     addOutputObjectPriviledge(AuthorizableType.Db, EnumSet.of(DBModelAction.CREATE)).
     addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.SELECT)).
@@ -283,7 +290,7 @@ public class HiveAuthzPrivilegesMap {
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERPARTITION_MERGEFILES, alterTablePrivilege);
 
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERVIEW_PROPERTIES, alterTablePrivilege);
-    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERVIEW_AS, createViewPrivilege);
+    hiveAuthzStmtPrivMap.put(HiveOperation.ALTERVIEW_AS, alterViewAsPrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERVIEW_RENAME, alterTableRenamePrivilege);
     hiveAuthzStmtPrivMap.put(HiveOperation.ALTERTABLE_OWNER, alterTableSetOwnerPrivilege);
 
