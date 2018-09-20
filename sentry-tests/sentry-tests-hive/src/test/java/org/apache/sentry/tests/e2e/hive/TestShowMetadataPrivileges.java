@@ -25,10 +25,9 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.sentry.core.model.db.DBModelAction;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.apache.sentry.core.model.db.DBModelAuthorizable;
+import org.apache.sentry.core.model.db.DBModelAuthorizable.AuthorizableType;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -41,19 +40,34 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
   private static Connection adminCon, user1Con;
   private static Statement adminStmt, user1Stmt;
 
+  private AuthorizableType authorizableType;
   private DBModelAction action;
   private boolean allowed;
 
   @Parameterized.Parameters
   public static Collection describePrivileges() {
     return Arrays.asList(new Object[][] {
-      { null,                  NOT_ALLOWED }, // Means no privileges
-      { DBModelAction.ALL,     ALLOWED },
-      { DBModelAction.CREATE,  NOT_ALLOWED },
-      { DBModelAction.SELECT,  ALLOWED },
-      { DBModelAction.INSERT,  ALLOWED },
-      { DBModelAction.ALTER,   ALLOWED },
-      { DBModelAction.DROP,    ALLOWED },
+     { AuthorizableType.Server, null, NOT_ALLOWED }, // Means no privileges
+     { AuthorizableType.Server, DBModelAction.ALL,     ALLOWED },
+     { AuthorizableType.Server, DBModelAction.CREATE,  ALLOWED },
+     { AuthorizableType.Server, DBModelAction.SELECT,  ALLOWED },
+     { AuthorizableType.Server, DBModelAction.INSERT,  ALLOWED },
+     { AuthorizableType.Server, DBModelAction.ALTER,   ALLOWED },
+     { AuthorizableType.Server, DBModelAction.DROP,    ALLOWED },
+      { AuthorizableType.Db, null, NOT_ALLOWED }, // Means no privileges
+      { AuthorizableType.Db, DBModelAction.ALL,     ALLOWED },
+      { AuthorizableType.Db, DBModelAction.CREATE,  ALLOWED },
+      { AuthorizableType.Db, DBModelAction.SELECT,  ALLOWED },
+      { AuthorizableType.Db, DBModelAction.INSERT,  NOT_ALLOWED },
+      { AuthorizableType.Db, DBModelAction.ALTER,   ALLOWED },
+      { AuthorizableType.Db, DBModelAction.DROP,    ALLOWED },
+      { AuthorizableType.Table, null, NOT_ALLOWED }, // Means no privileges
+      { AuthorizableType.Table, DBModelAction.ALL,     ALLOWED },
+      { AuthorizableType.Table, DBModelAction.CREATE,  NOT_ALLOWED },
+      { AuthorizableType.Table, DBModelAction.SELECT,  ALLOWED },
+      { AuthorizableType.Table, DBModelAction.INSERT,  ALLOWED },
+      { AuthorizableType.Table, DBModelAction.ALTER,   ALLOWED },
+      { AuthorizableType.Table, DBModelAction.DROP,    ALLOWED },
     });
   }
 
@@ -77,7 +91,8 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
     user1Con.close();
   }
 
-  public TestShowMetadataPrivileges(DBModelAction action, boolean allowed) {
+  public TestShowMetadataPrivileges(AuthorizableType authorizableType, DBModelAction action, boolean allowed) {
+    this.authorizableType = authorizableType;
     this.action = action;
     this.allowed = allowed;
   }
@@ -93,19 +108,19 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
 
   @Test
   public void testShowTablesWithGrantOnTable() throws Exception {
-    if (action != null) {
-      if (action == DBModelAction.CREATE) {
-        // CREATE is not supported at the table level
-        return;
-      }
+    if(action == null || !allowed || authorizableType != AuthorizableType.Table) {
+      return;
+    }
 
+    if(action != null) {
       adminStmt.execute("GRANT " + action + " ON TABLE " + DB1 + "." + TBL1 + " TO ROLE role1");
     }
 
     user1Stmt.execute("SHOW TABLES IN " + DB1);
-    if (!allowed) {
+
+    if (action == null) {
       assertFalse(
-        "SHOW TABLES should NOT display tables with " + action + " privileges on the table.",
+        "SHOW TABLES should NOT display tables with out privileges on the table.",
         user1Stmt.getResultSet().next());
     } else {
       assertTrue(
@@ -116,14 +131,19 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
 
   @Test
   public void testShowTablesWithGrantOnDatabase() throws Exception {
-    if (action != null) {
+    if(action == null || !allowed || authorizableType != AuthorizableType.Db) {
+      return;
+    }
+
+    if(action != null) {
       adminStmt.execute("GRANT " + action + " ON DATABASE " + DB1 + " TO ROLE role1");
     }
 
     user1Stmt.execute("SHOW TABLES IN " + DB1);
-    if (!allowed) {
+
+    if (action == null) {
       assertFalse(
-        "SHOW TABLES should NOT display tables with " + action + " privileges on the database.",
+        "SHOW TABLES should NOT display tables with out privileges on the database.",
         user1Stmt.getResultSet().next());
     } else {
       assertTrue(
@@ -134,14 +154,19 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
 
   @Test
   public void testShowTablesWithGrantOnServer() throws Exception {
-    if (action != null) {
+    if(action == null || !allowed || authorizableType != AuthorizableType.Server) {
+      return;
+    }
+
+    if(action != null) {
       adminStmt.execute("GRANT " + action + " ON SERVER " + SERVER1 + " TO ROLE role1");
     }
 
     user1Stmt.execute("SHOW TABLES IN " + DB1);
-    if (!allowed) {
+
+    if (action == null) {
       assertFalse(
-        "SHOW TABLES should NOT display tables with " + action + " privileges on the server.",
+        "SHOW TABLES should NOT display tables with out privileges on the server.",
         user1Stmt.getResultSet().next());
     } else {
       assertTrue(

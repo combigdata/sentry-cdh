@@ -951,7 +951,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     Subject subject = new Subject(userName);
     HiveAuthzPrivileges tableMetaDataPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
         addInputObjectPriviledge(AuthorizableType.Column, EnumSet.of(DBModelAction.SELECT, DBModelAction.INSERT,
-          DBModelAction.ALTER, DBModelAction.DROP)).
+         DBModelAction.ALTER, DBModelAction.DROP, DBModelAction.CREATE)).
         setOperationScope(HiveOperationScope.TABLE).
         setOperationType(HiveOperationType.INFO).
         build();
