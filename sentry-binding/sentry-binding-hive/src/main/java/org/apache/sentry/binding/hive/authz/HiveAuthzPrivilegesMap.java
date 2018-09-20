@@ -124,7 +124,7 @@ public class HiveAuthzPrivilegesMap {
         build();
 
     HiveAuthzPrivileges alterTableSetOwnerPrivilege = new HiveAuthzPrivileges.AuthzPrivilegeBuilder().
-        addInputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
+        addOutputObjectPriviledge(AuthorizableType.Table, EnumSet.of(DBModelAction.ALL)).
         setOperationScope(HiveOperationScope.TABLE).
         setOperationType(HiveOperationType.DDL).
         setGrantOption(true).
