@@ -19,7 +19,10 @@
 package org.apache.sentry.service.thrift;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -30,11 +33,15 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 import static org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars.AUTHZ_SYNC_ALTER_WITH_POLICY_STORE;
 import static org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars.AUTHZ_SYNC_CREATE_WITH_POLICY_STORE;
 import static org.apache.sentry.binding.hive.conf.HiveAuthzConf.AuthzConfVars.AUTHZ_SYNC_DROP_WITH_POLICY_STORE;
+import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.SENTRY_DB_EXPLICIT_GRANTS_PERMITTED;
+import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.SENTRY_DB_EXPLICIT_GRANTS_PERMITTED_DEFAULT;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.sentry.provider.db.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
+import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.slf4j.Logger;
 
 public final class SentryServiceUtil {
@@ -184,5 +191,64 @@ public final class SentryServiceUtil {
 
   private SentryServiceUtil() {
     // Make constructor private to avoid instantiation
+  }
+
+  /**
+   * Checks if a list of privileges are permitted to be explicitly granted by any of the Sentry DB
+   * clients.
+   * <p/>
+   * The list of privileges are checked against the configuration 'sentry.db.explicit.grants.permitted'
+   * that should exist in the Configuration object. This configuration has a list of comma-separated
+   * privileges. If an empty value is set, then it allows any privilege to be granted.
+   *
+   * @param conf The Configuration object that has the key=value of the privileges that are permitted.
+   * @param privileges A set of privileges that need to be verified if are permitted.
+   * @throws SentryGrantDeniedException If at least one of the privileges in the set is not permitted.
+   */
+  public static void checkDbExplicitGrantsPermitted(Configuration conf, Set<TSentryPrivilege> privileges)
+    throws SentryGrantDeniedException {
+    Set<String> permittedGrants = getDbGrantsPermittedFromConf(conf);
+    if (permittedGrants.isEmpty()) {
+      return;
+    }
+
+    Set<String> deniedGrants = new HashSet<>();
+    for (TSentryPrivilege privilege : privileges) {
+      String action = privilege.getAction();
+      if (action != null) {
+        action = action.trim().toUpperCase();
+
+        // Will collect all grants not permitted so the exception thrown displays which privileges
+        // cannot be granted
+        if (!permittedGrants.contains(action)) {
+          deniedGrants.add(action);
+        }
+      }
+    }
+
+    if (!deniedGrants.isEmpty()) {
+      throw new SentryGrantDeniedException(
+        String.format("GRANT privilege for %s not permitted.", deniedGrants));
+    }
+  }
+
+  // Returns the list of privileges found on the Configuration object that are permitted to be
+  // granted.
+  // The returned Set has all privileges in upper case and spaces trimmed to avoid mistakes
+  // during comparison.
+  private static Set<String> getDbGrantsPermittedFromConf(Configuration conf) {
+    String grantsConfig = conf.get(SENTRY_DB_EXPLICIT_GRANTS_PERMITTED,
+      SENTRY_DB_EXPLICIT_GRANTS_PERMITTED_DEFAULT).trim();
+
+    if (grantsConfig.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    Set<String> permittedGrants = new HashSet<>();
+    for (String grant : grantsConfig.split(",")) {
+      permittedGrants.add(grant.trim().toUpperCase());
+    }
+
+    return permittedGrants;
   }
 }

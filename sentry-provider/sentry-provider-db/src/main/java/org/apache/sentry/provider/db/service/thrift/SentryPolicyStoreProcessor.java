@@ -53,6 +53,7 @@ import org.apache.sentry.core.common.utils.PolicyStoreConstants.PolicyStoreServe
 import org.apache.sentry.provider.db.service.thrift.validator.GrantPrivilegeRequestValidator;
 import org.apache.sentry.provider.db.service.thrift.validator.RevokePrivilegeRequestValidator;
 import org.apache.sentry.service.thrift.SentryOwnerPrivilegeType;
+import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.service.thrift.ServiceConstants;
 import org.apache.sentry.service.thrift.ServiceConstants.ConfUtilties;
 import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
@@ -254,6 +255,10 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
       if (request.isSetPrivilege()) {
         request.setPrivileges(Sets.newHashSet(request.getPrivilege()));
       }
+
+      // Throw an exception if one of the grants is not permitted.
+      SentryServiceUtil.checkDbExplicitGrantsPermitted(conf, request.getPrivileges());
+
       // TODO: now only has SentryPlugin. Once add more SentryPolicyStorePlugins,
       // TODO: need to differentiate the updates for different Plugins.
       Preconditions.checkState(sentryPlugins.size() <= 1);
