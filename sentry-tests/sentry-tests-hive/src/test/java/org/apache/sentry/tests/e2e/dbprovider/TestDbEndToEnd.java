@@ -145,50 +145,7 @@ public class TestDbEndToEnd extends AbstractTestWithStaticConfiguration {
 
   }
 
-  @Test
-  public void testShowGrantOnDatabase() throws Exception {
-    Connection connection = context.createConnection(ADMIN1);
-    Statement statement = context.createStatement(connection);
 
-    statement.execute("DROP DATABASE IF EXISTS db1");
-    statement.execute("CREATE DATABASE db1");
-    statement.execute("CREATE ROLE r1");
-    statement.execute("GRANT SELECT ON DATABASE db1 TO ROLE r1");
-
-    ResultSet resultSet = statement.executeQuery("SHOW GRANT ON DATABASE db1");
-    assertTrue(resultSet.next());
-    assertEquals("db1", resultSet.getString(1));
-    assertEquals("r1", resultSet.getString(5));
-    assertEquals("ROLE", resultSet.getString(6));
-    assertEquals("select", resultSet.getString(7));
-    resultSet.close();
-
-    statement.close();
-    connection.close();
-  }
-
-  @Test
-  public void testShowGrantOnTable() throws Exception {
-    Connection connection = context.createConnection(ADMIN1);
-    Statement statement = context.createStatement(connection);
-
-    statement.execute("DROP TABLE IF EXISTS t1");
-    statement.execute("CREATE TABLE t1 (id INT)");
-    statement.execute("CREATE ROLE r1");
-    statement.execute("GRANT SELECT ON TABLE t1 TO ROLE r1");
-
-    ResultSet resultSet = statement.executeQuery("SHOW GRANT ON TABLE t1");
-    assertTrue(resultSet.next());
-    assertEquals("default", resultSet.getString(1));
-    assertEquals("t1", resultSet.getString(2));
-    assertEquals("r1", resultSet.getString(5));
-    assertEquals("ROLE", resultSet.getString(6));
-    assertEquals("select", resultSet.getString(7));
-    resultSet.close();
-
-    statement.close();
-    connection.close();
-  }
 
 /**
    * Steps:

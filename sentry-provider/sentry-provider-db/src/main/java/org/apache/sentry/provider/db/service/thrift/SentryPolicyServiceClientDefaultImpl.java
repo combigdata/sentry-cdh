@@ -830,36 +830,12 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
       Set<String> users, ActiveRoleSet roleSet) throws SentryUserException {
     Set<TSentryAuthorizable> authSet = Sets.newTreeSet();
 
-    TListSentryPrivilegesByAuthResponse response =
-        getSentryPrivilegeByAuthResponse(requestorUserName, authorizables, groups, users, roleSet);
-
-    return response.getPrivilegesMapByAuth();
-  }
-
-  @Override
-  public SentryObjectPrivileges getAllPrivilegsbyAuthorizable
-      (
-          String requestorUserName,
-          Set<List<? extends Authorizable>> authorizables, Set<String> groups,
-          Set<String> users, ActiveRoleSet roleSet) throws SentryUserException {
-
-    TListSentryPrivilegesByAuthResponse response =
-        getSentryPrivilegeByAuthResponse(requestorUserName, authorizables, groups, users, roleSet);
-
-    return new SentryObjectPrivileges(response);
-  }
-
-  public TListSentryPrivilegesByAuthResponse getSentryPrivilegeByAuthResponse(String requestorUserName,
-      Set<List<? extends Authorizable>> authorizables, Set<String> groups, Set<String> users,
-      ActiveRoleSet roleSet) throws SentryUserException {
-    Set<TSentryAuthorizable> authSet = Sets.newTreeSet();
-
     for (List<? extends Authorizable> authorizableHierarchy : authorizables) {
       authSet.add(setupSentryAuthorizable(authorizableHierarchy));
     }
     TListSentryPrivilegesByAuthRequest request = new TListSentryPrivilegesByAuthRequest(
-        ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT, requestorUserName,
-        authSet);
+      ThriftConstants.TSENTRY_SERVICE_VERSION_CURRENT, requestorUserName,
+      authSet);
     if (groups != null) {
       request.setGroups(groups);
     }
@@ -872,13 +848,9 @@ public class SentryPolicyServiceClientDefaultImpl implements SentryPolicyService
 
     try {
       TListSentryPrivilegesByAuthResponse response = client
-          .list_sentry_privileges_by_authorizable(request);
+        .list_sentry_privileges_by_authorizable(request);
       Status.throwIfNotOk(response.getStatus());
-
-      if(response == null) {
-        throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE + ": received a NULL response while requesting for sentry privileges by authorizable");
-      }
-      return response;
+      return response.getPrivilegesMapByAuth();
     } catch (TException e) {
       throw new SentryUserException(THRIFT_EXCEPTION_MESSAGE, e);
     }

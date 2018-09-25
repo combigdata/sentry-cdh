@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
@@ -76,12 +75,9 @@ import org.apache.sentry.core.model.db.Server;
 import org.apache.sentry.core.model.db.Table;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
-import org.apache.sentry.provider.db.service.thrift.SentryObjectPrivileges;
 import org.apache.sentry.provider.db.service.thrift.SentryPolicyServiceClient;
-import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.provider.db.service.thrift.TSentryGrantOption;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
-import org.apache.sentry.provider.db.service.thrift.TSentryPrivilegeMap;
 import org.apache.sentry.provider.db.service.thrift.TSentryRole;
 import org.apache.sentry.service.thrift.SentryServiceClientFactory;
 import org.apache.sentry.service.thrift.ServiceConstants.PrivilegeScope;
@@ -297,15 +293,6 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
 
   private int processShowGrantDDL(HiveConf conf, LogHelper console, SentryPolicyServiceClient sentryClient,
       String subject, String server, ShowGrantDesc desc) throws SentryUserException{
-    if(desc.getPrincipalDesc().getName().isEmpty()) {
-      return processShowGrantDDLOnObject(console, sentryClient, subject, desc);
-    } else {
-      return processShowGrantDDLOnPrinciple(console, sentryClient, subject, desc);
-    }
-  }
-
-  private int processShowGrantDDLOnPrinciple(LogHelper console, SentryPolicyServiceClient sentryClient,
-      String subject, ShowGrantDesc desc) throws SentryUserException {
     PrincipalDesc principalDesc = desc.getPrincipalDesc();
     PrivilegeObjectDesc hiveObjectDesc = desc.getHiveObj();
     String principalName = principalDesc.getName();
@@ -400,53 +387,6 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
     }
   }
 
-  private int processShowGrantDDLOnObject(LogHelper console, SentryPolicyServiceClient sentryClient,
-      String subject, ShowGrantDesc desc) throws SentryUserException {
-    PrivilegeObjectDesc hiveObjectDesc = desc.getHiveObj();
-    SentryObjectPrivileges sentryObjectPrivileges = null;
-
-    try {
-      if (hiveObjectDesc == null) {
-        String msg =
-            SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + "unspecified object name";
-        throw new HiveException(msg);
-      }
-
-      SentryHivePrivilegeObjectDesc privSubjectDesc = toSentryHivePrivilegeObjectDesc(hiveObjectDesc);
-      List<Authorizable> authorizableHeirarchy = toAuthorizable(privSubjectDesc);
-
-      Set<List<? extends Authorizable>> authorizableSet = Sets.newHashSet();;
-      if (privSubjectDesc.getColumns() != null && !privSubjectDesc.getColumns().isEmpty()) {
-        authorizableSet.addAll(parseColumnToAuthorizable(authorizableHeirarchy, privSubjectDesc));
-      } else {
-        authorizableSet.add(authorizableHeirarchy);
-      }
-      if (authorizableSet != null && !authorizableSet.isEmpty()) {
-        Set<String> users = Collections.singleton(subject);
-        sentryObjectPrivileges = sentryClient
-            .getAllPrivilegsbyAuthorizable(subject, authorizableSet, null, users,
-                hiveAuthzBinding.getActiveRoleSet());
-      } else {
-        String msg =
-            SentryHiveConstants.SHOW_NOT_SUPPORTED_FOR_PRINCIPAL + "object name [" + hiveObjectDesc.getObject() + "] does not exist";
-        throw new HiveException(msg);
-      }
-
-      writeToFile(writeGrantObjectInfo(sentryObjectPrivileges), desc.getResFile());
-      return RETURN_CODE_SUCCESS;
-    } catch (IOException e) {
-      String msg = "IO Error in show grant " + e.getMessage();
-      LOG.info(msg, e);
-      console.printError(msg);
-      return RETURN_CODE_FAILURE;
-    } catch (HiveException e) {
-      String msg = "Error in show grant operation, error message " + e.getMessage();
-      LOG.warn(msg, e);
-      console.printError(msg);
-      return RETURN_CODE_FAILURE;
-    }
-  }
-
   private List<Authorizable> toAuthorizable(SentryHivePrivilegeObjectDesc privSubjectDesc) throws HiveException{
     List<Authorizable> authorizableHeirarchy = new ArrayList<Authorizable>();
     authorizableHeirarchy.add(new Server(server));
@@ -500,61 +440,6 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
       }
     } finally {
       closeQuiet(out);
-    }
-  }
-
-  private String writeGrantObjectInfo(SentryObjectPrivileges objectPrivileges) {
-    Map<TSentryAuthorizable, TSentryPrivilegeMap> rolesPrivileges = objectPrivileges.getPrivilegesForRoles();
-    Map<TSentryAuthorizable, TSentryPrivilegeMap> usersPrivileges = objectPrivileges.getPrivilegesForUsers();
-
-    StringBuilder sb = new StringBuilder();
-    sb.append(writeGrantObjectInfo(rolesPrivileges, PrincipalType.ROLE));
-    sb.append(writeGrantObjectInfo(usersPrivileges, PrincipalType.USER));
-
-    return sb.toString();
-  }
-
-  private String writeGrantObjectInfo(Map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMap, PrincipalType principalType) {
-    StringBuilder sb = new StringBuilder();
-
-    if (privilegesMap != null && !privilegesMap.isEmpty()) {
-      for (TSentryPrivilegeMap map : privilegesMap.values()) {
-        Map<String, Set<TSentryPrivilege>> principalNameToPrivilegeMap = map.getPrivilegeMap();
-        for (String principalName : principalNameToPrivilegeMap.keySet()) {
-          for (TSentryPrivilege priv : principalNameToPrivilegeMap.get(principalName)) {
-            sb.append(writeGrantInfo(priv, principalType.toString(), principalName));
-          }
-        }
-      }
-    }
-
-    return sb.toString();
-  }
-
-  private void writeToFile(Map<TSentryAuthorizable, TSentryPrivilegeMap> privilegesMap, ShowGrantDesc desc,
-      String principalType) throws IOException{
-    if (privilegesMap != null && !privilegesMap.isEmpty()) {
-      Path resFile = new Path(desc.getResFile());
-      FileSystem fs = resFile.getFileSystem(conf);
-      FSDataOutputStream out = fs.create(resFile);
-      try {
-        for (TSentryPrivilegeMap map : privilegesMap.values()) {
-          Map<String, Set<TSentryPrivilege>> principalNameToPrivilegeMap = map.getPrivilegeMap();
-          for (String principalName : principalNameToPrivilegeMap.keySet()) {
-            for (TSentryPrivilege priv : principalNameToPrivilegeMap.get(principalName)) {
-              String data = writeGrantInfo(priv, principalType, principalName);
-              if (data != null && !data.isEmpty()) {
-                OutputStreamWriter writer = new OutputStreamWriter(out, "UTF-8");
-                writer.write(data);
-                writer.write((char) terminator);
-                writer.flush();
-              }
-            }
-          }
-        }
-      } finally {
-        closeQuiet(out);
-      }
     }
   }
 
@@ -626,34 +511,6 @@ public class SentryGrantRevokeTask extends Task<DDLWork> implements Serializable
       appendNonNull(builder, privilege.getCreateTime() * 1000L);
       appendNonNull(builder, "--");
     }
-    LOG.info("builder.toString(): " + builder.toString());
-    return builder.toString();
-  }
-
-  static String writeGrantInfo(TSentryPrivilege privilege, String principalType, String roleName) {
-
-    StringBuilder builder = new StringBuilder();
-
-
-    if (PrivilegeScope.URI.name().equalsIgnoreCase(
-        privilege.getPrivilegeScope())) {
-      appendNonNull(builder, privilege.getURI(), true);
-    } else if(PrivilegeScope.SERVER.name().equalsIgnoreCase(
-        privilege.getPrivilegeScope())) {
-      appendNonNull(builder, "*", true);//Db column would show * if it is a server level privilege
-    } else {
-      appendNonNull(builder, privilege.getDbName(), true);
-    }
-    appendNonNull(builder, privilege.getTableName());
-    appendNonNull(builder, null);//getPartValues()
-    appendNonNull(builder, privilege.getColumnName());//getColumnName()
-    appendNonNull(builder, roleName);//getPrincipalName()
-    appendNonNull(builder, principalType);//getPrincipalType()
-    appendNonNull(builder, privilege.getAction());
-    appendNonNull(builder,
-        TSentryGrantOption.TRUE.equals(privilege.getGrantOption()));
-    appendNonNull(builder, privilege.getCreateTime() * 1000L);
-    appendNonNull(builder, "--");
     LOG.info("builder.toString(): " + builder.toString());
     return builder.toString();
   }
