@@ -18,6 +18,7 @@
 
 package org.apache.sentry.service.thrift;
 
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -40,8 +41,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.provider.db.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
+import org.apache.sentry.service.thrift.ServiceConstants.ServerConfig;
 import org.slf4j.Logger;
 
 public final class SentryServiceUtil {
@@ -250,5 +253,41 @@ public final class SentryServiceUtil {
     }
 
     return permittedGrants;
+  }
+
+  /**
+   * Returns a new SentryStoreInterface instance based on the sentry.service.sentrystore property
+   * configuration.
+   *
+   * @param conf The Configuration object where the sentry.service.sentrystore property is set.
+   * @param logger The Log4j logger object used to log info/warn/error messages.
+   * @return A new SentryStoreInterface implementation.
+   */
+  public static SentryStoreInterface getSentryStore(Configuration conf, Logger logger) {
+    String sentryStoreClass = conf.get(ServerConfig.SENTRY_STORE,
+      ServerConfig.SENTRY_STORE_DEFAULT);
+    try {
+      Class<?> sentryClazz = conf.getClassByName(sentryStoreClass);
+      Constructor<?> sentryConstructor = sentryClazz
+        .getConstructor(Configuration.class);
+      Object sentryObj = sentryConstructor.newInstance(conf);
+      if (sentryObj instanceof SentryStoreInterface) {
+        logger.info("Instantiating sentry store class: " + sentryStoreClass);
+        return (SentryStoreInterface) sentryConstructor.newInstance(conf);
+      }
+      // The supplied class doesn't implement SentryStoreIface. Let's try to use a proxy
+      // instance.
+      // In practice, the following should only be used in development phase, as there are
+      // cases where using a proxy can fail, and result in runtime errors.
+      logger.warn(
+        String.format("Trying to use a proxy instance (duck-typing) for the " +
+          "supplied SentryStore, since the specified class %s does not implement " +
+          "SentryStoreIface.", sentryStoreClass));
+      return
+        new DynamicProxy<>(sentryObj, SentryStoreInterface.class, sentryStoreClass).createProxy();
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not create "
+        + sentryStoreClass, e);
+    }
   }
 }

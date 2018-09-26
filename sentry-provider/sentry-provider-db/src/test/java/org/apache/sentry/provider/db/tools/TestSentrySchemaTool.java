@@ -90,5 +90,4 @@ public class TestSentrySchemaTool {
     schemaTool.doUpgrade();
     schemaTool.verifySchemaVersion();
   }
-
 }

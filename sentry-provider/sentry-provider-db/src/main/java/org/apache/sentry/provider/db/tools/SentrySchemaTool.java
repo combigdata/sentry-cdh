@@ -17,6 +17,7 @@
  */
 package org.apache.sentry.provider.db.tools;
 
+import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -48,13 +49,18 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hive.beeline.BeeLine;
 import org.apache.sentry.Command;
 import org.apache.sentry.SentryUserException;
+import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.provider.db.service.persistent.SentryStoreSchemaInfo;
 import org.apache.sentry.provider.db.service.thrift.SentryConfigurationException;
 import org.apache.sentry.provider.db.tools.SentrySchemaHelper.NestedScriptParser;
 import org.apache.sentry.service.thrift.SentryService;
+import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.service.thrift.ServiceConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SentrySchemaTool {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SentrySchemaTool.class);
   private static final String SENTRY_SCRIP_DIR = File.separatorChar + "scripts"
       + File.separatorChar + "sentrystore" + File.separatorChar + "upgrade";
   private String userName = null;
@@ -67,6 +73,12 @@ public class SentrySchemaTool {
   private final Configuration sentryConf;
   private final String dbType;
   private final SentryStoreSchemaInfo SentryStoreSchemaInfo;
+
+  // List of upgrade actions that need to be taken depending of the schema version upgrading from
+  private final List<? extends SentryStoreUpgrade> storePostUpgradeList = Lists.newArrayList(
+    // Required by CDH 5.16 and CDH 6.1 and higher
+    new ImpalaRefreshPrivilegesUpgrade()
+  );
 
   public SentrySchemaTool(Configuration sentryConf, String dbType)
       throws SentryUserException, IOException {
@@ -280,6 +292,24 @@ public class SentrySchemaTool {
     } catch (IOException eIO) {
       throw new SentryUserException(
           "Upgrade FAILED! Metastore state would be inconsistent !!", eIO);
+    }
+
+    // Continue the upgrade process with the list of required cases
+    SentryStoreInterface sentryStore = SentryServiceUtil.getSentryStore(sentryConf, LOGGER);
+    String userName = System.getProperty("user.name");
+
+    for (SentryStoreUpgrade storeUpgrade : storePostUpgradeList) {
+      if (storeUpgrade.needsUpgrade(fromSchemaVer)) {
+        System.out.println("Calling post-schema upgrade: " + storeUpgrade.getClass().getName());
+        if (!dryRun) {
+          try {
+            storeUpgrade.upgrade(userName, sentryStore);
+            System.out.println("Completed post-schema upgrade: " + storeUpgrade.getClass().getName());
+          } catch (Exception e) {
+            throw new SentryUserException("Post-schema upgrade FAILED!", e);
+          }
+        }
+      }
     }
 
     // Revalidated the new version after upgrade
