@@ -23,9 +23,11 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import java.util.Set;
 import javax.security.auth.login.LoginException;
 
 import org.apache.commons.lang.StringUtils;
@@ -80,10 +82,10 @@ public class MetastoreAuthzBinding extends MetaStorePreEventListener {
    * Build the set of object hierarchies ie fully qualified db model objects
    */
   private static class HierarcyBuilder {
-    private List<List<DBModelAuthorizable>> authHierarchy;
+    private Set<List<DBModelAuthorizable>> authHierarchy;
 
     public HierarcyBuilder() {
-      authHierarchy = new ArrayList<List<DBModelAuthorizable>>();
+      authHierarchy = new HashSet<List<DBModelAuthorizable>>();
     }
 
     public HierarcyBuilder addServerToOutput(Server server) {
@@ -128,7 +130,7 @@ public class MetastoreAuthzBinding extends MetaStorePreEventListener {
       return this;
     }
 
-    public List<List<DBModelAuthorizable>> build() {
+    public Set<List<DBModelAuthorizable>> build() {
       return authHierarchy;
     }
   }
@@ -405,8 +407,8 @@ public class MetastoreAuthzBinding extends MetaStorePreEventListener {
    * @throws InvalidOperationException
    */
   private void authorizeMetastoreAccess(HiveOperation hiveOp,
-      List<List<DBModelAuthorizable>> inputHierarchy,
-      List<List<DBModelAuthorizable>> outputHierarchy)
+      Set<List<DBModelAuthorizable>> inputHierarchy,
+      Set<List<DBModelAuthorizable>> outputHierarchy)
       throws InvalidOperationException {
     if (isSentryCacheOutOfSync()) {
       throw invalidOperationException(new SentryUserException(

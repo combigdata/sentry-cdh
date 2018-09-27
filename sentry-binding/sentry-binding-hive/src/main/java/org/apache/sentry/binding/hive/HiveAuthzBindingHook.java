@@ -26,6 +26,7 @@ import java.net.URL;
 import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -653,8 +654,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       HiveAuthzPrivileges stmtAuthObject, HiveOperation stmtOperation) throws  AuthorizationException {
     Set<ReadEntity> inputs = context.getInputs();
     Set<WriteEntity> outputs = context.getOutputs();
-    List<List<DBModelAuthorizable>> inputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
-    List<List<DBModelAuthorizable>> outputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
+    Set<List<DBModelAuthorizable>> inputHierarchy = new HashSet<List<DBModelAuthorizable>>();
+    Set<List<DBModelAuthorizable>> outputHierarchy = new HashSet<List<DBModelAuthorizable>>();
 
     if(LOG.isDebugEnabled()) {
       LOG.debug("stmtAuthObject.getOperationScope() = " + stmtAuthObject.getOperationScope());
@@ -864,7 +865,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    * @param inputHierarchy
    * @param entity
    */
-  private void addColumnHierarchy(List<List<DBModelAuthorizable>> inputHierarchy,
+  private void addColumnHierarchy(Set<List<DBModelAuthorizable>> inputHierarchy,
       ReadEntity entity) {
     List<DBModelAuthorizable> entityHierarchy = new ArrayList<DBModelAuthorizable>();
     entityHierarchy.add(hiveAuthzBinding.getAuthServer());
@@ -891,7 +892,7 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
    * @param inputHierarchy
    * @param inputs
    */
-  private void getInputHierarchyFromInputs(List<List<DBModelAuthorizable>> inputHierarchy,
+  public void getInputHierarchyFromInputs(Set<List<DBModelAuthorizable>> inputHierarchy,
       Set<ReadEntity> inputs) {
     for (ReadEntity readEntity: inputs) {
       // skip the tables/view that are part of expanded view definition
@@ -964,8 +965,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
       Database database;
       database = new Database(dbName);
 
-      List<List<DBModelAuthorizable>> inputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
-      List<List<DBModelAuthorizable>> outputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> inputHierarchy = new HashSet<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> outputHierarchy = new HashSet<List<DBModelAuthorizable>>();
       List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
       externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
       externalAuthorizableHierarchy.add(database);
@@ -1002,8 +1003,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
     Table table = new Table(tableName);
     for (FieldSchema col : cols) {
       // if user has privileges on column, add to filtered list, else discard
-      List<List<DBModelAuthorizable>> inputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
-      List<List<DBModelAuthorizable>> outputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> inputHierarchy = new HashSet<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> outputHierarchy = new HashSet<List<DBModelAuthorizable>>();
       List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
       externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
       externalAuthorizableHierarchy.add(database);
@@ -1056,8 +1057,8 @@ public class HiveAuthzBindingHook extends AbstractSemanticAnalyzerHook {
 
       database = new Database(dbName);
 
-      List<List<DBModelAuthorizable>> inputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
-      List<List<DBModelAuthorizable>> outputHierarchy = new ArrayList<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> inputHierarchy = new HashSet<List<DBModelAuthorizable>>();
+      Set<List<DBModelAuthorizable>> outputHierarchy = new HashSet<List<DBModelAuthorizable>>();
       List<DBModelAuthorizable> externalAuthorizableHierarchy = new ArrayList<DBModelAuthorizable>();
       externalAuthorizableHierarchy.add(hiveAuthzBinding.getAuthServer());
       externalAuthorizableHierarchy.add(database);
