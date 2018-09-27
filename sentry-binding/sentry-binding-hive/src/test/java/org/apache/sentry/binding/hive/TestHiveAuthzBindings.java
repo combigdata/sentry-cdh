@@ -19,8 +19,10 @@ package org.apache.sentry.binding.hive;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
+import java.util.Set;
 import junit.framework.Assert;
 
 import org.apache.commons.io.FileUtils;
@@ -81,8 +83,8 @@ public class TestHiveAuthzBindings {
   private static final String NAME_COL = "name";
 
   // Entities
-  private List<List<DBModelAuthorizable>> inputTabHierarcyList = new ArrayList<List<DBModelAuthorizable>>();
-  private List<List<DBModelAuthorizable>> outputTabHierarcyList = new ArrayList<List<DBModelAuthorizable>>();
+  private Set<List<DBModelAuthorizable>> inputTabHierarcyList = new HashSet<List<DBModelAuthorizable>>();
+  private Set<List<DBModelAuthorizable>> outputTabHierarcyList = new HashSet<List<DBModelAuthorizable>>();
   private HiveConf hiveConf = new HiveConf();
   private HiveAuthzConf authzConf = new HiveAuthzConf(Resources.getResource("sentry-deprecated-site.xml"));
 
