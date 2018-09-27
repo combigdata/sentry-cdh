@@ -50,9 +50,16 @@ public class TestDescribeMetadataPrivileges extends AbstractTestWithStaticConfig
       { DBModelAction.ALL,     ALLOWED },
       { DBModelAction.CREATE,  NOT_ALLOWED },
       { DBModelAction.SELECT,  ALLOWED },
-      { DBModelAction.INSERT,  ALLOWED },
+      { DBModelAction.INSERT,  ALLOWED }
+
+      // These are not permitted since sentry.db.explicit.grants.permitted was set to
+      // CREATE,REFRESH,SELECT,INSERT,ALL,*
+      /*
       { DBModelAction.ALTER,   ALLOWED },
       { DBModelAction.DROP,    NOT_ALLOWED },
+      { DBModelAction.INDEX,   NOT_ALLOWED },
+      { DBModelAction.LOCK,    NOT_ALLOWED },
+      */
     });
   }
 

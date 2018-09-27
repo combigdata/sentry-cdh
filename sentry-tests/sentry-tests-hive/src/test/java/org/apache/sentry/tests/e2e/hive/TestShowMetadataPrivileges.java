@@ -52,22 +52,22 @@ public class TestShowMetadataPrivileges extends AbstractTestWithStaticConfigurat
      { AuthorizableType.Server, DBModelAction.CREATE,  ALLOWED },
      { AuthorizableType.Server, DBModelAction.SELECT,  ALLOWED },
      { AuthorizableType.Server, DBModelAction.INSERT,  ALLOWED },
-     { AuthorizableType.Server, DBModelAction.ALTER,   ALLOWED },
-     { AuthorizableType.Server, DBModelAction.DROP,    ALLOWED },
+     //{ AuthorizableType.Server, DBModelAction.ALTER,   ALLOWED },
+     //{ AuthorizableType.Server, DBModelAction.DROP,    ALLOWED },
       { AuthorizableType.Db, null, NOT_ALLOWED }, // Means no privileges
       { AuthorizableType.Db, DBModelAction.ALL,     ALLOWED },
       { AuthorizableType.Db, DBModelAction.CREATE,  ALLOWED },
       { AuthorizableType.Db, DBModelAction.SELECT,  ALLOWED },
       { AuthorizableType.Db, DBModelAction.INSERT,  NOT_ALLOWED },
-      { AuthorizableType.Db, DBModelAction.ALTER,   ALLOWED },
-      { AuthorizableType.Db, DBModelAction.DROP,    ALLOWED },
+      //{ AuthorizableType.Db, DBModelAction.ALTER,   ALLOWED },
+      //{ AuthorizableType.Db, DBModelAction.DROP,    ALLOWED },
       { AuthorizableType.Table, null, NOT_ALLOWED }, // Means no privileges
       { AuthorizableType.Table, DBModelAction.ALL,     ALLOWED },
       { AuthorizableType.Table, DBModelAction.CREATE,  NOT_ALLOWED },
       { AuthorizableType.Table, DBModelAction.SELECT,  ALLOWED },
-      { AuthorizableType.Table, DBModelAction.INSERT,  ALLOWED },
-      { AuthorizableType.Table, DBModelAction.ALTER,   ALLOWED },
-      { AuthorizableType.Table, DBModelAction.DROP,    ALLOWED },
+      { AuthorizableType.Table, DBModelAction.INSERT,  ALLOWED }
+      //{ AuthorizableType.Table, DBModelAction.ALTER,   ALLOWED },
+      //{ AuthorizableType.Table, DBModelAction.DROP,    ALLOWED },
     });
   }
 
