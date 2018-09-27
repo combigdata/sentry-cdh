@@ -53,11 +53,16 @@ public class TestAllowedGrantPrivileges extends AbstractTestWithStaticConfigurat
       { DBModelAction.ALL,     Sets.newHashSet(Server, Db, Table) },
       { DBModelAction.CREATE,  Sets.newHashSet(Server, Db) },
       { DBModelAction.SELECT,  Sets.newHashSet(Server, Db, Table, Column) },
-      { DBModelAction.INSERT,  Sets.newHashSet(Server, Db, Table) },
+      { DBModelAction.INSERT,  Sets.newHashSet(Server, Db, Table) }
+
+      // These are not permitted since sentry.db.explicit.grants.permitted was set to
+      // CREATE,REFRESH,SELECT,INSERT,ALL,*
+      /*
       { DBModelAction.ALTER,   Sets.newHashSet(Server, Db, Table) },
       { DBModelAction.DROP,    Sets.newHashSet(Server, Db, Table) },
       { DBModelAction.INDEX,   Sets.newHashSet(Server, Db, Table) },
       { DBModelAction.LOCK,    Sets.newHashSet(Server, Db, Table) }
+      */
     });
   }
 
