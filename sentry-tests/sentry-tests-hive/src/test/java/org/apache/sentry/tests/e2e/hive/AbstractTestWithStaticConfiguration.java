@@ -496,6 +496,8 @@ public abstract class AbstractTestWithStaticConfiguration extends RulesForE2ETes
     properties.put(ServerConfig.SENTRY_STORE_GROUP_MAPPING, ServerConfig.SENTRY_STORE_LOCAL_GROUP_MAPPING);
     properties.put(ServerConfig.SENTRY_STORE_GROUP_MAPPING_RESOURCE, policyFileLocation.getPath());
     properties.put(ServerConfig.RPC_MIN_THREADS, "3");
+    // Allow any privilege to be granted so unit tests do not fail.
+    properties.put(ServerConfig.SENTRY_DB_EXPLICIT_GRANTS_PERMITTED, "");
     for (Map.Entry<String, String> entry : properties.entrySet()) {
       sentryConf.set(entry.getKey(), entry.getValue());
     }
