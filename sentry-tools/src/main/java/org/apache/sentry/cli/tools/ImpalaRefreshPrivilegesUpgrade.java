@@ -19,14 +19,14 @@ package org.apache.sentry.cli.tools;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.Sets;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang.StringUtils;
 import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
 import org.apache.sentry.api.service.thrift.TSentryGrantOption;
 import org.apache.sentry.api.service.thrift.TSentryPrivilege;
-import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
+import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 
 /**
  * Utility class to grant the REFRESH privilege to those roles that are part of the Sentry upgrade
@@ -127,10 +127,9 @@ public class ImpalaRefreshPrivilegesUpgrade implements SentryStoreUpgrade {
    * Grant (or insert) new REFRESH privileges to all roles that have the SELECT and/or INSERT privileges.
    *
    * @param store The SentryStore object used to grant the new privileges.
-   * @param userName The user who is executing this upgrade (usually the admin user).
    */
   @Override
-  public void upgrade(String userName, SentryStoreInterface store) throws Exception {
+  public void upgrade(SentryStore store) throws Exception {
     Map<String, Set<TSentryPrivilege>> rolesPrivileges = store.getAllRolesPrivileges();
     for (String roleName : rolesPrivileges.keySet()) {
       Set<RefreshPrivilege> refreshPrivilegesToAdd = Sets.newHashSet();
@@ -150,8 +149,8 @@ public class ImpalaRefreshPrivilegesUpgrade implements SentryStoreUpgrade {
 
       if (!refreshPrivilegesToAdd.isEmpty()) {
         for (RefreshPrivilege p : refreshPrivilegesToAdd) {
-          store.alterSentryRoleGrantPrivileges(userName, roleName,
-            Collections.singleton(p.toSentryPrivilege()));
+          store.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName,
+            p.toSentryPrivilege());
         }
       }
     }
