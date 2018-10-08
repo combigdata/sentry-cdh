@@ -17,7 +17,7 @@
  */
 package org.apache.sentry.provider.db.tools;
 
-import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
 
 /**
  * Interface used by the SentrySchemaTool class to execute any upgrade steps after the
@@ -37,8 +37,7 @@ public interface SentryStoreUpgrade {
    * Executes a post-schema upgrade step on the Sentry Store DB.
    *
    * @param store The Sentry store where to execute the DB operations.
-   * @param userName The user who is executing this upgrade (usually the admin user).
    * @throws Exception If an error has occurred during the upgrade.
    */
-  void upgrade(String userName, SentryStoreInterface store) throws Exception;
+  void upgrade(SentryStore store) throws Exception;
 }

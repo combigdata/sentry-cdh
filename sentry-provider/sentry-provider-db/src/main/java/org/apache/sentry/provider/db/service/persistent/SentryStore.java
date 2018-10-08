@@ -749,6 +749,39 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   /**
+   * This is a copy of the {@link #alterSentryGrantPrivilege} that accepts the grantorPrincipal
+   * as a parameter, except that this does not check for the grant option.
+   *
+   * <p/>This method is exclusively used by the
+   * {@link org.apache.sentry.provider.db.tools.SentrySchemaTool#doUpgrade(String)} so that it can
+   * modify the Sentry DB as an admin user without checking for the grant option.
+   *
+   * @param type Type of principal to which privilege is granted.
+   * @param name the name of the principal to which privilege is granted.
+   * @param privilege the given privilege
+   * @throws Exception
+   */
+  public synchronized void alterSentryGrantPrivilege(final SentryPrincipalType type,
+    final String name, final TSentryPrivilege privilege) throws Exception {
+    execute((Update)null, new TransactionBlock<Object>() {
+      public Object execute(PersistenceManager pm) throws Exception {
+        pm.setDetachAllOnCommit(false); // No need to detach objects
+        String trimmedPrincipalName = trimAndLower(name);
+
+        // Alter sentry Role and grant Privilege.
+        MSentryPrivilege mPrivilege = alterSentryGrantPrivilegeCore(pm, type,
+          trimmedPrincipalName, privilege);
+
+        if (mPrivilege != null) {
+          // update the privilege to be the one actually updated.
+          convertToTSentryPrivilege(mPrivilege, privilege);
+        }
+        return null;
+      }
+    });
+  }
+
+  /**
    * Alter a given sentry role to grant a set of privileges, as well as persist the
    * corresponding permission change to MSentryPermChange table in a single transaction.
    * Internally calls alterSentryGrantPrivilege.

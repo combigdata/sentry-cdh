@@ -26,9 +26,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.sentry.core.model.db.AccessConstants;
-import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
+import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.thrift.TSentryPrivilege;
 import org.apache.sentry.service.thrift.ServiceConstants.PrivilegeScope;
+import org.apache.sentry.service.thrift.ServiceConstants.SentryPrincipalType;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -43,7 +44,6 @@ public class TestImpalaRefreshPrivilegesUpgrade {
   private static final String CDH6_1 = "2.1.0";
   private static final String CDH6_2 = "2.2.0"; // hypothetical schema version
 
-  private static final String USER_NAME = "sentry";
   private static final String REFRESH = "REFRESH";
 
   @Test
@@ -70,7 +70,7 @@ public class TestImpalaRefreshPrivilegesUpgrade {
   @Test
   public void testIgnoreRefreshPrivilegesWhenAllIsFound() throws Exception {
     SentryStoreUpgrade storeUpgrade = new ImpalaRefreshPrivilegesUpgrade();
-    SentryStoreInterface mockStore = Mockito.mock(SentryStoreInterface.class);
+    SentryStore mockStore = Mockito.mock(SentryStore.class);
 
     Set<TSentryPrivilege> ALL_PRIVILEGES_AND_SCOPES = Sets.newHashSet(
       toTSentryPrivilege(PrivilegeScope.SERVER, AccessConstants.ACTION_ALL),
@@ -91,7 +91,7 @@ public class TestImpalaRefreshPrivilegesUpgrade {
 
     Mockito.when(mockStore.getAllRolesPrivileges()).thenReturn(inputRolesPrivileges);
 
-    storeUpgrade.upgrade(USER_NAME, mockStore);
+    storeUpgrade.upgrade(mockStore);
     Mockito.verify(mockStore, Mockito.times(1)).getAllRolesPrivileges();
     Mockito.verifyZeroInteractions(mockStore);
   }
@@ -99,7 +99,7 @@ public class TestImpalaRefreshPrivilegesUpgrade {
   @Test
   public void testAddRefreshPrivilegesWhenSelectOrInsertAreFound() throws Exception {
     SentryStoreUpgrade storeUpgrade = new ImpalaRefreshPrivilegesUpgrade();
-    SentryStoreInterface mockStore = Mockito.mock(SentryStoreInterface.class);
+    SentryStore mockStore = Mockito.mock(SentryStore.class);
 
     Set<TSentryPrivilege> ALL_PRIVILEGES_AND_SCOPES = Sets.newHashSet(
       toTSentryPrivilege(PrivilegeScope.SERVER, AccessConstants.SELECT),
@@ -119,7 +119,7 @@ public class TestImpalaRefreshPrivilegesUpgrade {
 
     Mockito.when(mockStore.getAllRolesPrivileges()).thenReturn(inputRolesPrivileges);
 
-    storeUpgrade.upgrade(USER_NAME, mockStore);
+    storeUpgrade.upgrade(mockStore);
 
     Set<TSentryPrivilege> NEW_REFRESH_PRIVILEGES_AND_SCOPES = Sets.newHashSet(
       toTSentryPrivilege(PrivilegeScope.SERVER, REFRESH),
@@ -128,10 +128,10 @@ public class TestImpalaRefreshPrivilegesUpgrade {
     );
 
     for (TSentryPrivilege grantedPrivileges : NEW_REFRESH_PRIVILEGES_AND_SCOPES) {
-      Mockito.verify(mockStore).alterSentryRoleGrantPrivileges(
-        USER_NAME, "role1", Collections.singleton(grantedPrivileges));
-      Mockito.verify(mockStore).alterSentryRoleGrantPrivileges(
-        USER_NAME, "role2", Collections.singleton(grantedPrivileges));
+      Mockito.verify(mockStore).alterSentryGrantPrivilege(
+        SentryPrincipalType.ROLE, "role1", grantedPrivileges);
+      Mockito.verify(mockStore).alterSentryGrantPrivilege(
+        SentryPrincipalType.ROLE, "role2", grantedPrivileges);
     }
   }
 
