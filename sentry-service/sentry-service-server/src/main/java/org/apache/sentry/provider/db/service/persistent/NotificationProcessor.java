@@ -22,12 +22,16 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import java.util.Objects;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hive.hcatalog.messaging.HCatEventMessage.EventType;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAddPartitionMessage;
+import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAlterDatabaseMessage;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAlterPartitionMessage;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONAlterTableMessage;
 import org.apache.sentry.binding.metastore.messaging.json.SentryJSONCreateDatabaseMessage;
@@ -52,6 +56,7 @@ import org.apache.sentry.api.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.api.common.SentryServiceUtil;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipalType;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
+import org.apache.sentry.service.common.SentryOwnerPrivilegeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +90,10 @@ final class NotificationProcessor {
   private boolean syncStoreOnDrop = false;
   private final boolean hdfsSyncEnabled;
 
+  private final boolean OWNER_GRANT_OPTION;
+  private final SentryOwnerPrivilegeType OWNER_PRIVILEGE_TYPE;
+  private final SentryHMSOwnerHandler ownerPrivilegeProcessor;
+
   /**
    * Configuring notification processor.
    *
@@ -93,7 +102,7 @@ final class NotificationProcessor {
    * @param conf sentry configuration
    */
   NotificationProcessor(SentryStoreInterface sentryStore, String authServerName,
-      Configuration conf) {
+      Configuration conf, SentryHMSOwnerHandler ownershipHandler) {
     this.sentryStore = sentryStore;
     deserializer = new SentryJSONMessageDeserializer();
     this.authServerName = authServerName;
@@ -103,6 +112,10 @@ final class NotificationProcessor {
     syncStoreOnDrop = Boolean.parseBoolean(conf.get(AUTHZ_SYNC_DROP_WITH_POLICY_STORE.getVar(),
         AUTHZ_SYNC_DROP_WITH_POLICY_STORE.getDefault()));
     hdfsSyncEnabled = SentryServiceUtil.isHDFSSyncEnabledNoCache(conf);
+
+    ownerPrivilegeProcessor = ownershipHandler;
+    OWNER_PRIVILEGE_TYPE = SentryOwnerPrivilegeType.get(conf);
+    OWNER_GRANT_OPTION = (OWNER_PRIVILEGE_TYPE == SentryOwnerPrivilegeType.ALL_WITH_GRANT);
   }
 
   /**
@@ -210,6 +223,8 @@ final class NotificationProcessor {
           return processCreateDatabase(event);
         case DROP_DATABASE:
           return processDropDatabase(event);
+        case  ALTER_DATABASE:
+          return processAlterDatabase(event);
         case CREATE_TABLE:
           return processCreateTable(event);
         case DROP_TABLE:
@@ -252,6 +267,27 @@ final class NotificationProcessor {
 
     if (syncStoreOnCreate) {
       dropSentryDbPrivileges(dbName, event);
+    }
+
+    // Grant OWNER privileges to the new database
+    if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
+      PrincipalType ownerType = message.getOwnerType();
+      String ownerName = message.getOwnerName();
+
+      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+        LOGGER.warn(String.format(
+          "Create database event has incomplete OWNER information. "
+            + "dbName: %s, ownerType: %s, ownerName: %s ", dbName, ownerType, ownerName));
+      } else {
+        try {
+          grantDatabaseOwnerPrivilege(message);
+        } catch (Exception e) {
+          // Do not throw an exception if ownership did not work to let Sentry continue with the
+          // event processing.
+          LOGGER.error("Cannot grant OWNER privileges on database '{}': {}",
+            dbName, e.getMessage());
+        }
+      }
     }
 
     if (hdfsSyncEnabled) {
@@ -318,6 +354,27 @@ final class NotificationProcessor {
       dropSentryTablePrivileges(dbName, tableName, event);
     }
 
+    if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
+      PrincipalType ownerType = createTableMessage.getOwnerType();
+      String ownerName = createTableMessage.getOwnerName();
+
+      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+        LOGGER.warn(String.format(
+          "Create table event has incomplete OWNER information. "
+            + "dbName: %s, tableName: %s, ownerType: %s, ownerName: %s ",
+          dbName, tableName, ownerType, ownerName));
+      } else {
+        try {
+          grantTableOwnerPrivilege(createTableMessage);
+        } catch (Exception e) {
+          // Do not throw an exception if ownership did not work to let Sentry continue with the
+          // event processing.
+          LOGGER.error("Cannot grant OWNER privileges on table '{}.{}': {}",
+            dbName, tableName, e.getMessage());
+        }
+      }
+    }
+
     if (hdfsSyncEnabled) {
       String authzObj = SentryServiceUtil.getAuthzObj(dbName, tableName);
       List<String> locations = Collections.singletonList(location);
@@ -362,6 +419,102 @@ final class NotificationProcessor {
   }
 
   /**
+   * Processes "alter database" notification event, and applies its corresponding
+   * snapshot change as well as delta path update into Sentry DB.
+   *
+   * @param event notification event to be processed.
+   * @throws Exception if encounters errors while persisting the path change
+   */
+  private boolean processAlterDatabase(NotificationEvent event) throws Exception {
+    SentryJSONAlterDatabaseMessage alterDatabaseMessage =
+      deserializer.getAlterDatabaseMessage(event.getMessage());
+    String oldDbName = alterDatabaseMessage.getOldDbName();
+    String newDbName =alterDatabaseMessage.getNewDbName();
+    String oldLocation = alterDatabaseMessage.getOldLocation();
+    String newLocation = alterDatabaseMessage.getNewLocation();
+    PrincipalType oldOwnerType = alterDatabaseMessage.getOldOwnerType();
+    PrincipalType newOwnerType = alterDatabaseMessage.getNewOwnerType();
+    String oldOwnerName = alterDatabaseMessage.getOldOwnerName();
+    String newOwnerName = alterDatabaseMessage.getNewOwnerName();
+
+    if ((oldDbName == null)
+      || (newDbName == null)
+      || (oldLocation == null)
+      || (newLocation == null)) {
+      LOGGER.warn(String.format("Alter database notification ignored since event "
+          + "has incomplete information. oldDbName = %s, oldLocation = %s, "
+          + "newDbName = %s, newLocation = %s",
+        StringUtils.defaultIfBlank(oldDbName, "null"),
+        StringUtils.defaultIfBlank(oldLocation, "null"),
+        StringUtils.defaultIfBlank(newDbName, "null"),
+        StringUtils.defaultIfBlank(newLocation, "null")));
+      return false;
+    }
+
+    if ((oldDbName.equals(newDbName))
+      && (oldLocation.equals(newLocation)
+      && (Objects.equals(oldOwnerType, newOwnerType))
+      && (StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)))) {
+      LOGGER.debug(String.format("Alter database notification ignored as neither name nor "
+          + "location nor owner has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
+          + "newLocation = %s, oldOwnerType = %s, newOwnerType = %s, oldOwnerName = %s, newOwnerName = %s",
+        oldDbName, oldLocation,
+        newDbName, newLocation, oldOwnerType, newOwnerType,
+        oldOwnerName, newOwnerName));
+      return false;
+    }
+
+    // TODO: Rename database privileges if a database name has changed
+    /*
+    if (hdfsSyncEnabled) {
+      if (!newDbName.equalsIgnoreCase(oldDbName)) {
+        // Name has changed
+        try {
+          renamePrivileges(oldDbName, newDbName);
+        } catch (SentryNoSuchObjectException e) {
+          LOGGER.info("Rename Sentry privilege ignored as there are no privileges on the database:"
+            + " {}.{}", oldDbName);
+        } catch (Exception e) {
+          LOGGER.info("Could not process Alter database event. Event: {}", event.toString(), e);
+          return false;
+        }
+    }*/
+
+    if (!Objects.equals(oldOwnerType, newOwnerType) || !StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)) {
+      PrincipalType ownerType = alterDatabaseMessage.getNewOwnerType();
+      String ownerName = alterDatabaseMessage.getNewOwnerName();
+
+      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+        LOGGER.warn(String.format(
+          "Alter database event has incomplete OWNER information. "
+            + "dbName: %s, newOwnerType: %s, newOwnerName: %s ",
+          newDbName, ownerType, ownerName));
+      } else {
+        try {
+          transferDatabaseOwnerPrivilege(alterDatabaseMessage);
+        } catch (Exception e) {
+          // Do not throw an exception if ownership did not work to let Sentry continue with the
+          // event processing.
+          LOGGER.error(String.format(
+            "Cannot transfer OWNER privileges on database '%s' to '%s.%s': %s",
+              newDbName, newOwnerType, newOwnerName, e.getMessage()));
+        }
+      }
+    }
+
+    if (!hdfsSyncEnabled) {
+      return false;
+    }
+
+    // TODO: Rename database paths if a database name or location have changed
+    //if (!oldDbName.equalsIgnoreCase(newDbName) || !(oldLocation.equalsIgnoreCase(newLocation))) {
+      //renameAuthzPath(oldDbName, newDbName, oldLocation, newLocation, event);
+      //return true;
+    //}
+    return false;
+  }
+
+  /**
    * Processes "alter table" notification event, and applies its corresponding
    * snapshot change as well as delta path update into Sentry DB.
    *
@@ -369,15 +522,18 @@ final class NotificationProcessor {
    * @throws Exception if encounters errors while persisting the path change
    */
   private boolean processAlterTable(NotificationEvent event) throws Exception {
-
     SentryJSONAlterTableMessage alterTableMessage =
         deserializer.getAlterTableMessage(event.getMessage());
-    String oldDbName = alterTableMessage.getDB();
-    String oldTableName = alterTableMessage.getTable();
-    String newDbName = event.getDbName();
-    String newTableName = event.getTableName();
+    String oldDbName = alterTableMessage.getOldDbName();
+    String oldTableName = alterTableMessage.getOldTableName();
+    String newDbName =alterTableMessage.getNewDbName();
+    String newTableName = alterTableMessage.getNewTableName();
     String oldLocation = alterTableMessage.getOldLocation();
     String newLocation = alterTableMessage.getNewLocation();
+    PrincipalType oldOwnerType = alterTableMessage.getOldOwnerType();
+    PrincipalType newOwnerType = alterTableMessage.getNewOwnerType();
+    String oldOwnerName = alterTableMessage.getOldOwnerName();
+    String newOwnerName = alterTableMessage.getNewOwnerName();
 
     if ((oldDbName == null)
         || (oldTableName == null)
@@ -399,11 +555,15 @@ final class NotificationProcessor {
 
     if ((oldDbName.equals(newDbName))
         && (oldTableName.equals(newTableName))
-        && (oldLocation.equals(newLocation))) {
+        && (oldLocation.equals(newLocation)
+        && (Objects.equals(oldOwnerType, newOwnerType))
+        && (StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)))) {
       LOGGER.debug(String.format("Alter table notification ignored as neither name nor "
-              + "location has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
-              + "newLocation = %s", oldDbName + "." + oldTableName, oldLocation,
-          newDbName + "." + newTableName, newLocation));
+              + "location nor owner has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
+              + "newLocation = %s, oldOwnerType = %s, newOwnerType = %s, oldOwnerName = %s, newOwnerName = %s",
+        oldDbName + "." + oldTableName, oldLocation,
+          newDbName + "." + newTableName, newLocation, oldOwnerType, newOwnerType,
+        oldOwnerName, newOwnerName));
       return false;
     }
 
@@ -420,13 +580,41 @@ final class NotificationProcessor {
       }
     }
 
+    if (!Objects.equals(oldOwnerType, newOwnerType) || !StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)) {
+      PrincipalType ownerType = alterTableMessage.getNewOwnerType();
+      String ownerName = alterTableMessage.getNewOwnerName();
+
+      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+        LOGGER.warn(String.format(
+          "Alter table event has incomplete OWNER information. "
+            + "dbName: %s, tableName: %s, newOwnerType: %s, newOwnerName: %s ",
+          newDbName, newTableName, ownerType, ownerName));
+      } else {
+        try {
+          transferTableOwnerPrivilege(alterTableMessage);
+        } catch (Exception e) {
+          // Do not throw an exception if ownership did not work to let Sentry continue with the
+          // event processing.
+          LOGGER
+            .error(String.format("Cannot transfer OWNER privileges on table '%s.%s' to '%s.%s': %s",
+              newDbName, newTableName, newOwnerType, newOwnerName, e.getMessage()));
+        }
+      }
+    }
+
     if (!hdfsSyncEnabled) {
       return false;
     }
+
     String oldAuthzObj = oldDbName + "." + oldTableName;
     String newAuthzObj = newDbName + "." + newTableName;
-    renameAuthzPath(oldAuthzObj, newAuthzObj, oldLocation, newLocation, event);
-    return true;
+
+    if (!oldAuthzObj.equalsIgnoreCase(newAuthzObj) || !(oldLocation.equalsIgnoreCase(newLocation))) {
+      renameAuthzPath(oldAuthzObj, newAuthzObj, oldLocation, newLocation, event);
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -774,5 +962,49 @@ final class NotificationProcessor {
     Update update =
         getPermUpdatableOnRename(oldAuthorizable, newAuthorizable);
     sentryStore.renamePrivilege(oldAuthorizable, newAuthorizable, update);
+  }
+
+  private void grantDatabaseOwnerPrivilege(SentryJSONCreateDatabaseMessage message) throws Exception {
+    String dbName = message.getDB();
+    PrincipalType ownerType = message.getOwnerType();
+    String ownerName = message.getOwnerName();
+
+    ownerPrivilegeProcessor.grantDatabaseOwnerPrivilege(dbName, ownerType, ownerName,
+      OWNER_GRANT_OPTION);
+  }
+
+  private void grantTableOwnerPrivilege(SentryJSONCreateTableMessage message) throws Exception {
+    String dbName = message.getDB();
+    String tableName = message.getTable();
+    PrincipalType ownerType = message.getOwnerType();
+    String ownerName = message.getOwnerName();
+
+    ownerPrivilegeProcessor.grantTableOwnerPrivilege(dbName, tableName, ownerType, ownerName,
+      OWNER_GRANT_OPTION);
+  }
+
+  private void transferTableOwnerPrivilege(SentryJSONAlterTableMessage message) throws Exception {
+    String dbName = message.getNewDbName();
+    String tableName = message.getNewTableName();
+    PrincipalType ownerType = message.getNewOwnerType();
+    String ownerName = message.getNewOwnerName();
+
+    ownerPrivilegeProcessor.dropTableOwnerPrivileges(dbName, tableName);
+    if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
+      ownerPrivilegeProcessor
+        .grantTableOwnerPrivilege(dbName, tableName, ownerType, ownerName, OWNER_GRANT_OPTION);
+    }
+  }
+
+  private void transferDatabaseOwnerPrivilege(SentryJSONAlterDatabaseMessage message) throws Exception {
+    String dbName = message.getNewDbName();
+    PrincipalType ownerType = message.getNewOwnerType();
+    String ownerName = message.getNewOwnerName();
+
+    ownerPrivilegeProcessor.dropDatabaseOwnerPrivileges(dbName);
+    if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
+      ownerPrivilegeProcessor
+        .grantDatabaseOwnerPrivilege(dbName, ownerType, ownerName, OWNER_GRANT_OPTION);
+    }
   }
 }

@@ -19,17 +19,12 @@
 package org.apache.sentry.service.thrift;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient.NotificationFilter;
 import org.apache.hadoop.hive.metastore.api.CurrentNotificationEventId;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
 import org.apache.hadoop.hive.metastore.api.NotificationEventResponse;
 import org.apache.sentry.core.common.utils.SentryConstants;
-import org.apache.sentry.hdfs.UniquePathsUpdate;
-import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,16 +34,10 @@ import org.slf4j.LoggerFactory;
 public final class HiveNotificationFetcher implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(HiveNotificationFetcher.class);
 
-  private final SentryStoreInterface sentryStore;
   private final HiveConnectionFactory hmsConnectionFactory;
   private HiveMetaStoreClient hmsClient;
 
-  /* The following cache and last filtered ID help us to avoid making less calls to the DB */
-  private long lastIdFiltered = 0;
-  private Set<String> cache = new HashSet<>();
-
-  public HiveNotificationFetcher(SentryStoreInterface sentryStore, HiveConnectionFactory hmsConnectionFactory) {
-    this.sentryStore = sentryStore;
+  public HiveNotificationFetcher(HiveConnectionFactory hmsConnectionFactory) {
     this.hmsConnectionFactory = hmsConnectionFactory;
   }
 
@@ -74,8 +63,6 @@ public final class HiveNotificationFetcher implements AutoCloseable {
    * @throws Exception If an error occurs on the HMS communication.
    */
   public List<NotificationEvent> fetchNotifications(long lastEventId, int maxEvents) throws Exception {
-    NotificationFilter filter = null;
-
     /*
      * HMS may bring duplicated events that were committed later than the previous request. To bring
      * those newer duplicated events, we request new notifications from the last seen ID - 1.
@@ -85,16 +72,21 @@ public final class HiveNotificationFetcher implements AutoCloseable {
      *
      * TODO: We can avoid doing this once HIVE-16886 is fixed.
      */
+    // HIVE-16886 is fixed in CDH 5.16, so we don't need to got back one event id.
+    // I will leave the code and comments here until the code is committed and tested
+    // upstream.
+    /*
     if (lastEventId > 0) {
       filter = createNotificationFilterFor(lastEventId);
       lastEventId--;
     }
+    */
 
     LOGGER.debug("Requesting HMS notifications since ID = {}", lastEventId);
 
     NotificationEventResponse response;
     try {
-      response = getHmsClient().getNextNotification(lastEventId, maxEvents, filter);
+      response = getHmsClient().getNextNotification(lastEventId, maxEvents, null);
     } catch (Exception e) {
       close();
       throw e;
@@ -106,53 +98,6 @@ public final class HiveNotificationFetcher implements AutoCloseable {
     }
 
     return Collections.emptyList();
-  }
-
-  /**
-   * Returns a HMS notification filter for a specific notification ID. HMS notifications may
-   * have duplicated IDs, so the filter uses a SHA-1 hash to check for a unique notification.
-   *
-   * @param id the notification ID to filter
-   * @return the HMS notification filter
-   */
-  private NotificationFilter createNotificationFilterFor(final long id) {
-    /*
-     * A SHA-1 hex value that keeps unique notifications processed is persisted on the Sentry DB.
-     * To keep unnecessary calls to the DB, we use a cache that keeps seen hashes of the
-     * specified ID. If a new filter ID is used, then we clean up the cache.
-     */
-
-    if (lastIdFiltered != id) {
-      lastIdFiltered = id;
-      cache.clear();
-    }
-
-    return new NotificationFilter() {
-      @Override
-      public boolean accept(NotificationEvent notificationEvent) {
-        if (notificationEvent.getEventId() == id) {
-          String hash = UniquePathsUpdate.sha1(notificationEvent);
-
-          try {
-            if (cache.contains(hash) || sentryStore.isNotificationProcessed(hash)) {
-              cache.add(hash);
-
-              LOGGER.debug("Ignoring HMS notification already processed: ID = {}", id);
-              return false;
-            }
-          } catch (Exception e) {
-            LOGGER.error("An error occurred while checking if notification {} is already "
-                + "processed: {}", id, e.getMessage());
-
-            // We cannot throw an exception on this filter, so we return false assuming this
-            // notification is already processed
-            return false;
-          }
-        }
-
-        return true;
-      }
-    };
   }
 
   /**
@@ -203,8 +148,6 @@ public final class HiveNotificationFetcher implements AutoCloseable {
       if (hmsClient != null) {
         hmsClient.close();
       }
-
-      cache.clear();
     } finally {
       hmsClient = null;
     }

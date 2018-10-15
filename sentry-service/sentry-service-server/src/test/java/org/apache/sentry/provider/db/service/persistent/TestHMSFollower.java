@@ -95,6 +95,7 @@ public class TestHMSFollower {
 
   @Before
   public void setupMocks() throws Exception {
+    configuration.setInt(SENTRY_HMS_FETCH_SIZE, -1);
     reset(hmsConnectionMock, hmsClientMock, sentryStore);
     when(hmsConnectionMock.connect()).thenReturn(new HMSClient(hmsClientMock));
   }
@@ -312,7 +313,7 @@ public class TestHMSFollower {
     // Making sure that HMS client is invoked to get all the notifications
     // starting from event-id 0
     verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(0L),
-            Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
+            Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
 
     reset(sentryStore);
 
@@ -402,7 +403,7 @@ public class TestHMSFollower {
     response.addToEvents(new NotificationEvent(3L, 0, "ALTER_TABLE", ""));
 
     when(hmsClientMock.getNextNotification(Mockito.eq(0L), Mockito.eq(Integer.MAX_VALUE),
-            Mockito.anyObject())).thenReturn(response);
+            Mockito.eq(null))).thenReturn(response);
 
     HMSFollower hmsFollower = new HMSFollower(configuration, sentryStore, null,
             hmsConnectionMock, hiveInstance);
@@ -419,7 +420,7 @@ public class TestHMSFollower {
     // Making sure that HMS client is invoked to get all the notifications
     // starting from event-id 0
     verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(0L),
-            Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
+            Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(1L);
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(2L);
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(3L);
@@ -467,8 +468,8 @@ public class TestHMSFollower {
     verify(sentryStore, times(1)).clearHmsPathInformation();
     verify(sentryStore, times(0)).setLastProcessedNotificationID(Mockito.anyLong());
     //Make sure that HMSFollower continues to fetch notifications based on persisted notifications.
-    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(fullSnapshot.getId()-1),
-            Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
+    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(fullSnapshot.getId()),
+            Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
 
     reset(sentryStore, hmsClientMock);
     enableHdfsSyncInSentry(configuration);
@@ -538,8 +539,10 @@ public class TestHMSFollower {
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
-  @Test
-  public void testPersistAFullSnapshotWhenNextExpectedEventIsNotAvailable() throws Exception {
+  // This test is not valid anymore because HIVE-16886 is included in CDH.
+  // See HiveNotificationFetcher for more details.
+  //@Test
+  //public void testPersistAFullSnapshotWhenNextExpectedEventIsNotAvailable() throws Exception {
     /*
      * TEST CASE
      *
@@ -552,7 +555,7 @@ public class TestHMSFollower {
      * should be 2. This out-of-sync should trigger a new full HMS snapshot request with the
      * same eventId = 5.
      */
-
+/*
     final long SENTRY_PROCESSED_EVENT_ID = 1L;
     final long HMS_PROCESSED_EVENT_ID = 5L;
 
@@ -598,6 +601,7 @@ public class TestHMSFollower {
     verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
+  */
 
   /**
    * Test that HMSFollower uses the input authentication server name when it is not null
@@ -1237,8 +1241,8 @@ public class TestHMSFollower {
     //2nd run
     hmsFollower.run();
     // Verify that HMSFollower starting fetching the notifications beyond what it already processed.
-    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(3L-1),
-            Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
+    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(3L),
+            Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
 
 
     // Mock that returns the current HMS notification ID which is less than what
@@ -1251,7 +1255,7 @@ public class TestHMSFollower {
     // 3rd run
     hmsFollower.syncupWithHms(3L);
     verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(0L),
-            Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
+            Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
 
 
   }
@@ -1332,10 +1336,10 @@ public class TestHMSFollower {
     response.addToEvents(new NotificationEvent(4L, 0, "ALTER_TABLE", ""));
     response.addToEvents(new NotificationEvent(5L, 0, "ALTER_TABLE", ""));
 
-    when(hmsClientMock.getNextNotification(Mockito.eq(0L), Mockito.eq(Integer.MAX_VALUE),
-        Mockito.anyObject())).thenReturn(response);
-    when(hmsClientMock.getNextNotification(Mockito.eq(0L), Mockito.eq(sentryHMSFetchSize),
-        Mockito.anyObject())).thenReturn(partialResponse);
+    when(hmsClientMock.getNextNotification(Mockito.eq(1L), Mockito.eq(Integer.MAX_VALUE),
+      Mockito.eq(null))).thenReturn(response);
+    when(hmsClientMock.getNextNotification(Mockito.eq(1L), Mockito.eq(sentryHMSFetchSize),
+        Mockito.eq(null))).thenReturn(partialResponse);
     when(hmsClientMock.getCurrentNotificationEventId()).thenReturn(new CurrentNotificationEventId(SENTRY_PROCESSED_EVENT_ID));
 
     HMSFollower hmsFollower = new HMSFollower(configuration, sentryStore, null,
@@ -1351,10 +1355,10 @@ public class TestHMSFollower {
         fullSnapshot.getPathImage(), fullSnapshot.getId());
     // Making sure that HMS client is invoked to get all the notifications
     // starting from event-id 0
-    verify(hmsClientMock, times(0)).getNextNotification(Mockito.eq(0L),
-        Mockito.eq(Integer.MAX_VALUE), Mockito.anyObject());
-    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(0L),
-        Mockito.eq(sentryHMSFetchSize), Mockito.anyObject());
+    verify(hmsClientMock, times(0)).getNextNotification(Mockito.eq(1L),
+        Mockito.eq(Integer.MAX_VALUE), Mockito.eq(null));
+    verify(hmsClientMock, times(1)).getNextNotification(Mockito.eq(1L),
+        Mockito.eq(sentryHMSFetchSize), Mockito.eq(null));
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(1L);
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(2L);
     verify(sentryStore, times(1)).persistLastProcessedNotificationID(3L);

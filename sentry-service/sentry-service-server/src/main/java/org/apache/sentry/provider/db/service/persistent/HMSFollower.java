@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.jdo.JDODataStoreException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
+import org.apache.sentry.provider.db.audit.SentryAuditLogger;
 import org.apache.thrift.TException;
 import org.apache.sentry.service.thrift.SentryHMSClient;
 import org.apache.sentry.service.thrift.HiveConnectionFactory;
@@ -55,6 +56,9 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
   private static final Logger LOGGER = LoggerFactory.getLogger(HMSFollower.class);
   private static final String FULL_UPDATE_TRIGGER = "FULL UPDATE TRIGGER: ";
   private static boolean connectedToHms = false;
+
+  // This user must not be null, so the SentryService name would the the default
+  private static String SENTRY_SERVICE_USER = System.getProperty("user.name", "SentryService");
 
   private SentryHMSClient client;
   private final Configuration authzConf;
@@ -112,10 +116,12 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
         conf.get(AUTHZ_SERVER_NAME_DEPRECATED.getVar(), AUTHZ_SERVER_NAME_DEPRECATED.getDefault()));
     }
 
-    notificationProcessor = new NotificationProcessor(sentryStore, authServerName, authzConf);
+    SentryHMSOwnerHandler ownershipHandler = new SentryHMSOwnerHandler(sentryStore,
+      new SentryAuditLogger(conf), authServerName, SENTRY_SERVICE_USER);
+    notificationProcessor = new NotificationProcessor(sentryStore, authServerName, authzConf, ownershipHandler);
     client = new SentryHMSClient(authzConf, hiveConnectionFactory);
     hdfsSyncEnabled = SentryServiceUtil.isHDFSSyncEnabledNoCache(authzConf); // no cache to test different settings for hdfs sync
-    notificationFetcher = new HiveNotificationFetcher(sentryStore, hiveConnectionFactory);
+    notificationFetcher = new HiveNotificationFetcher(hiveConnectionFactory);
 
     // subscribe to full update notification
     if (conf.getBoolean(ServerConfig.SENTRY_SERVICE_FULL_UPDATE_PUBSUB, false)) {

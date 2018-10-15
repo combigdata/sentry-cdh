@@ -792,6 +792,16 @@ public interface SentryStoreInterface {
                                       final Update update) throws Exception;
 
   /**
+   * Revokes the owner privilege (if granted) of a corresponding authorizable object.
+   *
+   * @param tAuthorizable The authorizable object where to revoke the owner privilege
+   * @param updates All updates to need executed as part of the revoke transaction
+   * @throws Exception If an error occurs while revoking the owner privilege
+   */
+  void alterSentryRevokeOwnerPrivilege(final TSentryAuthorizable tAuthorizable,
+                                       final List<Update> updates) throws Exception;
+
+  /**
    * List the Owners for an authorizable
    * @param authorizable Authorizable
    * @return List of owner for an authorizable

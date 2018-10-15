@@ -2895,14 +2895,8 @@ public class SentryStore implements SentryStoreInterface {
     });
   }
 
-  /**
-   * Revokes all the owner privileges granted to an authorizable
-   * @param tAuthorizable authorizable for which owner privilege should be revoked.
-   * @param updates
-   * @throws Exception
-   */
-  @VisibleForTesting
-  void revokeOwnerPrivileges(final TSentryAuthorizable tAuthorizable, final List<Update> updates)
+  @Override
+  public void alterSentryRevokeOwnerPrivilege(final TSentryAuthorizable tAuthorizable, final List<Update> updates)
      throws Exception{
     execute(updates, pm -> {
       pm.setDetachAllOnCommit(false);

@@ -73,8 +73,7 @@ public class SentryJSONMessageFactory extends MessageFactory {
   }
 
   public SentryJSONCreateDatabaseMessage buildCreateDatabaseMessage(Database db) {
-    return new SentryJSONCreateDatabaseMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, db.getName(),
-        now(), db.getLocationUri());
+    return new SentryJSONCreateDatabaseMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, now(), db);
   }
 
   public SentryJSONAlterDatabaseMessage buildAlterDatabaseMessage(Database before, Database after) {
@@ -88,13 +87,11 @@ public class SentryJSONMessageFactory extends MessageFactory {
   }
 
   public SentryJSONCreateTableMessage buildCreateTableMessage(Table table) {
-    return new SentryJSONCreateTableMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, table.getDbName(),
-        table.getTableName(), now(), table.getSd().getLocation());
+    return new SentryJSONCreateTableMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, now(), table);
   }
 
   public SentryJSONAlterTableMessage buildAlterTableMessage(Table before, Table after) {
-    return new SentryJSONAlterTableMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, before.getDbName(),
-        before.getTableName(), now(), before.getSd().getLocation(), after.getSd().getLocation());
+    return new SentryJSONAlterTableMessage(HCAT_SERVER_URL, HCAT_SERVICE_PRINCIPAL, now(), before, after);
   }
 
   public SentryJSONDropTableMessage buildDropTableMessage(Table table) {
