@@ -188,64 +188,6 @@ public class TestSentryPolicyStoreProcessor {
   }
 
   @Test
-  public void testConstructOwnerPrivilege() throws Exception {
-    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
-    SentryPolicyStoreProcessor sentryServiceHandler =
-        new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
-            conf, sentryStore);
-    TSentryPrivilege privilege = new TSentryPrivilege();
-    TSentryAuthorizable authorizable = new TSentryAuthorizable("server1");
-    authorizable.setDb("db1");
-    authorizable.setTable("tb1");
-
-    //Check the behaviour when owner privileges feature is not configured.
-    assertNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
-
-
-    //Check behaviour when DB name is not set
-    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
-    sentryServiceHandler =
-        new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
-            conf, sentryStore);
-    authorizable = new TSentryAuthorizable("server1");
-    authorizable.setTable("tb1");
-    assertNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
-
-    //Check the behavior when DB name is set and table name is not set.
-    authorizable = new TSentryAuthorizable("server1");
-    authorizable.setDb("db1");
-    privilege.setServerName("server1");
-    privilege.setDbName("db1");
-    privilege.setAction(AccessConstants.OWNER);
-    privilege.setPrivilegeScope("DATABASE");
-    Assert.assertNotNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
-    Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
-
-    //check the behaviour when both DB name and table name are set
-    authorizable = new TSentryAuthorizable("server1");
-    authorizable.setDb("db1");
-    authorizable.setTable("tb1");
-    privilege.setTableName("tb1");
-    privilege.setPrivilegeScope("TABLE");
-    Assert.assertNotNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
-    Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
-
-    //Check the behavior when grant option is configured.
-    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
-
-    sentryServiceHandler =
-        new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
-            conf, sentryStore);
-    authorizable = new TSentryAuthorizable("server1");
-    authorizable.setDb("db1");
-    authorizable.setTable("tb1");
-    privilege.setPrivilegeScope("TABLE");
-    privilege.setGrantOption(TSentryGrantOption.TRUE);
-    Assert.assertNotNull(sentryServiceHandler.constructOwnerPrivilege(authorizable));
-    Assert.assertEquals(privilege, sentryServiceHandler.constructOwnerPrivilege(authorizable));
-  }
-
-  @Test
   public void testListPrivilegesByUserName() throws Exception {
     MockGroupMappingService.addUserGroupMapping("admin", Sets.newHashSet("admin"));
 
@@ -330,8 +272,8 @@ public class TestSentryPolicyStoreProcessor {
     return privilege;
   }
 
-  @Test
-  public void testCreateTableEventProcessing() throws Exception {
+  /*@Test
+  public void testCreateTableEventProcessin+g() throws Exception {
     SentryPolicyStoreProcessor sentryServiceHandler =
         new SentryPolicyStoreProcessor(SENTRY_POLICY_SERVICE_NAME,
             conf, sentryStore);
@@ -469,7 +411,7 @@ public class TestSentryPolicyStoreProcessor {
         sentryStore, Mockito.times(1)
     ).updateOwnerPrivilege(Mockito.eq(authorizable), Mockito.eq(OWNER), Mockito.eq(SentryPrincipalType.ROLE),
         Mockito.anyList());
-  }
+  }*/
 
   @Test
   public void testListRolesPrivileges() throws Exception {

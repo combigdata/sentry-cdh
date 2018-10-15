@@ -85,10 +85,15 @@ public final class HiveNotificationFetcher implements AutoCloseable {
      *
      * TODO: We can avoid doing this once HIVE-16886 is fixed.
      */
+    // HIVE-16886 is fixed in CDH 5.16, so we don't need to got back one event id.
+    // I will leave the code and comments here until the code is committed and tested
+    // upstream.
+    /*
     if (lastEventId > 0) {
       filter = createNotificationFilterFor(lastEventId);
       lastEventId--;
     }
+    */
 
     LOGGER.debug("Requesting HMS notifications since ID = {}", lastEventId);
 

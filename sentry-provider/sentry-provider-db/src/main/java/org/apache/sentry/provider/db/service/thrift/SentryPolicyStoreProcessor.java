@@ -1048,8 +1048,6 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
           } else {
             response.setId(0L);
           }
-          //Grant privilege to the owner.
-          grantOwnerPrivilege(request);
           break;
         case DROP_DATABASE:
         case DROP_TABLE:
@@ -1075,23 +1073,11 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
         } else {
           response.setId(0L);
         }
-        // When owner is updated, revoke owner privilege from old owners and grant one to the new owner.
-        updateOwnerPrivilege(request);
         break;
       default:
          LOGGER.info("Processing HMS Event of Type: " + eventType.toString() + " skipped");
       }
       response.setStatus(Status.OK());
-    } catch (SentryNoSuchObjectException e) {
-      String msg = request.getOwnerType().toString() + ": " + request.getOwnerName() + " doesn't exist";
-      LOGGER.error(msg, e);
-      response.setStatus(Status.NoSuchObject(msg, e));
-    } catch (SentryInvalidInputException e) {
-      LOGGER.error(e.getMessage(), e);
-      response.setStatus(Status.InvalidInput(e.getMessage(), e));
-    } catch (SentryThriftAPIMismatchException e) {
-      LOGGER.error(e.getMessage(), e);
-      response.setStatus(Status.THRIFT_VERSION_MISMATCH(e.getMessage(), e));
     } catch (Exception e) {
       String msg = "Unknown error for request: " + request + ", message: " + e.getMessage();
       LOGGER.error(msg, e);
@@ -1167,193 +1153,6 @@ public class SentryPolicyStoreProcessor implements SentryPolicyService.Iface {
     }
 
     return response;
-  }
-
-  /**
-   * Grants owner privilege  to an authorizable.
-   *
-   * Privilege is granted based on the information in TSentryHmsEventNotification
-   * @param request TSentryHmsEventNotification
-   * @throws Exception when there an exception while sending/processing the request.
-   */
-  private void grantOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
-    if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
-      LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not adding owner privilege for" +
-                      " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
-              request.getAuthorizable().getTable()));
-      return;
-    }
-
-    TSentryPrivilege ownerPrivilege = constructOwnerPrivilege(request.getAuthorizable());
-    if (ownerPrivilege == null) {
-      LOGGER.debug("Owner privilege is not added");
-      return;
-    }
-
-    SentryPrincipalType principalType = getSentryPrincipalType(request.getOwnerType());
-    if (principalType == null) {
-      String error = "Invalid owner type : " + request.getOwnerType() +
-          " in event of Type: " + request.getEventType();
-      LOGGER.error(error);
-      throw new SentryInvalidInputException(error);
-    }
-
-    Preconditions.checkState(sentryPlugins.size() <= 1);
-    Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
-    Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
-    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
-    // Grants owner privilege to the principal
-    try {
-      sentryStore.alterSentryGrantOwnerPrivilege(request.getOwnerName(), principalType,
-              ownerPrivilege, privilegesUpdateMap.get(ownerPrivilege));
-
-      audit.onGrantOwnerPrivilege(Status.OK(), request.getRequestorUserName(),
-        request.getOwnerType(), request.getOwnerName(), request.getAuthorizable());
-    } catch (Exception e) {
-      String msg = "Owner privilege for " + request.getAuthorizable() + " could not be granted: " + e.getMessage();
-      audit.onGrantOwnerPrivilege(Status.RuntimeError(msg, e), request.getRequestorUserName(),
-        request.getOwnerType(), request.getOwnerName(), request.getAuthorizable());
-
-      throw e;
-    }
-
-    //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
-  }
-
-  /**
-   * Alters owner privilege of an authorizable.
-   *
-   * Revoke all the owner privileges on the authorizable and grants new owner privilege.
-   * @param request Sentry HMS Event Notification
-   * @throws Exception when there an exception while sending/processing the request.
-   */
-  private void updateOwnerPrivilege(TSentryHmsEventNotification request) throws Exception {
-    if (Strings.isNullOrEmpty(request.getOwnerName()) || (request.getOwnerType().getValue() == 0)) {
-      LOGGER.debug(String.format("Owner Information not provided for Operation: [%s], Not revoking owner privilege for" +
-                      " object: [%s].[%s]", request.getEventType(), request.getAuthorizable().getDb(),
-              request.getAuthorizable().getTable()));
-      return;
-    }
-
-    TSentryPrivilege ownerPrivilege = constructOwnerPrivilege(request.getAuthorizable());
-    if (ownerPrivilege == null) {
-      LOGGER.debug("Owner privilege is not added");
-      return;
-    }
-
-    SentryPrincipalType principalType = getSentryPrincipalType(request.getOwnerType());
-    if(principalType == null ) {
-      String error = "Invalid owner type : " + request.getEventType();
-      LOGGER.error(error);
-      throw new SentryInvalidInputException(error);
-    }
-
-    Set<TSentryPrivilege> privSet = Collections.singleton(ownerPrivilege);
-    Preconditions.checkState(sentryPlugins.size() <= 1);
-    Map<TSentryPrivilege, Update> privilegesUpdateMap = new HashMap<>();
-    List<Update> updateList = new ArrayList<>();
-    List<SentryOwnerInfo> ownerInfoList = sentryStore.listOwnersByAuthorizable(request.getAuthorizable());
-    // Creating updates for deleting all the old owner privileges
-    // There should only one owner privilege for an authorizable but the current schema
-    // doesn't have constraints to limit it. It is possible to have multiple owners for an authorizable (which is unlikely)
-    // This logic makes sure of revoking all the owner privilege.
-    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-      for (SentryOwnerInfo ownerInfo : ownerInfoList) {
-        if (SentryPrincipalType.USER.equals(ownerInfo.getOwnerType())) {
-          plugin.onAlterSentryUserRevokePrivilege(ownerInfo.getOwnerName(), privSet, privilegesUpdateMap);
-          updateList.add(privilegesUpdateMap.get(ownerPrivilege));
-          privilegesUpdateMap.clear();
-        } else if (SentryPrincipalType.ROLE.equals(ownerInfo.getOwnerType())) {
-          plugin.onAlterSentryRoleRevokePrivilege(request.getOwnerName(), privSet, privilegesUpdateMap);
-          updateList.add(privilegesUpdateMap.get(ownerPrivilege));
-          privilegesUpdateMap.clear();
-        }
-      }
-    }
-
-    getOwnerPrivilegeUpdateForGrant(request.getOwnerName(), request.getOwnerType(), privSet, privilegesUpdateMap);
-    updateList.add(privilegesUpdateMap.get(ownerPrivilege));
-
-    // Revokes old owner privileges and grants owner privilege for new owner.
-    try {
-      sentryStore.updateOwnerPrivilege(request.getAuthorizable(), request.getOwnerName(),
-        principalType, updateList);
-
-      audit.onTransferOwnerPrivilege(Status.OK(), request.getRequestorUserName(),
-        request.getOwnerType(), request.getOwnerName(), request.getAuthorizable());
-    } catch (Exception e) {
-      String msg = "Owner privilege for " + request.getAuthorizable() + " could not be granted: " + e.getMessage();
-
-      audit.onTransferOwnerPrivilege(Status.RuntimeError(msg, e), request.getRequestorUserName(),
-        request.getOwnerType(), request.getOwnerName(), request.getAuthorizable());
-
-      throw e;
-    }
-
-    //TODO Implement notificationHandlerInvoker API for granting user priv and invoke it.
-  }
-
-  private void getOwnerPrivilegeUpdateForGrant(String ownerName, TSentryPrincipalType ownerType,
-      Set<TSentryPrivilege> privSet,
-      Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
-    for (SentryPolicyStorePlugin plugin : sentryPlugins) {
-      switch (ownerType) {
-        case ROLE:
-          plugin.onAlterSentryRoleGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
-          break;
-        case USER:
-          plugin.onAlterSentryUserGrantPrivilege(ownerName, privSet, privilegesUpdateMap);
-          break;
-        default:
-          String error = "Invalid owner type : " + ownerType;
-          LOGGER.error(error);
-          throw new SentryInvalidInputException(error);
-      }
-    }
-  }
-
-  /**
-   * This API constructs (@Link TSentryPrivilege} for authorizable provided
-   * based on the configurations.
-   *
-   * @param authorizable for which owner privilege should be constructed.
-   * @return null if owner privilege can not be constructed, else instance of {@Link TSentryPrivilege}
-   */
-  TSentryPrivilege constructOwnerPrivilege(TSentryAuthorizable authorizable) {
-    SentryOwnerPrivilegeType ownerPrivilegeType = SentryOwnerPrivilegeType.get(conf);
-    if(ownerPrivilegeType == SentryOwnerPrivilegeType.NONE) {
-      return null;
-    }
-
-    if(Strings.isNullOrEmpty(authorizable.getDb())) {
-      LOGGER.error("Received authorizable with out DB Name");
-      return null;
-    }
-
-    TSentryPrivilege ownerPrivilege = new TSentryPrivilege();
-    ownerPrivilege.setServerName(authorizable.getServer());
-    ownerPrivilege.setDbName(authorizable.getDb());
-    if(!Strings.isNullOrEmpty(authorizable.getTable())) {
-      ownerPrivilege.setTableName(authorizable.getTable());
-      ownerPrivilege.setPrivilegeScope("TABLE");
-    } else {
-      ownerPrivilege.setPrivilegeScope("DATABASE");
-    }
-    if(ownerPrivilegeType == SentryOwnerPrivilegeType.ALL_WITH_GRANT) {
-      ownerPrivilege.setGrantOption(TSentryGrantOption.TRUE);
-    }
-    ownerPrivilege.setAction(AccessConstants.OWNER);
-    return ownerPrivilege;
-  }
-
-  /**
-   *
-   * @param ownerType
-   * @return SentryPrincipalType if input was valid, otherwise returns null
-   * @throws Exception
-   */
-  private SentryPrincipalType getSentryPrincipalType(TSentryPrincipalType ownerType) throws Exception {
-    return mapOwnerType.get(ownerType);
   }
 
   /**

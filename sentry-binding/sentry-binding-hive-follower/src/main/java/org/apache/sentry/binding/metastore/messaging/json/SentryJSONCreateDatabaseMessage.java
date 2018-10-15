@@ -18,12 +18,15 @@
 
 package org.apache.sentry.binding.metastore.messaging.json;
 
+import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hive.hcatalog.messaging.json.JSONCreateDatabaseMessage;
 import org.codehaus.jackson.annotate.JsonProperty;
 
 public class SentryJSONCreateDatabaseMessage extends JSONCreateDatabaseMessage {
-    @JsonProperty
-    private String location;
+    @JsonProperty private String location;
+    @JsonProperty private PrincipalType ownerType;
+    @JsonProperty private String ownerName;
 
     public SentryJSONCreateDatabaseMessage() {
     }
@@ -33,8 +36,22 @@ public class SentryJSONCreateDatabaseMessage extends JSONCreateDatabaseMessage {
         this.location = location;
     }
 
+    public SentryJSONCreateDatabaseMessage(String server, String servicePrincipal, Long timestamp, Database db) {
+        this(server, servicePrincipal, db.getName(), timestamp, db.getLocationUri());
+        this.ownerType = db.getOwnerType();
+        this.ownerName = db.getOwnerName();
+    }
+
     public String getLocation() {
         return location;
+    }
+
+    public PrincipalType getOwnerType() {
+        return ownerType;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
     }
 
     @Override

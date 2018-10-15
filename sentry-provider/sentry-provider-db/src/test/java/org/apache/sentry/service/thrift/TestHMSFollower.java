@@ -383,8 +383,10 @@ public class TestHMSFollower {
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
 
-  @Test
-  public void testPersistAFullSnapshotWhenNextExpectedEventIsNotAvailable() throws Exception {
+  // This test is not valid anymore because HIVE-16886 is included in CDH.
+  // See HiveNotificationFetcher for more details.
+  //@Test
+  //public void testPersistAFullSnapshotWhenNextExpectedEventIsNotAvailable() throws Exception {
     /*
      * TEST CASE
      *
@@ -397,7 +399,7 @@ public class TestHMSFollower {
      * should be 2. This out-of-sync should trigger a new full HMS snapshot request with the
      * same eventId = 5.
      */
-
+/*
     final long SENTRY_PROCESSED_EVENT_ID = 1L;
     final long HMS_PROCESSED_EVENT_ID = 5L;
 
@@ -443,6 +445,7 @@ public class TestHMSFollower {
     verify(sentryStore, times(0)).persistFullPathsImage(Mockito.anyMap(), Mockito.anyLong());
     verify(sentryStore, times(0)).persistLastProcessedNotificationID(Mockito.anyLong());
   }
+  */
 
   /**
    * Test that HMSFollower uses the input authentication server name when it is not null

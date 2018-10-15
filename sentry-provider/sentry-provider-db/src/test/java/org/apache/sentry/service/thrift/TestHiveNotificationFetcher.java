@@ -102,6 +102,9 @@ public class TestHiveNotificationFetcher {
     }
   }
 
+  // This test is not valid anymore because HIVE-16886 is included in CDH.
+  // See HiveNotificationFetcher for more details.
+  /*
   @Test
   public void testGetDuplicatedEventsAndFilterEventsAlreadySeen() throws Exception {
     final SentryStore store = Mockito.mock(SentryStore.class);
@@ -112,12 +115,12 @@ public class TestHiveNotificationFetcher {
 
     try (HiveNotificationFetcher fetcher = new HiveNotificationFetcher(store, hmsConnection)) {
       List<NotificationEvent> events;
-
+*/
       /*
        * Requesting an ID > 0 will request all notifications from 0 again but filter those
        * already seen notifications with ID = 1
        */
-
+/*
       // This mock will also test that the NotificationFilter works as expected
       Mockito.when(hmsClient.getNextNotification(Mockito.eq(0L), Mockito.eq(Integer.MAX_VALUE),
           (NotificationFilter) Mockito.notNull())).thenAnswer(new Answer<NotificationEventResponse>() {
@@ -160,4 +163,5 @@ public class TestHiveNotificationFetcher {
       assertEquals("ALTER_TABLE", events.get(1).getEventType());
     }
   }
+*/
 }
