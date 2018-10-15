@@ -1825,7 +1825,7 @@ public class TestSentryStore extends org.junit.Assert {
 
     sentryStore.alterSentryGrantPrivilege(grantor, SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
 
-    sentryStore.revokeOwnerPrivileges(tSentryAuthorizable, null);
+    sentryStore.alterSentryRevokeOwnerPrivilege(tSentryAuthorizable, null);
     assertEquals(0, sentryStore.getAllTSentryPrivilegesByUserName(userName1)
         .size());
   }

@@ -17,9 +17,11 @@
  */
 package org.apache.sentry.service.thrift;
 
+import static org.apache.sentry.service.thrift.ServiceConstants.ServerConfig.SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hive.hcatalog.messaging.HCatEventMessage;
@@ -44,7 +47,10 @@ import org.mockito.Mockito;
 @SuppressWarnings("unused")
 public class TestNotificationProcessor {
 
+  private static final String AUTHZ_SERVER_NAME = "server1";
+  private static final String SENTRY_SERVICE_USER = "sentry";
   private static final SentryStore sentryStore = Mockito.mock(SentryStore.class);
+  private static final SentryHMSOwnerHandler ownerHandler = Mockito.mock(SentryHMSOwnerHandler.class);
   private final static String hiveInstance = "server2";
   private final static Configuration conf = new Configuration();
   private final SentryJSONMessageFactory messageFactory = new SentryJSONMessageFactory();
@@ -64,6 +70,7 @@ public class TestNotificationProcessor {
   public void resetConf() {
     conf.set("sentry.hive.sync.create", "true");
     conf.set("sentry.hive.sync.drop", "true");
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
     reset(sentryStore);
   }
 
@@ -82,7 +89,7 @@ public class TestNotificationProcessor {
     NotificationEvent notificationEvent;
     TSentryAuthorizable authorizable;
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, conf);
+        hiveInstance, conf, ownerHandler);
 
     // Create notification event
     notificationEvent = new NotificationEvent(seqNum, 0,
@@ -137,7 +144,7 @@ public class TestNotificationProcessor {
     String dbName = "db1";
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, conf);
+        hiveInstance, conf, ownerHandler);
 
     // Create notification event
     NotificationEvent notificationEvent = new NotificationEvent(1, 0,
@@ -192,7 +199,7 @@ public class TestNotificationProcessor {
     String tableName = "table1";
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, conf);
+        hiveInstance, conf, ownerHandler);
 
     // Create notification event
     StorageDescriptor sd = new StorageDescriptor();
@@ -262,7 +269,7 @@ public class TestNotificationProcessor {
     authConf.set(ServiceConstants.ServerConfig.SENTRY_POLICY_STORE_PLUGINS, "org.apache.sentry.hdfs.SentryPlugin");
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, authConf);
+        hiveInstance, authConf, ownerHandler);
 
     // Create notification event
     StorageDescriptor sd = new StorageDescriptor();
@@ -304,7 +311,7 @@ public class TestNotificationProcessor {
     authConf.set(ServiceConstants.ServerConfig.SENTRY_POLICY_STORE_PLUGINS, "org.apache.sentry.hdfs.SentryPlugin");
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, authConf);
+        hiveInstance, authConf, ownerHandler);
 
     // Create notification event
     StorageDescriptor sd = new StorageDescriptor();
@@ -355,7 +362,7 @@ public class TestNotificationProcessor {
     authConf.set(ServiceConstants.ServerConfig.SENTRY_POLICY_STORE_PLUGINS, "org.apache.sentry.hdfs.SentryPlugin");
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, authConf);
+        hiveInstance, authConf, ownerHandler);
 
     // Create notification event
     StorageDescriptor sd = new StorageDescriptor();
@@ -414,7 +421,7 @@ public class TestNotificationProcessor {
     authConf.set(ServiceConstants.ServerConfig.SENTRY_POLICY_STORE_PLUGINS, "org.apache.sentry.hdfs.SentryPlugin");
 
     notificationProcessor = new NotificationProcessor(sentryStore,
-        hiveInstance, authConf);
+        hiveInstance, authConf, ownerHandler);
 
     // Create a table
     sd = new StorageDescriptor();
@@ -481,5 +488,141 @@ public class TestNotificationProcessor {
     //noinspection unchecked
     verify(sentryStore, times(1)).addAuthzPathsMapping(Mockito.anyString(),
         Mockito.anyCollection(), Mockito.any(UniquePathsUpdate.class));
+  }
+
+  @Test
+  public void testCreateDatabaseEventGrantsOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newCreateDatabaseEvent(EVENT_ID)
+      .dbName("db1")
+      .location("/warehouse/db1")
+      .ownerType(PrincipalType.USER)
+      .ownerName("u1")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verifyZeroInteractions(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantDatabaseOwnerPrivilege("db1", PrincipalType.USER, "u1", false);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantDatabaseOwnerPrivilege("db1", PrincipalType.USER, "u1", true);
+  }
+
+  @Test
+  public void testCreateTableEventGrantsOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newCreateTableEvent(EVENT_ID)
+      .dbName("db1")
+      .tableName("t1")
+      .location("/warehouse/db1/t1")
+      .ownerType(PrincipalType.USER)
+      .ownerName("u1")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verifyZeroInteractions(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u1", false);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u1", true);
+  }
+
+  @Test
+  public void testAlterDatabaseOwnerEventTransferOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newAlterDatabaseEvent(EVENT_ID)
+      .oldDbName("db1").newDbName("db1")
+      .oldLocation("/warehouse/db1").newLocation("/warehouse/db1")
+      .oldOwnerType(PrincipalType.USER).newOwnerType(PrincipalType.USER)
+      .oldOwnerName("u1").newOwnerName("u2")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropDatabaseOwnerPrivileges("db1");
+    reset(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropDatabaseOwnerPrivileges("db1");
+    verify(ownerHandler).grantDatabaseOwnerPrivilege("db1",PrincipalType.USER, "u2", false);
+    reset(ownerHandler);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropDatabaseOwnerPrivileges("db1");
+    verify(ownerHandler).grantDatabaseOwnerPrivilege("db1", PrincipalType.USER, "u2", true);
+    reset(ownerHandler);
+  }
+
+  @Test
+  public void testAlterTableOwnerEventTransferOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newAlterTableEvent(EVENT_ID)
+      .oldDbName("db1").newDbName("db1")
+      .oldTableName("t1").newTableName("t1")
+      .oldLocation("/warehouse/db1/t1").newLocation("/warehouse/db1/t1")
+      .oldOwnerType(PrincipalType.USER).newOwnerType(PrincipalType.USER)
+      .oldOwnerName("u1").newOwnerName("u2")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
+    reset(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u2", false);
+    reset(ownerHandler);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u2", true);
+    reset(ownerHandler);
   }
 }

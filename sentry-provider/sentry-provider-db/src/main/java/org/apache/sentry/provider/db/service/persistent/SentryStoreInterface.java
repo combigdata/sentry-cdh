@@ -455,6 +455,16 @@ public interface SentryStoreInterface {
       final Update update) throws Exception;
 
   /**
+   * Revokes the owner privilege (if granted) of a corresponding authorizable object.
+   *
+   * @param authorizable The authorizable object where to revoke the owner privilege
+   * @param updates All updates to need executed as part of the revoke transaction
+   * @throws Exception If an error occurs while revoking the owner privilege
+   */
+  void alterSentryRevokeOwnerPrivilege(final TSentryAuthorizable authorizable,
+    final List<Update> updates) throws Exception;
+
+  /**
    * Alter a given sentry role to revoke a set of privileges, as well as persist the
    * corresponding permission change to MSentryPermChange table in a single transaction.
    * Internally calls alterSentryRoleRevokePrivilege.
