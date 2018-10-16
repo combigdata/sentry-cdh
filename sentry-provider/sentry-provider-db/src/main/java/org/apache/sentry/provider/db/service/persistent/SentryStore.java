@@ -148,7 +148,6 @@ public class SentryStore implements SentryStoreInterface {
 
   private static final String EMPTY_GRANTOR_PRINCIPAL = "--";
 
-
   private static final Set<String> ALL_ACTIONS = Sets.newHashSet(
       AccessConstants.ALL, AccessConstants.ACTION_ALL,
       AccessConstants.SELECT, AccessConstants.INSERT, AccessConstants.ALTER,
@@ -1483,6 +1482,13 @@ public class SentryStore implements SentryStoreInterface {
     removeStaledPrivileges(pm, privilegesCopy);
   }
 
+  /**
+   * Return the privileges on the authorizable object specified in tPriv, and including
+   * privileges on the child authorizable objects.
+   * @param tPriv the privilege that specifies the authorizable object to find its privileges
+   * @param pm persistant manager
+   * @return  the privileges on the authorizable object specified in tPriv
+   */
   @SuppressWarnings("unchecked")
   private List<MSentryPrivilege> getMSentryPrivileges(TSentryPrivilege tPriv, PersistenceManager pm) {
     Query query = pm.newQuery(MSentryPrivilege.class);
@@ -1503,6 +1509,29 @@ public class SentryStore implements SentryStoreInterface {
       // if db is null, uri is not null
       paramBuilder.add(URI, tPriv.getURI(), true);
     }
+
+    query.setFilter(paramBuilder.toString());
+    return (List<MSentryPrivilege>) query.executeWithMap(paramBuilder.getArguments());
+  }
+
+  /**
+   * Return the privileges on the authorizable object specified in tPriv, and not including
+   * privileges on the child authorizable objects.
+   * @param tPriv the privilege that specifies the authorizable object to find its privileges
+   * @param pm persistant manager
+   * @return  the privileges on the authorizable object specified in tPriv
+   */
+  @SuppressWarnings("unchecked")
+  private List<MSentryPrivilege> getMSentryPrivilegesExactMatch(TSentryPrivilege tPriv, PersistenceManager pm) {
+    Query query = pm.newQuery(MSentryPrivilege.class);
+    QueryParamBuilder paramBuilder = newQueryParamBuilder();
+    paramBuilder
+        .add(SERVER_NAME, tPriv.getServerName())
+        .add("action", tPriv.getAction())
+        .add(DB_NAME, tPriv.getDbName())
+        .add(TABLE_NAME, tPriv.getTableName())
+        .add(COLUMN_NAME, tPriv.getColumnName())
+        .add(URI, tPriv.getURI(), true);
 
     query.setFilter(paramBuilder.toString());
     return (List<MSentryPrivilege>) query.executeWithMap(paramBuilder.getArguments());
@@ -2711,7 +2740,7 @@ public class SentryStore implements SentryStoreInterface {
     tOwnerPrivilege.setAction(AccessConstants.OWNER);
 
     // Finding owner privileges and removing them.
-    List<MSentryPrivilege> mOwnerPrivileges = getMSentryPrivileges(tOwnerPrivilege, pm);
+    List<MSentryPrivilege> mOwnerPrivileges = getMSentryPrivilegesExactMatch(tOwnerPrivilege, pm);
     for(MSentryPrivilege mOwnerPriv : mOwnerPrivileges) {
       Set<MSentryUser> users;
       users = mOwnerPriv.getUsers();
