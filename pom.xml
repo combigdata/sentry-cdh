@@ -100,6 +100,7 @@ limitations under the License.
     <test.sentry.hadoop.classpath>${maven.test.classpath}</test.sentry.hadoop.classpath>
     <zookeeper.version>${cdh.zookeeper.version}</zookeeper.version>
     <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
+    <httpcomponents.version>${cdh.httpcomponents.version}</httpcomponents.version>
 
     <!-- Datanucleus package versions -->
     <datanucleus.maven.plugin.version>4.0.5</datanucleus.maven.plugin.version>
@@ -1001,7 +1002,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.3</version>
+        <version>${httpcomponents.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
