@@ -360,7 +360,8 @@ public class HMSFollower implements Runnable, AutoCloseable, PubSub.Subscriber {
       }
       try {
         if (hdfsSyncEnabled) {
-          LOGGER.info("Persisting full snapshot for notification Id = {}", snapshotInfo.getId());
+          String logMessage = String.format("Persisting full snapshot for notification Id = %d. Number of authorization objects = %d", snapshotInfo.getId(), snapshotInfo.getPathImage().size());
+          LOGGER.info(logMessage);
           sentryStore.persistFullPathsImage(snapshotInfo.getPathImage(), snapshotInfo.getId());
         } else {
           // We need to persist latest notificationID for next poll

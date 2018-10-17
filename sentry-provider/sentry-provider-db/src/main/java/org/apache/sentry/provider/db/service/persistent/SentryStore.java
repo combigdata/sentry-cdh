@@ -185,7 +185,10 @@ public class SentryStore implements SentryStoreInterface {
    */
   private CounterWait counterWait;
 
-  private boolean ownerPrivilegeWithGrant;
+  // 5 min interval
+  private final long printSnapshotPersistTimeInterval = 300000;
+
+  private final boolean ownerPrivilegeWithGrant;
   public static Properties getDataNucleusProperties(Configuration conf)
       throws SentryConfigurationException, IOException {
     Properties prop = new Properties();
@@ -457,6 +460,30 @@ public class SentryStore implements SentryStoreInterface {
       @Override
       public Long getValue() {
         return getCount(MSentryGroup.class);
+      }
+    };
+  }
+
+  /**
+   * @return Number of authz objects persisted
+   */
+  public Gauge<Long> getAuthzObjectsCountGauge() {
+    return new Gauge< Long >() {
+      @Override
+      public Long getValue() {
+        return getCount(MAuthzPathsMapping.class);
+      }
+    };
+  }
+
+  /**
+   * @return Number of authz paths persisted
+   */
+  public Gauge<Long> getAuthzPathsCountGauge() {
+    return new Gauge< Long >() {
+      @Override
+      public Long getValue() {
+        return getCount(MPath.class);
       }
     };
   }
@@ -3448,25 +3475,70 @@ public class SentryStore implements SentryStoreInterface {
   public void persistFullPathsImage(final Map<String, Collection<String>> authzPaths,
       final long notificationID) throws Exception {
     tm.executeTransactionWithRetry(
-      new TransactionBlock() {
-        public Object execute(PersistenceManager pm) throws Exception {
-          pm.setDetachAllOnCommit(false); // No need to detach objects
-          deleteNotificationsSince(pm, notificationID + 1);
+        new TransactionBlock<PathsUpdate>() {
+          public PathsUpdate execute(PersistenceManager pm) throws Exception {
 
-          // persist the notidicationID
-          pm.makePersistent(new MSentryHmsNotification(notificationID));
+              int totalNumberOfObjectsToPersist = authzPaths.size();
+              int totalNumberOfPathsToPersist = getSumOfValues(authzPaths);
+              int objectsPersistedCount = 0, pathsPersistedCount = 0;
 
-          // persist the full snapshot
-          long snapshotID = getCurrentAuthzPathsSnapshotID(pm);
-          long nextSnapshotID = snapshotID + 1;
-          pm.makePersistent(new MAuthzPathsSnapshotId(nextSnapshotID));
-          LOGGER.info("Attempting to commit new HMS snapshot with ID = {}", nextSnapshotID);
-          for (Map.Entry<String, Collection<String>> authzPath : authzPaths.entrySet()) {
-            pm.makePersistent(new MAuthzPathsMapping(nextSnapshotID, authzPath.getKey(), authzPath.getValue()));
-          }
-          return null;
-        }
-      });
+              logPersistingFullSnapshotState(totalNumberOfObjectsToPersist,
+                  totalNumberOfPathsToPersist, objectsPersistedCount, pathsPersistedCount);
+
+              pm.setDetachAllOnCommit(false); // No need to detach objects
+              deleteNotificationsSince(pm, notificationID + 1);
+
+              // persist the notidicationID
+              pm.makePersistent(new MSentryHmsNotification(notificationID));
+
+              // persist the full snapshot
+              long snapshotID = getCurrentAuthzPathsSnapshotID(pm);
+              long nextSnapshotID = snapshotID + 1;
+              pm.makePersistent(new MAuthzPathsSnapshotId(nextSnapshotID));
+              LOGGER.info("Attempting to commit new HMS snapshot with ID = {}", nextSnapshotID);
+
+              long lastProgressTime = System.currentTimeMillis();
+
+              for (Map.Entry<String, Collection<String>> authzPath : authzPaths.entrySet()) {
+                pm.makePersistent(new MAuthzPathsMapping(nextSnapshotID, authzPath.getKey(), authzPath.getValue()));
+
+                objectsPersistedCount++;
+                pathsPersistedCount = pathsPersistedCount + authzPath.getValue().size();
+
+                long currentTime = System.currentTimeMillis();
+                if ((currentTime - lastProgressTime) > printSnapshotPersistTimeInterval) {
+
+                  logPersistingFullSnapshotState(totalNumberOfObjectsToPersist,
+                      totalNumberOfPathsToPersist, objectsPersistedCount, pathsPersistedCount);
+
+                  lastProgressTime = currentTime;
+                }
+              }
+              return null;
+            };
+        });
+  }
+
+  private int getSumOfValues(Map<String, Collection<String>> authzPaths) {
+    int sum = 0;
+    for(Collection<String> entries: authzPaths.values()) {
+      sum += entries.size();
+    }
+    return sum;
+  }
+
+  public void logPersistingFullSnapshotState(int totalNumberOfObjectsToPersist,
+      int totalNumberOfPathsToPersist, int objectsPersistedCount, int pathsPersistedCount) {
+
+    LOGGER.info(String.format("Persisting HMS Paths on Snapshot: "
+            + "authz_objs_persisted=%d(%.2f%%) authz_paths_persisted=%d(%.2f%%) "
+            + "authz_objs_total=%d authz_paths_total=%d",
+        objectsPersistedCount,
+        totalNumberOfObjectsToPersist > 0 ? 100 * ((double) objectsPersistedCount
+            / totalNumberOfObjectsToPersist) : 0,
+        pathsPersistedCount, totalNumberOfPathsToPersist > 0 ? 100 * ((double) pathsPersistedCount
+            / totalNumberOfPathsToPersist) : 0,
+        totalNumberOfObjectsToPersist, totalNumberOfPathsToPersist));
   }
 
   /**
