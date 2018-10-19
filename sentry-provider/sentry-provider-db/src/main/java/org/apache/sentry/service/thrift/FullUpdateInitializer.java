@@ -303,9 +303,13 @@ public final class FullUpdateInitializer implements AutoCloseable {
 
       Collection<String> partitionNames = new ArrayList<>(tblParts.size());
       for (Partition part : tblParts) {
-        String partPath = pathFromURI(part.getSd().getLocation());
-        if (partPath != null) {
-          partitionNames.add(partPath.intern());
+        if(part != null && part.getSd() != null) {
+          String partPath = pathFromURI(part.getSd().getLocation());
+          if (partPath != null) {
+            partitionNames.add(partPath.intern());
+          }
+        } else {
+          LOGGER.info("Partition or its storage descriptor is null while fetching partitions for db = {} table = {}", dbName, tblName);
         }
       }
       return new ObjectMapping(authName, partitionNames);
