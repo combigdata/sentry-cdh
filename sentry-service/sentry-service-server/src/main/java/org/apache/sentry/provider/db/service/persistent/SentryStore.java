@@ -189,6 +189,9 @@ public class SentryStore implements SentryStoreInterface {
    */
   private final CounterWait counterWait;
 
+  // 5 min interval
+  private final long printSnapshotPersistTimeInterval = 300000;
+
   private final boolean ownerPrivilegeWithGrant;
   public static Properties getDataNucleusProperties(Configuration conf)
           throws SentrySiteConfigurationException, IOException {
@@ -472,6 +475,34 @@ public class SentryStore implements SentryStoreInterface {
    */
   Gauge<Long> getUserCountGauge() {
     return () -> getCount(MSentryUser.class);
+  }
+
+  /**
+   * @return Number of authz objects persisted
+   */
+  public Gauge<Long> getAuthzObjectsCountGauge() {
+    return () -> {
+      try {
+        return getCount(MAuthzPathsMapping.class);
+      } catch (Exception e) {
+        LOGGER.error("Cannot read AUTHZ_PATHS_MAPPING table", e);
+        return NOTIFICATION_UNKNOWN;
+      }
+    };
+  }
+
+  /**
+   * @return Number of authz paths persisted
+   */
+  public Gauge<Long> getAuthzPathsCountGauge() {
+    return () -> {
+      try {
+        return getCount(MPath.class);
+      } catch (Exception e) {
+        LOGGER.error("Cannot read AUTHZ_PATH table", e);
+        return NOTIFICATION_UNKNOWN;
+      }
+    };
   }
 
   /**
@@ -1494,6 +1525,13 @@ public class SentryStore implements SentryStoreInterface {
     removeStaledPrivileges(pm, privilegesCopy);
   }
 
+  /**
+   * Return the privileges on the authorizable object specified in tPriv, and including
+   * privileges on the child authorizable objects.
+   * @param tPriv the privilege that specifies the authorizable object to find its privileges
+   * @param pm persistant manager
+   * @return  the privileges on the authorizable object specified in tPriv
+   */
   @SuppressWarnings("unchecked")
   private List<MSentryPrivilege> getMSentryPrivileges(TSentryPrivilege tPriv, PersistenceManager pm) {
     Query query = pm.newQuery(MSentryPrivilege.class);
@@ -1521,6 +1559,29 @@ public class SentryStore implements SentryStoreInterface {
     grp.addMember("roles").addMember("users");
     pm.getFetchPlan().addGroup("fetchRolesUsers");
 
+    return (List<MSentryPrivilege>) query.executeWithMap(paramBuilder.getArguments());
+  }
+
+  /**
+   * Return the privileges on the authorizable object specified in tPriv, and not including
+   * privileges on the child authorizable objects.
+   * @param tPriv the privilege that specifies the authorizable object to find its privileges
+   * @param pm persistant manager
+   * @return  the privileges on the authorizable object specified in tPriv
+   */
+  @SuppressWarnings("unchecked")
+  private List<MSentryPrivilege> getMSentryPrivilegesExactMatch(TSentryPrivilege tPriv, PersistenceManager pm) {
+    Query query = pm.newQuery(MSentryPrivilege.class);
+    QueryParamBuilder paramBuilder = QueryParamBuilder.newQueryParamBuilder();
+    paramBuilder
+        .add(SERVER_NAME, tPriv.getServerName())
+        .add("action", tPriv.getAction())
+        .add(DB_NAME, tPriv.getDbName())
+        .add(TABLE_NAME, tPriv.getTableName())
+        .add(COLUMN_NAME, tPriv.getColumnName())
+        .add(URI, tPriv.getURI(), true);
+
+    query.setFilter(paramBuilder.toString());
     return (List<MSentryPrivilege>) query.executeWithMap(paramBuilder.getArguments());
   }
 
@@ -2856,7 +2917,7 @@ public class SentryStore implements SentryStoreInterface {
     tOwnerPrivilege.setAction(AccessConstants.OWNER);
 
     // Finding owner privileges and removing them.
-    List<MSentryPrivilege> mOwnerPrivileges = getMSentryPrivileges(tOwnerPrivilege, pm);
+    List<MSentryPrivilege> mOwnerPrivileges = getMSentryPrivilegesExactMatch(tOwnerPrivilege, pm);
     for(MSentryPrivilege mOwnerPriv : mOwnerPrivileges) {
       Set<MSentryUser> users;
       users = mOwnerPriv.getUsers();
@@ -3484,6 +3545,14 @@ public class SentryStore implements SentryStoreInterface {
       final long notificationID) throws Exception {
     tm.executeTransactionWithRetry(
             pm -> {
+
+              int totalNumberOfObjectsToPersist = authzPaths.size();
+              int totalNumberOfPathsToPersist = authzPaths.values().stream().mapToInt(Collection::size).sum();
+              int objectsPersistedCount = 0, pathsPersistedCount = 0;
+
+              logPersistingFullSnapshotState(totalNumberOfObjectsToPersist,
+                  totalNumberOfPathsToPersist, objectsPersistedCount, pathsPersistedCount);
+
               pm.setDetachAllOnCommit(false); // No need to detach objects
               deleteNotificationsSince(pm, notificationID + 1);
 
@@ -3495,11 +3564,40 @@ public class SentryStore implements SentryStoreInterface {
               long nextSnapshotID = snapshotID + 1;
               pm.makePersistent(new MAuthzPathsSnapshotId(nextSnapshotID));
               LOGGER.info("Attempting to commit new HMS snapshot with ID = {}", nextSnapshotID);
+
+              long lastProgressTime = System.currentTimeMillis();
+
               for (Map.Entry<String, Collection<String>> authzPath : authzPaths.entrySet()) {
                 pm.makePersistent(new MAuthzPathsMapping(nextSnapshotID, authzPath.getKey(), authzPath.getValue()));
+
+                objectsPersistedCount++;
+                pathsPersistedCount = pathsPersistedCount + authzPath.getValue().size();
+
+                long currentTime = System.currentTimeMillis();
+                if ((currentTime - lastProgressTime) > printSnapshotPersistTimeInterval) {
+
+                  logPersistingFullSnapshotState(totalNumberOfObjectsToPersist,
+                      totalNumberOfPathsToPersist, objectsPersistedCount, pathsPersistedCount);
+
+                  lastProgressTime = currentTime;
+                }
               }
               return null;
             });
+  }
+
+  public void logPersistingFullSnapshotState(int totalNumberOfObjectsToPersist,
+      int totalNumberOfPathsToPersist, int objectsPersistedCount, int pathsPersistedCount) {
+
+    LOGGER.info(String.format("Persisting HMS Paths on Snapshot: "
+            + "authz_objs_persisted=%d(%.2f%%) authz_paths_persisted=%d(%.2f%%) "
+            + "authz_objs_total=%d authz_paths_total=%d",
+        objectsPersistedCount,
+        totalNumberOfObjectsToPersist > 0 ? 100 * ((double) objectsPersistedCount
+            / totalNumberOfObjectsToPersist) : 0,
+        pathsPersistedCount, totalNumberOfPathsToPersist > 0 ? 100 * ((double) pathsPersistedCount
+            / totalNumberOfPathsToPersist) : 0,
+        totalNumberOfObjectsToPersist, totalNumberOfPathsToPersist));
   }
 
   /**
