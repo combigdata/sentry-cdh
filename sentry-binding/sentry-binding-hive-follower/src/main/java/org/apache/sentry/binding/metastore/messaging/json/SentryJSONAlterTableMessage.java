@@ -34,11 +34,14 @@ public class SentryJSONAlterTableMessage extends JSONAlterTableMessage {
     @JsonProperty private PrincipalType oldOwnerType;
     @JsonProperty private String newOwnerName;
     @JsonProperty private String oldOwnerName;
+    @JsonProperty private String oldTableType;
+    @JsonProperty private String newTableType;
 
     public SentryJSONAlterTableMessage() {
         super("", "", "", "", null);
     }
 
+    @Deprecated
     public SentryJSONAlterTableMessage(String serverUrl, String servicePrincipal,
                                        String db, String table, Long timestamp,
                                        String oldLocation, String newLocation) {
@@ -60,6 +63,8 @@ public class SentryJSONAlterTableMessage extends JSONAlterTableMessage {
         this.newOwnerType = after.getOwnerType();
         this.oldOwnerName = before.getOwner();
         this.newOwnerName = after.getOwner();
+        this.oldTableType = before.getTableType();
+        this.newTableType = after.getTableType();
     }
 
     public String getNewLocation() {
@@ -99,6 +104,14 @@ public class SentryJSONAlterTableMessage extends JSONAlterTableMessage {
 
     public String getOldOwnerName() {
         return oldOwnerName;
+    }
+
+    public String getOldTableType() {
+        return oldTableType;
+    }
+
+    public String getNewTableType() {
+        return newTableType;
     }
 
     @Override
