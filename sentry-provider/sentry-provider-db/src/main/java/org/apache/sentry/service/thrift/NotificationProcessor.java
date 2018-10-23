@@ -21,11 +21,13 @@ package org.apache.sentry.service.thrift;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.util.Objects;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hive.hcatalog.messaging.HCatEventMessage.EventType;
@@ -340,8 +342,11 @@ final class NotificationProcessor {
         .getCreateTableMessage(event.getMessage());
     String dbName = createTableMessage.getDB();
     String tableName = createTableMessage.getTable();
+    String tableType = createTableMessage.getTableType();
     String location = createTableMessage.getLocation();
-    if ((dbName == null) || (tableName == null) || (location == null)) {
+
+    // HMS virtual views do not have a physical location, so locations may be null
+    if ((dbName == null) || (tableName == null) || (!isVirtualView(tableType) && location == null)) {
       LOGGER.warn(String.format("Create table event " + "has incomplete information."
               + " dbName = %s, tableName = %s, location = %s",
           StringUtils.defaultIfBlank(dbName, "null"),
@@ -360,21 +365,22 @@ final class NotificationProcessor {
       if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
         LOGGER.warn(String.format(
           "Create table event has incomplete OWNER information. "
-            + "dbName: %s, tableName: %s, ownerType: %s, ownerName: %s ",
-          dbName, tableName, ownerType, ownerName));
+            + "dbName: %s, tableType: %s, tableName: %s, ownerType: %s, ownerName: %s ",
+          dbName, tableType, tableName, ownerType, ownerName));
       } else {
         try {
           grantTableOwnerPrivilege(createTableMessage);
         } catch (Exception e) {
           // Do not throw an exception if ownership did not work to let Sentry continue with the
           // event processing.
-          LOGGER.error("Cannot grant OWNER privileges on table '{}.{}': {}",
+          LOGGER.error("Cannot grant OWNER privileges on table/view '{}.{}': {}",
             dbName, tableName, e.getMessage());
         }
       }
     }
 
-    if (hdfsSyncEnabled) {
+    // Virtual views do not have a physical location in HDFS
+    if (!isVirtualView(tableType) && hdfsSyncEnabled) {
       String authzObj = SentryServiceUtil.getAuthzObj(dbName, tableName);
       List<String> locations = Collections.singletonList(location);
       addPaths(authzObj, locations, event);
@@ -397,6 +403,7 @@ final class NotificationProcessor {
         .getDropTableMessage(event.getMessage());
     String dbName = dropTableMessage.getDB();
     String tableName = dropTableMessage.getTable();
+
     if ((dbName == null) || (tableName == null)) {
       LOGGER.warn("Drop table event "
           + "has incomplete information. dbName: {}, tableName: {}",
@@ -453,7 +460,7 @@ final class NotificationProcessor {
     if ((oldDbName.equals(newDbName))
       && (oldLocation.equals(newLocation)
       && (Objects.equals(oldOwnerType, newOwnerType))
-      && (StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)))) {
+      && (isOwnerNameEquals(oldOwnerType, oldOwnerName, newOwnerName)))) {
       LOGGER.debug(String.format("Alter database notification ignored as neither name nor "
           + "location nor owner has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
           + "newLocation = %s, oldOwnerType = %s, newOwnerType = %s, oldOwnerName = %s, newOwnerName = %s",
@@ -465,29 +472,26 @@ final class NotificationProcessor {
 
     // TODO: Rename database privileges if a database name has changed
     /*
-    if (hdfsSyncEnabled) {
-      if (!newDbName.equalsIgnoreCase(oldDbName)) {
-        // Name has changed
-        try {
-          renamePrivileges(oldDbName, newDbName);
-        } catch (SentryNoSuchObjectException e) {
-          LOGGER.info("Rename Sentry privilege ignored as there are no privileges on the database:"
-            + " {}.{}", oldDbName);
-        } catch (Exception e) {
-          LOGGER.info("Could not process Alter database event. Event: {}", event.toString(), e);
-          return false;
-        }
-    }*/
+    if (!newDbName.equalsIgnoreCase(oldDbName)) {
+      // Name has changed
+      try {
+        renamePrivileges(oldDbName, newDbName);
+      } catch (SentryNoSuchObjectException e) {
+        LOGGER.info("Rename Sentry privilege ignored as there are no privileges on the database:"
+          + " {}.{}", oldDbName);
+      } catch (Exception e) {
+        LOGGER.info("Could not process Alter database event. Event: {}", event.toString(), e);
+        return false;
+      }
+      */
 
-    if (!Objects.equals(oldOwnerType, newOwnerType) || !StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)) {
-      PrincipalType ownerType = alterDatabaseMessage.getNewOwnerType();
-      String ownerName = alterDatabaseMessage.getNewOwnerName();
-
-      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+    if (oldOwnerType != null && (oldOwnerType != newOwnerType
+      || !isOwnerNameEquals(oldOwnerType, oldOwnerName, newOwnerName))) {
+      if (newOwnerType == null || Strings.isNullOrEmpty(newOwnerName)) {
         LOGGER.warn(String.format(
           "Alter database event has incomplete OWNER information. "
             + "dbName: %s, newOwnerType: %s, newOwnerName: %s ",
-          newDbName, ownerType, ownerName));
+          newDbName, newOwnerType, newOwnerName));
       } else {
         try {
           transferDatabaseOwnerPrivilege(alterDatabaseMessage);
@@ -533,13 +537,15 @@ final class NotificationProcessor {
     PrincipalType newOwnerType = alterTableMessage.getNewOwnerType();
     String oldOwnerName = alterTableMessage.getOldOwnerName();
     String newOwnerName = alterTableMessage.getNewOwnerName();
+    String oldTableType = alterTableMessage.getOldTableType();
+    String newTableType = alterTableMessage.getNewTableType();
 
     if ((oldDbName == null)
         || (oldTableName == null)
         || (newDbName == null)
         || (newTableName == null)
-        || (oldLocation == null)
-        || (newLocation == null)) {
+        || (!isVirtualView(oldTableType) && oldLocation == null)
+        || (!isVirtualView(newTableType) && newLocation == null)) {
       LOGGER.warn(String.format("Alter table notification ignored since event "
               + "has incomplete information. oldDbName = %s, oldTableName = %s, oldLocation = %s, "
               + "newDbName = %s, newTableName = %s, newLocation = %s",
@@ -554,9 +560,9 @@ final class NotificationProcessor {
 
     if ((oldDbName.equals(newDbName))
         && (oldTableName.equals(newTableName))
-        && (oldLocation.equals(newLocation)
+        && (StringUtils.equals(oldLocation, newLocation))
         && (Objects.equals(oldOwnerType, newOwnerType))
-        && (StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)))) {
+        && (isOwnerNameEquals(oldOwnerType, oldOwnerName, newOwnerName))) {
       LOGGER.debug(String.format("Alter table notification ignored as neither name nor "
               + "location nor owner has changed: oldAuthzObj = %s, oldLocation = %s, newAuthzObj = %s, "
               + "newLocation = %s, oldOwnerType = %s, newOwnerType = %s, oldOwnerName = %s, newOwnerName = %s",
@@ -564,15 +570,21 @@ final class NotificationProcessor {
           newDbName + "." + newTableName, newLocation, oldOwnerType, newOwnerType,
         oldOwnerName, newOwnerName));
       return false;
+    } else if (!StringUtils.equalsIgnoreCase(oldTableType, newTableType)) {
+      LOGGER.warn(String.format("Alter table notification ignored because old and new table types"
+        + " are different: oldAuthzObj =%s.%s, oldTableType = %s, newAuthzObj= %s.%s newTableType = %s",
+        oldDbName, oldTableName, oldTableType, newDbName, newTableName, newTableType));
+      return false;
     }
 
-    // This is a bug because privileges should be renamed even if HDFS sync is disabled,
-    // but it is an existing bug in CDH 5.x. It should be dealt in a different patch.
+    // TODO: CDH-74503: This 'hdfsSyncEnable' flag should not be here.
+    // Privileges should be renamed even if HDFS sync is disabled, but it is an existing bug
+    // in CDH 5.x. It should be dealt in a different patch.
     if (hdfsSyncEnabled) {
       if (!newDbName.equalsIgnoreCase(oldDbName) || !oldTableName.equalsIgnoreCase(newTableName)) {
         // Name has changed
         try {
-          renamePrivileges(oldDbName, oldTableName, newDbName, newTableName);
+          renamePrivileges(oldDbName, oldTableName, oldTableType, newDbName, newTableName, newTableType);
         } catch (SentryNoSuchObjectException e) {
           LOGGER.info("Rename Sentry privilege ignored as there are no privileges on the table:"
             + " {}.{}", oldDbName, oldTableName);
@@ -583,15 +595,13 @@ final class NotificationProcessor {
       }
     }
 
-    if (!Objects.equals(oldOwnerType, newOwnerType) || !StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName)) {
-      PrincipalType ownerType = alterTableMessage.getNewOwnerType();
-      String ownerName = alterTableMessage.getNewOwnerName();
-
-      if (ownerType == null || Strings.isNullOrEmpty(ownerName)) {
+    if (oldOwnerType != null && (oldOwnerType != newOwnerType
+      || !isOwnerNameEquals(oldOwnerType, oldOwnerName, newOwnerName))) {
+      if (newOwnerType == null || Strings.isNullOrEmpty(newOwnerName)) {
         LOGGER.warn(String.format(
           "Alter table event has incomplete OWNER information. "
-            + "dbName: %s, tableName: %s, newOwnerType: %s, newOwnerName: %s ",
-          newDbName, newTableName, ownerType, ownerName));
+            + "dbName: %s, tableType: %s, tableName: %s, newOwnerType: %s, newOwnerName: %s ",
+          newDbName, newTableType, newTableName, newOwnerType, newOwnerName));
       } else {
         try {
           transferTableOwnerPrivilege(alterTableMessage);
@@ -599,7 +609,7 @@ final class NotificationProcessor {
           // Do not throw an exception if ownership did not work to let Sentry continue with the
           // event processing.
           LOGGER
-            .error(String.format("Cannot transfer OWNER privileges on table '%s.%s' to '%s.%s': %s",
+            .error(String.format("Cannot transfer OWNER privileges on table/view '%s.%s' to '%s.%s': %s",
               newDbName, newTableName, newOwnerType, newOwnerName, e.getMessage()));
         }
       }
@@ -609,12 +619,17 @@ final class NotificationProcessor {
       return false;
     }
 
-    String oldAuthzObj = oldDbName + "." + oldTableName;
-    String newAuthzObj = newDbName + "." + newTableName;
+    // Virtual views do not have a physical location, so if the old table is a view, then do
+    // not rename paths
+    if (!isVirtualView(oldTableType)) {
+      String oldAuthzObj = oldDbName + "." + oldTableName;
+      String newAuthzObj = newDbName + "." + newTableName;
 
-    if (!oldAuthzObj.equalsIgnoreCase(newAuthzObj) || !(oldLocation.equalsIgnoreCase(newLocation))) {
-      renameAuthzPath(oldAuthzObj, newAuthzObj, oldLocation, newLocation, event);
-      return true;
+      if (!oldAuthzObj.equalsIgnoreCase(newAuthzObj) || !(oldLocation
+        .equalsIgnoreCase(newLocation))) {
+        renameAuthzPath(oldAuthzObj, newAuthzObj, oldLocation, newLocation, event);
+        return true;
+      }
     }
 
     return false;
@@ -952,17 +967,27 @@ final class NotificationProcessor {
     }
   }
 
-  private void renamePrivileges(String oldDbName, String oldTableName, String newDbName,
-      String newTableName) throws
+  private void renamePrivileges(String oldDbName, String oldTableName, String oldTableType,
+    String newDbName, String newTableName, String newTableType) throws
       Exception {
+    Preconditions.checkArgument(StringUtils.equalsIgnoreCase(oldTableType, newTableType),
+      String.format("oldTableType and newTableType must be equal: %s != %s",
+        oldTableType, newTableType));
+
     TSentryAuthorizable oldAuthorizable = new TSentryAuthorizable(authServerName);
     oldAuthorizable.setDb(oldDbName);
     oldAuthorizable.setTable(oldTableName);
     TSentryAuthorizable newAuthorizable = new TSentryAuthorizable(authServerName);
     newAuthorizable.setDb(newDbName);
     newAuthorizable.setTable(newTableName);
-    Update update =
-        getPermUpdatableOnRename(oldAuthorizable, newAuthorizable);
+    Update update = null;
+
+    // Virtual views do not have a physical location.
+    // Use oldTableType to check if it is a view as it should be equals to newTableType
+    if (!isVirtualView(oldTableType)) {
+      update = getPermUpdatableOnRename(oldAuthorizable, newAuthorizable);
+    }
+
     sentryStore.renamePrivilege(oldAuthorizable, newAuthorizable, update);
   }
 
@@ -977,24 +1002,31 @@ final class NotificationProcessor {
 
   private void grantTableOwnerPrivilege(SentryJSONCreateTableMessage message) throws Exception {
     String dbName = message.getDB();
+    String tableType = message.getTableType();
     String tableName = message.getTable();
     PrincipalType ownerType = message.getOwnerType();
     String ownerName = message.getOwnerName();
 
-    ownerPrivilegeProcessor.grantTableOwnerPrivilege(dbName, tableName, ownerType, ownerName,
+    ownerPrivilegeProcessor.grantTableOwnerPrivilege(dbName, tableType, tableName, ownerType, ownerName,
       OWNER_GRANT_OPTION);
   }
 
   private void transferTableOwnerPrivilege(SentryJSONAlterTableMessage message) throws Exception {
+    Preconditions.checkArgument(
+      StringUtils.equalsIgnoreCase(message.getOldTableType(), message.getNewTableType()),
+      String.format("oldTableType and newTableType must be equal: %s != %s",
+        message.getOldTableType(),  message.getNewTableType()));
+
     String dbName = message.getNewDbName();
+    String tableType = message.getNewTableType();
     String tableName = message.getNewTableName();
     PrincipalType ownerType = message.getNewOwnerType();
     String ownerName = message.getNewOwnerName();
 
-    ownerPrivilegeProcessor.dropTableOwnerPrivileges(dbName, tableName);
+    ownerPrivilegeProcessor.dropTableOwnerPrivileges(dbName, tableType, tableName);
     if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
       ownerPrivilegeProcessor
-        .grantTableOwnerPrivilege(dbName, tableName, ownerType, ownerName, OWNER_GRANT_OPTION);
+        .grantTableOwnerPrivilege(dbName, tableType, tableName, ownerType, ownerName, OWNER_GRANT_OPTION);
     }
   }
 
@@ -1007,6 +1039,21 @@ final class NotificationProcessor {
     if (OWNER_PRIVILEGE_TYPE != SentryOwnerPrivilegeType.NONE) {
       ownerPrivilegeProcessor
         .grantDatabaseOwnerPrivilege(dbName, ownerType, ownerName, OWNER_GRANT_OPTION);
+    }
+  }
+
+  private boolean isVirtualView(String tableType) {
+    return !Strings.isNullOrEmpty(tableType)
+      && tableType.equalsIgnoreCase(TableType.VIRTUAL_VIEW.name());
+  }
+
+  private boolean isOwnerNameEquals(PrincipalType ownerType, String oldOwnerName, String newOwnerName) {
+    if (ownerType == PrincipalType.ROLE) {
+      // Role names are not case-sensitive
+      return StringUtils.equalsIgnoreCase(oldOwnerName, newOwnerName);
+    } else {
+      // Users and groups are case sensitive
+      return StringUtils.equals(oldOwnerName, newOwnerName);
     }
   }
 }
