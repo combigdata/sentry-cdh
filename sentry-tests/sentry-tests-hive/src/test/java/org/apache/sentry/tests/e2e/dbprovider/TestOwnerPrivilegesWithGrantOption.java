@@ -37,6 +37,70 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
   }
 
   /**
+   * Verify that the owner with grant option can call alter table set owner on this view
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testAuthorizeAlterViewSetOwnerByOwner() throws Throwable {
+    String ownerRole = "owner_role";
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1", ownerRole};
+
+    // create required roles, and assign them to USERGROUP1
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+    statementAdmin.execute("USE " + DB1);
+
+    statementAdmin.execute("GRANT ROLE " + ownerRole + " TO GROUP " + USERGROUP2);
+
+    // USER1_1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (under_col int comment 'the under column')");
+    statementUSER1_1.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (under_col) as select under_col from " +DB1 + "." + tableName1);
+
+    Connection connectionUSER2_1 = hiveServer2.createConnection(USER2_1, USER2_1);
+    Statement statementUSER2_1 = connectionUSER2_1.createStatement();
+
+    try {
+      // user1_1 is owner of the view having all with grant on this view and can issue
+      // command: alter table set owner for user (on the view)
+      statementUSER1_1
+        .execute("ALTER TABLE " + DB1 + "." + viewName1 + " SET OWNER USER " + USER2_1);
+
+      verifyTableOwnerPrivilegeExistForPrincipal(statementAdmin, SentryPrincipalType.USER,
+        Lists.newArrayList(USER2_1),
+        DB1, viewName1, 1);
+
+      statementUSER2_1
+        .execute("ALTER TABLE " + DB1 + "." + viewName1 + " SET OWNER ROLE " + ownerRole);
+
+      verifyTableOwnerPrivilegeExistForPrincipal(statementAdmin, SentryPrincipalType.ROLE,
+        Lists.newArrayList(ownerRole),
+        DB1, viewName1, 1);
+
+    } finally {
+      statementAdmin.close();
+      connection.close();
+
+      statementUSER1_1.close();
+      connectionUSER1_1.close();
+
+      statementUSER2_1.close();
+      connectionUSER2_1.close();
+    }
+  }
+
+  /**
    * Verify that the owner with grant option can call alter table set owner on this table
    *
    * @throws Exception
@@ -114,6 +178,61 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
   }
 
   @Test
+  public void testPermissionGrantToRoleByOwnerToView() throws Exception {
+    String ownerRole = "owner_role";
+    String newOwnerRole = "new_owner_role";
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", ownerRole};
+
+    // create required roles, and assign them to USERGROUP1
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    statementAdmin.execute("CREATE ROLE " + newOwnerRole);
+    statementAdmin.execute("GRANT ROLE " + newOwnerRole + " to GROUP " + USERGROUP2);
+
+    // setup privileges for USER1
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE " + ownerRole);
+    statementAdmin.execute("USE " + DB1);
+
+    // USER1_1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (under_col int comment 'the under column')");
+    statementUSER1_1.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (under_col) as select under_col from " +DB1 + "." + tableName1);
+
+    // Verify that the user who created the view has owner privilege on the table created.
+    verifyTableOwnerPrivilegeExistForPrincipal(statementAdmin, SentryPrincipalType.USER,
+            Lists.newArrayList(USER1_1),
+            DB1, viewName1, 1);
+
+    // Owner granting privileges to another user
+    try {
+      statementUSER1_1
+        .execute("GRANT ALL ON " + DB1 + "." + viewName1 + " TO ROLE " + newOwnerRole);
+    } catch (Exception ex) {
+      Assert.fail("Exception received while granting permissions");
+    }
+
+    // Making sure that user who is granted all permissions can drop the table.
+    Connection connectionUSER2_1 = hiveServer2.createConnection(USER2_1, USER2_1);
+    Statement statementUSER2_1 = connectionUSER2_1.createStatement();
+    try {
+      statementUSER2_1
+        .execute("DROP VIEW " + DB1 + "." + viewName1 );
+    } catch (Exception ex) {
+      Assert.fail("Exception received while dropping the view");
+    }
+
+    statementAdmin.execute("DROP ROLE " + newOwnerRole);
+  }
+
+  @Test
   public void testPermissionGrantToRoleByOwner() throws Exception {
     String ownerRole = "owner_role";
     String newOwnerRole = "new_owner_role";
@@ -162,5 +281,7 @@ public class TestOwnerPrivilegesWithGrantOption extends TestOwnerPrivileges {
     } catch (Exception ex) {
       Assert.fail("Exception received while dropping the table");
     }
+
+    statementAdmin.execute("DROP ROLE " + newOwnerRole);
   }
 }

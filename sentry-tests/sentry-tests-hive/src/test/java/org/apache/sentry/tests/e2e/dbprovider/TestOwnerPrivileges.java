@@ -51,6 +51,8 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
 
   private static final Logger LOGGER = LoggerFactory
       .getLogger(TestHDFSIntegrationBase.class);
+
+  protected final static String viewName1 = "vw_1";
   protected final static String tableName1 = "tb_1";
 
   protected static final String ADMIN1 = StaticUserGroup.ADMIN1,
@@ -500,7 +502,197 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
     connectionUSER2_1.close();
   }
 
+  /**
+   * Verify that the user who creases view has owner privilege on this view and
+   * and makes sure that HDFS ACLs are updated accordingly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testCreateView() throws Exception {
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1"};
 
+    // create required roles
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+    statementAdmin.execute("USE " + DB1);
+
+    // USER1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (c1 int, c2 int)");
+    statementUSER1_1.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (c1) as select c1 from " +DB1 + "." + tableName1);
+
+    // verify privileges created for new table
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+      DB1, tableName1, 1);
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+      DB1, viewName1, 1);
+
+    // verify that user has all privilege on this table, i.e., "OWNER" means "ALL"
+    // for authorization
+    statementUSER1_1.execute("SELECT * from " + DB1 + "." + viewName1);
+    statementUSER1_1.execute("ALTER VIEW " + DB1 + "." + viewName1 + " RENAME TO " +
+      DB1 + "." + viewName1 + renameTag );
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+      DB1, viewName1 + renameTag, 1);
+    statementUSER1_1.execute("ALTER VIEW " + DB1 + "." + viewName1 + renameTag
+      + " AS SELECT c2 FROM " + DB1 + "." + tableName1);
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+      DB1, viewName1 + renameTag, 1);
+
+    // alter table rename is not blocked for notification processing in upstream due to
+    // hive bug HIVE-18783, which is fixed in Hive 2.4.0 and 3.0
+    Thread.sleep(WAIT_BEFORE_TESTVERIFY);
+    statementUSER1_1.execute("DROP VIEW " + DB1 + "." + viewName1 + renameTag);
+    statementUSER1_1.execute("DROP TABLE " + DB1 + "." + tableName1);
+
+    statementAdmin.close();
+    connection.close();
+
+    statementUSER1_1.close();
+    connectionUSER1_1.close();
+  }
+
+  @Test
+  public void testCreateViewNegative() throws Exception {
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1"};
+
+    // create required roles
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1 and USER2
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+    statementAdmin.execute("USE " + DB1);
+
+    // USER1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (c1 int, c2 int)");
+    statementUSER1_1.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (c1) as select c1 from " +DB1 + "." + tableName1);
+
+    // verify user1_2 does not have privileges on table created by user1_1
+    Connection connectionUSER1_2 = hiveServer2.createConnection(USER1_2, USER1_2);
+    Statement statementUSER1_2 = connectionUSER1_2.createStatement();
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_2, SentryPrincipalType.USER, Lists.newArrayList(USER1_2),
+      DB1, tableName1, 0);
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_2, SentryPrincipalType.USER, Lists.newArrayList(USER1_2),
+      DB1, viewName1, 0);
+
+    // verify that user user1_2 does not have any privilege on this table
+    try {
+      statementUSER1_2.execute("SELECT * FROM " + DB1 + "." + viewName1);
+      Assert.fail("Expect view select to fail");
+    } catch  (Exception ex) {
+      LOGGER.info("Expected Exception when selecting view: " + ex.getMessage());
+    }
+
+    try {
+      statementUSER1_2.execute("ALTER VIEW " + DB1 + "." + viewName1 + " RENAME TO " +
+        DB1 + "." + viewName1 + renameTag );
+      Assert.fail("Expect view rename to fail");
+    } catch  (Exception ex) {
+      LOGGER.info("Expected Exception when renaming view: " + ex.getMessage());
+    }
+
+    try {
+      statementUSER1_2.execute("ALTER VIEW " + DB1 + "." + viewName1 + renameTag
+        + " AS SELECT c2 FROM " + DB1 + "." + tableName1);
+      Assert.fail("Expect view alter to fail");
+    } catch  (Exception ex) {
+      LOGGER.info("Expected Exception when altering view: " + ex.getMessage());
+    }
+
+
+    try {
+      statementUSER1_2.execute("DROP VIEW " + DB1 + "." + viewName1 + renameTag);
+      Assert.fail("Expect view drop to fail");
+    } catch  (Exception ex) {
+      LOGGER.info("Expected Exception when dropping view: " + ex.getMessage());
+    }
+
+    statementAdmin.close();
+    connection.close();
+
+    statementUSER1_1.close();
+    connectionUSER1_1.close();
+
+    statementUSER1_2.close();
+    connectionUSER1_2.close();
+  }
+
+  @Test
+  public void testCreateViewAdmin() throws Exception {
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1"};
+
+    // create required roles
+    setupUserRoles(roles, statementAdmin);
+
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+
+    // admin creates test DB and then drop it
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+    statementAdmin.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (c1 int, c2 int)");
+    statementAdmin.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (c1) as select c1 from " +DB1 + "." + tableName1);
+
+    // verify no owner privileges created for new table
+    verifyTableOwnerPrivilegeExistForPrincipal(statementAdmin, SentryPrincipalType.USER, Lists.newArrayList(admin),
+      DB1, viewName1, 1);
+
+    statementAdmin.close();
+    connection.close();
+  }
+
+  @Test
+  public void testDropView() throws Exception {
+    dbNames = new String[]{DB1};
+    roles = new String[]{"admin_role", "create_db1"};
+
+    // create required roles
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+
+    // USER1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE TABLE " + DB1 + "." + tableName1
+      + " (c1 int, c2 int)");
+    statementUSER1_1.execute("CREATE VIEW " + DB1 + "." + viewName1
+      + " (c1) as select c1 from " +DB1 + "." + tableName1);
+    statementUSER1_1.execute("DROP VIEW " + DB1 + "." + viewName1);
+
+    // verify privileges created for new table
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+      DB1, viewName1, 0);
+
+    statementAdmin.close();
+    connection.close();
+  }
 
   /**
    * Verify that the user who creases table has owner privilege on this table and

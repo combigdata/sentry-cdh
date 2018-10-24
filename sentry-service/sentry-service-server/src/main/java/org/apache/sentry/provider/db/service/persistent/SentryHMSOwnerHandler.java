@@ -20,10 +20,12 @@ package org.apache.sentry.provider.db.service.persistent;
 
 import static org.apache.sentry.core.model.db.AccessConstants.OWNER;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.sentry.SentryOwnerInfo;
 import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
@@ -49,6 +51,7 @@ class SentryHMSOwnerHandler {
   private final SentryAuditLogger audit;
   private final String SENTRY_SERVICE_USER;
 
+  private final static String NO_TABLE_TYPE = null;
   private final static String NO_TABLE = null;
 
   private static final Map<PrincipalType, TPrivilegePrincipalType> SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP =
@@ -104,22 +107,31 @@ class SentryHMSOwnerHandler {
    */
   void grantDatabaseOwnerPrivilege(String dbName, PrincipalType ownerType, String ownerName, boolean grantOption)
     throws Exception {
-    grantOwnerPrivilegeOnObject(dbName, NO_TABLE, ownerType, ownerName, grantOption);
+    if (!isPrincipalTypeSupported(ownerType)) {
+      throw new Exception(String.format("Owner type not supported: %s", ownerType.toString()));
+    }
+
+    grantOwnerPrivilegeOnObject(dbName, NO_TABLE_TYPE, NO_TABLE, ownerType, ownerName, grantOption);
   }
 
   /**
    * Grants ownership privileges on a table to an owner.
    *
    * @param dbName The database name to grant the owner privilege.
+   * @param tableType The table type to distinguish if a table is a VIRTUAL_VIEW or a simple table
    * @param tableName The table name to grant the owner privilege.
    * @param ownerType The principal type of the owner.
    * @param ownerName The name of the owner.
    * @param grantOption True if grant option must be granted; false otherwise.
    * @throws Exception If the owner privilege failed to be granted.
    */
-  void grantTableOwnerPrivilege(String dbName, String tableName, PrincipalType ownerType, String ownerName, boolean grantOption)
+  void grantTableOwnerPrivilege(String dbName, String tableType, String tableName, PrincipalType ownerType, String ownerName, boolean grantOption)
     throws Exception {
-    grantOwnerPrivilegeOnObject(dbName, tableName, ownerType, ownerName, grantOption);
+    if (!isPrincipalTypeSupported(ownerType)) {
+      throw new Exception(String.format("Owner type not supported: %s", ownerType.toString()));
+    }
+
+    grantOwnerPrivilegeOnObject(dbName, tableType, tableName, ownerType, ownerName, grantOption);
   }
 
   /**
@@ -129,34 +141,41 @@ class SentryHMSOwnerHandler {
    * @throws Exception If the owner privilege cannot be dropped.
    */
   void dropDatabaseOwnerPrivileges(String dbName) throws Exception {
-    dropOwnerPrivilegesFromObject(dbName, NO_TABLE);
+    dropOwnerPrivilegesFromObject(dbName, NO_TABLE_TYPE, NO_TABLE);
   }
 
   /**
    * Drops the owner privilege from a specific table.
    *
    * @param dbName The database name.
+   * @param tableType The table type to distinguish if a table is a VIRTUAL_VIEW or a simple table
    * @param tableName The table name.
    * @throws Exception If the owner privilege cannot be dropped.
    */
-  void dropTableOwnerPrivileges(String dbName, String tableName) throws Exception {
-    dropOwnerPrivilegesFromObject(dbName, tableName);
+  void dropTableOwnerPrivileges(String dbName, String tableType, String tableName) throws Exception {
+    dropOwnerPrivilegesFromObject(dbName, tableType, tableName);
   }
 
   /**
    * Remove any OWNER privilege from the specified database (if tableName is null) or table.
    */
-  private void dropOwnerPrivilegesFromObject(String dbName, String tableName)
+  private void dropOwnerPrivilegesFromObject(String dbName, String tableType, String tableName)
     throws Exception {
 
     String authzObj = toAuthzObjString(dbName, tableName);
     TSentryAuthorizable authorizable = toTSentryAuthorizable(dbName, tableName);
 
-    List<Update> permissionUpdates = new ArrayList<>();
-    List<SentryOwnerInfo> ownerInfoList = sentryStore.listOwnersByAuthorizable(authorizable);
-    for (SentryOwnerInfo ownerInfo : ownerInfoList) {
-      permissionUpdates.add(createDeleteOwnerPermissionUpdate(authzObj,
-        PRINCIPAL_TYPE_MAP.get(ownerInfo.getOwnerType()), ownerInfo.getOwnerName()));
+    List<Update> permissionUpdates = null;
+
+    // Virtual views do not have physical locations
+    if (tableName == null || !isVirtualView(tableType)) {
+      permissionUpdates = new ArrayList<>();
+
+      List<SentryOwnerInfo> ownerInfoList = sentryStore.listOwnersByAuthorizable(authorizable);
+      for (SentryOwnerInfo ownerInfo : ownerInfoList) {
+        permissionUpdates.add(createDeleteOwnerPermissionUpdate(authzObj,
+          PRINCIPAL_TYPE_MAP.get(ownerInfo.getOwnerType()), ownerInfo.getOwnerName()));
+      }
     }
 
     sentryStore.alterSentryRevokeOwnerPrivilege(authorizable, permissionUpdates);
@@ -165,18 +184,19 @@ class SentryHMSOwnerHandler {
   /**
    * Grants ownership privileges on a database (if tableName is null) or table to an owner.
    */
-  private void grantOwnerPrivilegeOnObject(String dbName, String tableName,
+  private void grantOwnerPrivilegeOnObject(String dbName, String tableType, String tableName,
     PrincipalType ownerType, String ownerName, boolean withGrant) throws Exception {
-
-    if (!isPrincipalTypeSupported(ownerType)) {
-      throw new Exception(String.format("Owner type not supported: %s", ownerType.toString()));
-    }
 
     TSentryPrivilege ownerPrivilege = createOwnerPrivilege(dbName, tableName, withGrant);
 
+    Update grantPermissionUpdate = null;
+
     // Create a permission update on HDFS for the owner privilege in the database
-    Update grantPermissionUpdate = createAddOwnerPermissionUpdate(toAuthzObjString(dbName, tableName),
-      ownerType, ownerName);
+    // (Virtual views do not have physical locations)
+    if (tableName == null || !isVirtualView(tableType)) {
+      grantPermissionUpdate = createAddOwnerPermissionUpdate(toAuthzObjString(dbName, tableName),
+        ownerType, ownerName);
+    }
 
     // Store the owner privilege in the Sentry store
     sentryStore.alterSentryGrantOwnerPrivilege(ownerName, SENTRY_PRINCIPAL_TYPE_MAP.get(ownerType),
@@ -263,5 +283,10 @@ class SentryHMSOwnerHandler {
     authorizable.setDb(dbName);
     authorizable.setTable(tableName);
     return authorizable;
+  }
+
+  private boolean isVirtualView(String tableType) {
+    return !Strings.isNullOrEmpty(tableType)
+      && tableType.equalsIgnoreCase(TableType.VIRTUAL_VIEW.name());
   }
 }

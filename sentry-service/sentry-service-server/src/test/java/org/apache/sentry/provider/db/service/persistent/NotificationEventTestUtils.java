@@ -136,6 +136,7 @@ class NotificationEventTestUtils {
 
   public static class AlterTableEventBuilder extends EventBuilder {
     private String oldDbName, newDbName;
+    private String oldTableType, newTableType;
     private String oldTableName, newTableName;
     private String oldLocation, newLocation;
     private PrincipalType oldOwnerType, newOwnerType;
@@ -152,6 +153,16 @@ class NotificationEventTestUtils {
 
     public AlterTableEventBuilder newDbName(String newDbName) {
       this.newDbName = newDbName;
+      return this;
+    }
+
+    public AlterTableEventBuilder oldTableType(String oldTableType) {
+      this.oldTableType = oldTableType;
+      return this;
+    }
+
+    public AlterTableEventBuilder newTableType(String newTableType) {
+      this.newTableType = newTableType;
       return this;
     }
 
@@ -204,9 +215,9 @@ class NotificationEventTestUtils {
       newSd.setLocation(newLocation);
 
       Table before =
-        new Table(oldTableName, oldDbName, oldOwnerName, NO_TIME, NO_TIME, 0, oldSd, null, null, null, null, null);
+        new Table(oldTableName, oldDbName, oldOwnerName, NO_TIME, NO_TIME, 0, oldSd, null, null, null, null, oldTableType);
       Table after =
-        new Table(newTableName, newDbName, newOwnerName, NO_TIME, NO_TIME, 0, newSd, null, null, null, null, null);
+        new Table(newTableName, newDbName, newOwnerName, NO_TIME, NO_TIME, 0, newSd, null, null, null, null, newTableType);
 
       before.setOwnerType(oldOwnerType);
       after.setOwnerType(newOwnerType);
@@ -217,6 +228,7 @@ class NotificationEventTestUtils {
 
   public static class CreateTableEventBuilder extends EventBuilder {
     private String dbName;
+    private String tableType;
     private String tableName;
     private String location;
     private PrincipalType ownerType;
@@ -228,6 +240,11 @@ class NotificationEventTestUtils {
 
     public CreateTableEventBuilder dbName(String dbName) {
       this.dbName = dbName;
+      return this;
+    }
+
+    public CreateTableEventBuilder tableType(String tableType) {
+      this.tableType = tableType;
       return this;
     }
 
@@ -257,7 +274,7 @@ class NotificationEventTestUtils {
       sd.setLocation(location);
 
       Table table =
-        new Table(tableName, dbName, ownerName, NO_TIME, NO_TIME, 0, sd, null, null, null, null, null);
+        new Table(tableName, dbName, ownerName, NO_TIME, NO_TIME, 0, sd, null, null, null, null, tableType);
 
       table.setOwnerType(ownerType);
 

@@ -27,19 +27,22 @@ public class SentryJSONCreateTableMessage extends JSONCreateTableMessage {
     @JsonProperty private String location;
     @JsonProperty private PrincipalType ownerType;
     @JsonProperty private String ownerName;
+    @JsonProperty private String tableType;
 
   public SentryJSONCreateTableMessage() {
   }
 
-  public SentryJSONCreateTableMessage(String server, String servicePrincipal, String db, String table, Long timestamp, String location) {
-    super(server, servicePrincipal, db, table, timestamp);
-    this.location = location;
-  }
+    @Deprecated
+    public SentryJSONCreateTableMessage(String server, String servicePrincipal, String db, String table, Long timestamp, String location) {
+        super(server, servicePrincipal, db, table, timestamp);
+        this.location = location;
+    }
 
     public SentryJSONCreateTableMessage(String server, String servicePrincipal, Long timestamp, Table table) {
         this(server, servicePrincipal, table.getDbName(), table.getTableName(), timestamp, table.getSd().getLocation());
         this.ownerType = table.getOwnerType();
         this.ownerName = table.getOwner();
+        this.tableType = table.getTableType();
     }
 
     public String getLocation() {
@@ -52,6 +55,10 @@ public class SentryJSONCreateTableMessage extends JSONCreateTableMessage {
 
     public String getOwnerName() {
         return ownerName;
+    }
+
+    public String getTableType() {
+        return tableType;
     }
 
     @Override
