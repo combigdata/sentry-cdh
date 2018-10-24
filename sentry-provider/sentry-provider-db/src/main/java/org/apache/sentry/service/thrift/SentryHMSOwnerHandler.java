@@ -159,7 +159,7 @@ class SentryHMSOwnerHandler {
     List<Update> permissionUpdates = null;
 
     // Virtual views do not have physical locations
-    if (tableName != NO_TABLE && !isVirtualView(tableType)) {
+    if (tableName == null || !isVirtualView(tableType)) {
       permissionUpdates = new ArrayList<>();
 
       List<SentryOwnerInfo> ownerInfoList = sentryStore.listOwnersByAuthorizable(authorizable);
@@ -188,7 +188,7 @@ class SentryHMSOwnerHandler {
 
     // Create a permission update on HDFS for the owner privilege in the database
     // (Virtual views do not have physical locations)
-    if (tableName != NO_TABLE && !isVirtualView(tableType)) {
+    if (tableName == null || !isVirtualView(tableType)) {
       grantPermissionUpdate = createAddOwnerPermissionUpdate(toAuthzObjString(dbName, tableName),
         ownerType, ownerName);
     }
