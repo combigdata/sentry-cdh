@@ -263,7 +263,7 @@ public class TestSentryHMSOwnerHandler {
     TSentryPrivilege privilege = createOwnerPrivilege(dbName, tableName, grantOption);
 
     Update update = null;
-    if (tableName != null && !isVirtualView(tableType)) {
+    if (tableName == null || !isVirtualView(tableType)) {
       update = createGrantOwnerUpdate(dbName, tableName,
         SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP.get(ownerType), ownerName);
     }
@@ -284,7 +284,7 @@ public class TestSentryHMSOwnerHandler {
     authorizable.setTable(tableName);
 
     List<Update> update = null;
-    if (tableName != null && !isVirtualView(tableType)) {
+    if (tableName == null || !isVirtualView(tableType)) {
       update = Collections.singletonList(
         createRevokeOwnerUpdate(dbName, tableName,
           SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP.get(ownerType), ownerName));
