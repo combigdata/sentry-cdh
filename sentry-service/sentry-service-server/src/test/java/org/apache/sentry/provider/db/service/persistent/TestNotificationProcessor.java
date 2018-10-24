@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NotificationEvent;
@@ -54,6 +55,9 @@ public class TestNotificationProcessor {
   private static final SentryHMSOwnerHandler ownerHandler = Mockito.mock(SentryHMSOwnerHandler.class);
   private final static String hiveInstance = "server2";
   private final static Configuration conf = new Configuration();
+  private static final String MANAGED_TABLE = TableType.MANAGED_TABLE.name();
+  private static final String VIRTUAL_VIEW = TableType.VIRTUAL_VIEW.name();
+
   private final SentryJSONMessageFactory messageFactory = new SentryJSONMessageFactory();
   private NotificationProcessor notificationProcessor;
 
@@ -529,6 +533,7 @@ public class TestNotificationProcessor {
 
     NotificationEvent event = NotificationEventTestUtils.EventBuilder.newCreateTableEvent(EVENT_ID)
       .dbName("db1")
+      .tableType(MANAGED_TABLE)
       .tableName("t1")
       .location("/warehouse/db1/t1")
       .ownerType(PrincipalType.USER)
@@ -545,13 +550,45 @@ public class TestNotificationProcessor {
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
     processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
     processor.processNotificationEvent(event);
-    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u1", false);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", PrincipalType.USER, "u1", false);
 
     // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
     processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
     processor.processNotificationEvent(event);
-    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u1", true);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", PrincipalType.USER, "u1", true);
+  }
+
+  @Test
+  public void testCreateViewEventGrantsOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newCreateTableEvent(EVENT_ID)
+      .dbName("db1")
+      .tableType(VIRTUAL_VIEW)
+      .tableName("v1")
+      .ownerType(PrincipalType.USER)
+      .ownerName("u1")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verifyZeroInteractions(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", PrincipalType.USER, "u1", false);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", PrincipalType.USER, "u1", true);
   }
 
   @Test
@@ -597,6 +634,7 @@ public class TestNotificationProcessor {
 
     NotificationEvent event = NotificationEventTestUtils.EventBuilder.newAlterTableEvent(EVENT_ID)
       .oldDbName("db1").newDbName("db1")
+      .oldTableType(MANAGED_TABLE).newTableType(MANAGED_TABLE)
       .oldTableName("t1").newTableName("t1")
       .oldLocation("/warehouse/db1/t1").newLocation("/warehouse/db1/t1")
       .oldOwnerType(PrincipalType.USER).newOwnerType(PrincipalType.USER)
@@ -607,23 +645,61 @@ public class TestNotificationProcessor {
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
     processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
     processor.processNotificationEvent(event);
-    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
     reset(ownerHandler);
 
     // Owner privileges without grant should be granted if ALL is set
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
     processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
     processor.processNotificationEvent(event);
-    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
-    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u2", false);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", PrincipalType.USER, "u2", false);
     reset(ownerHandler);
 
     // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
     conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
     processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
     processor.processNotificationEvent(event);
-    verify(ownerHandler).dropTableOwnerPrivileges("db1", "t1");
-    verify(ownerHandler).grantTableOwnerPrivilege("db1", "t1", PrincipalType.USER, "u2", true);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", PrincipalType.USER, "u2", true);
+    reset(ownerHandler);
+  }
+
+  @Test
+  public void testAlterViewOwnerEventTransferOwnerPrivileges() throws Exception {
+    final int EVENT_ID = 1;
+    NotificationProcessor processor;
+
+    NotificationEvent event = NotificationEventTestUtils.EventBuilder.newAlterTableEvent(EVENT_ID)
+      .oldDbName("db1").newDbName("db1")
+      .oldTableType(VIRTUAL_VIEW).newTableType(VIRTUAL_VIEW)
+      .oldTableName("v1").newTableName("v1")
+      .oldLocation("/warehouse/db1/t1").newLocation("/warehouse/db1/t1")
+      .oldOwnerType(PrincipalType.USER).newOwnerType(PrincipalType.USER)
+      .oldOwnerName("u1").newOwnerName("u2")
+      .build();
+
+    // No owner privileges should be granted if NONE is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.NONE.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    reset(ownerHandler);
+
+    // Owner privileges without grant should be granted if ALL is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", PrincipalType.USER, "u2", false);
+    reset(ownerHandler);
+
+    // Owner privileges with grant should be granted if ALL_WITH_GRANT is set
+    conf.set(SENTRY_DB_POLICY_STORE_OWNER_AS_PRIVILEGE, SentryOwnerPrivilegeType.ALL_WITH_GRANT.toString());
+    processor = new NotificationProcessor(sentryStore, hiveInstance, conf, ownerHandler);
+    processor.processNotificationEvent(event);
+    verify(ownerHandler).dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verify(ownerHandler).grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", PrincipalType.USER, "u2", true);
     reset(ownerHandler);
   }
 }

@@ -18,9 +18,12 @@
  */
 package org.apache.sentry.provider.db.service.persistent;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.sentry.SentryOwnerInfo;
 import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
@@ -52,6 +55,8 @@ public class TestSentryHMSOwnerHandler {
   private static final boolean WITH_GRANT = true;
   private static final boolean NO_GRANT = false;
   private static final String NO_TABLE = null;
+  private static final String MANAGED_TABLE = TableType.MANAGED_TABLE.name();
+  private static final String VIRTUAL_VIEW = TableType.VIRTUAL_VIEW.name();
 
   private static final Map<PrincipalType, TPrivilegePrincipalType> SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP =
     ImmutableMap.of(
@@ -89,92 +94,138 @@ public class TestSentryHMSOwnerHandler {
   public void testGrantOwnerOnDatabaseToUser() throws Exception {
     // Grant owner privileges to user without grant option
     ownershipHandler.grantDatabaseOwnerPrivilege("db1", USER, "u1", NO_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", NO_TABLE, USER, "u1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, USER, "u1", NO_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", NO_TABLE, USER, "u1");
     
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", NO_TABLE, USER, "u1");
     ownershipHandler.dropDatabaseOwnerPrivileges("db1");
-    verifyRevokeOwnerPrivilegeStore("db1", NO_TABLE, USER, "u1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, USER, "u1");
 
     // Grant owner privileges to user with grant option
     ownershipHandler.grantDatabaseOwnerPrivilege("db1", USER, "u1", WITH_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", NO_TABLE, USER, "u1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, USER, "u1", WITH_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", NO_TABLE, USER, "u1");
     
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", NO_TABLE, USER, "u1");
     ownershipHandler.dropDatabaseOwnerPrivileges("db1");
-    verifyRevokeOwnerPrivilegeStore("db1", NO_TABLE, USER, "u1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, USER, "u1");
   }
 
   @Test
   public void testGrantOwnerOnDatabaseToRole() throws Exception {
     // Grant owner privileges to role without grant option
     ownershipHandler.grantDatabaseOwnerPrivilege("db1", ROLE, "r1", NO_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", NO_TABLE, ROLE, "r1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, ROLE, "r1", NO_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", NO_TABLE, ROLE, "r1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", NO_TABLE, ROLE, "r1");
     ownershipHandler.dropDatabaseOwnerPrivileges("db1");
-    verifyRevokeOwnerPrivilegeStore("db1", NO_TABLE, ROLE, "r1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, ROLE, "r1");
 
     // Grant owner privileges to role with grant option
     ownershipHandler.grantDatabaseOwnerPrivilege("db1", ROLE, "r1", WITH_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", NO_TABLE, ROLE, "r1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, ROLE, "r1", WITH_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", NO_TABLE, ROLE, "r1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", NO_TABLE, ROLE, "r1");
     ownershipHandler.dropDatabaseOwnerPrivileges("db1");
-    verifyRevokeOwnerPrivilegeStore("db1", NO_TABLE, ROLE, "r1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, NO_TABLE, ROLE, "r1");
   }
 
   @Test
   public void testGrantOwnerOnTableToUser() throws Exception {
     // Grant owner privileges to user without grant option
-    ownershipHandler.grantTableOwnerPrivilege("db1", "t1", USER, "u1", NO_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", "t1", USER, "u1", NO_GRANT);
+    ownershipHandler.grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", USER, "u1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", USER, "u1", NO_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "t1", USER, "u1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", "t1", USER, "u1");
-    ownershipHandler.dropTableOwnerPrivileges("db1", "t1");
-    verifyRevokeOwnerPrivilegeStore("db1", "t1", USER, "u1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", USER, "u1");
 
     // Grant owner privileges to user with grant option
-    ownershipHandler.grantTableOwnerPrivilege("db1", "t1", USER, "u1", WITH_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", "t1", USER, "u1", WITH_GRANT);
+    ownershipHandler.grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", USER, "u1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", USER, "u1", WITH_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "t1", USER, "u1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", "t1", USER, "u1");
-    ownershipHandler.dropTableOwnerPrivileges("db1", "t1");
-    verifyRevokeOwnerPrivilegeStore("db1", "t1", USER, "u1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", USER, "u1");
   }
 
   @Test
   public void testGrantOwnerOnTableToRole() throws Exception {
     // Grant owner privileges to user without grant option
-    ownershipHandler.grantTableOwnerPrivilege("db1", "t1", ROLE, "r1", NO_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", "t1", ROLE, "r1", NO_GRANT);
+    ownershipHandler.grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", ROLE, "r1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", ROLE, "r1", NO_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "t1", ROLE, "r1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", "t1", ROLE, "r1");
-    ownershipHandler.dropTableOwnerPrivileges("db1", "t1");
-    verifyRevokeOwnerPrivilegeStore("db1", "t1", ROLE, "r1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", ROLE, "r1");
 
     // Grant owner privileges to user with grant option
-    ownershipHandler.grantTableOwnerPrivilege("db1", "t1", ROLE, "r1", WITH_GRANT);
-    verifyGrantOwnerPrivilegeStore("db1", "t1", ROLE, "r1", WITH_GRANT);
+    ownershipHandler.grantTableOwnerPrivilege("db1", MANAGED_TABLE, "t1", ROLE, "r1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", ROLE, "r1", WITH_GRANT);
     verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "t1", ROLE, "r1");
 
     // Drop last grant privileges
     stubListOwnersByAuthorizable("db1", "t1", ROLE, "r1");
-    ownershipHandler.dropTableOwnerPrivileges("db1", "t1");
-    verifyRevokeOwnerPrivilegeStore("db1", "t1", ROLE, "r1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", MANAGED_TABLE, "t1");
+    verifyRevokeOwnerPrivilegeStore("db1", MANAGED_TABLE, "t1", ROLE, "r1");
+  }
+
+  @Test
+  public void testGrantOwnerOnViewToUser() throws Exception {
+    // Grant owner privileges to user without grant option
+    ownershipHandler.grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", USER, "u1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", USER, "u1", NO_GRANT);
+    verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "v1", USER, "u1");
+
+    // Drop last grant privileges
+    stubListOwnersByAuthorizable("db1", "v1", USER, "u1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verifyRevokeOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", USER, "u1");
+
+    // Grant owner privileges to user with grant option
+    ownershipHandler.grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", USER, "u1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", USER, "u1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "v1", USER, "u1");
+
+    // Drop last grant privileges
+    stubListOwnersByAuthorizable("db1", "v1", USER, "u1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verifyRevokeOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", USER, "u1");
+  }
+
+  @Test
+  public void testGrantOwnerOnViewToRole() throws Exception {
+    // Grant owner privileges to user without grant option
+    ownershipHandler.grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", ROLE, "r1", NO_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", ROLE, "r1", NO_GRANT);
+    verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "v1", ROLE, "r1");
+
+    // Drop last grant privileges
+    stubListOwnersByAuthorizable("db1", "t1", ROLE, "r1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verifyRevokeOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", ROLE, "r1");
+
+    // Grant owner privileges to user with grant option
+    ownershipHandler.grantTableOwnerPrivilege("db1", VIRTUAL_VIEW, "v1", ROLE, "r1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", ROLE, "r1", WITH_GRANT);
+    verifyGrantOwnerPrivilegeAudit(SENTRY_SERVICE_USER, "db1", "v1", ROLE, "r1");
+
+    // Drop last grant privileges
+    stubListOwnersByAuthorizable("db1", "v1", ROLE, "r1");
+    ownershipHandler.dropTableOwnerPrivileges("db1", VIRTUAL_VIEW, "v1");
+    verifyRevokeOwnerPrivilegeStore("db1", VIRTUAL_VIEW, "v1", ROLE, "r1");
   }
 
   @Test
@@ -187,7 +238,7 @@ public class TestSentryHMSOwnerHandler {
     }
 
     try {
-      ownershipHandler.grantTableOwnerPrivilege("d1", "t1", GROUP, "g1", WITH_GRANT);
+      ownershipHandler.grantTableOwnerPrivilege("d1", MANAGED_TABLE, "t1", GROUP, "g1", WITH_GRANT);
       Assert.fail("GROUP should not be a valid owner type");
     } catch (Exception e) {
       assertEquals("Owner type not supported: GROUP", e.getMessage());
@@ -207,11 +258,16 @@ public class TestSentryHMSOwnerHandler {
   }
 
 
-  private void verifyGrantOwnerPrivilegeStore(String dbName, String tableName,
+  private void verifyGrantOwnerPrivilegeStore(String dbName, String tableType, String tableName,
     PrincipalType ownerType, String ownerName, boolean grantOption) throws Exception {
 
     TSentryPrivilege privilege = createOwnerPrivilege(dbName, tableName, grantOption);
-    Update update = createGrantOwnerUpdate(dbName, tableName, SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP.get(ownerType), ownerName);
+
+    Update update = null;
+    if (tableName == null || !isVirtualView(tableType)) {
+      update = createGrantOwnerUpdate(dbName, tableName,
+        SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP.get(ownerType), ownerName);
+    }
 
     Mockito.verify(mockStore, Mockito.times(1))
       .alterSentryGrantOwnerPrivilege(ownerName, SENTRY_PRINCIPAL_TYPE_MAP.get(ownerType), privilege, update);
@@ -220,7 +276,7 @@ public class TestSentryHMSOwnerHandler {
     Mockito.reset(mockStore);
   }
 
-  private void verifyRevokeOwnerPrivilegeStore(String dbName, String tableName,
+  private void verifyRevokeOwnerPrivilegeStore(String dbName, String tableType, String tableName,
     PrincipalType ownerType, String ownerName) throws Exception {
 
     TSentryAuthorizable authorizable = new TSentryAuthorizable();
@@ -228,13 +284,18 @@ public class TestSentryHMSOwnerHandler {
     authorizable.setDb(dbName);
     authorizable.setTable(tableName);
 
-    Update update = createRevokeOwnerUpdate(dbName, tableName, SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP
-      .get(ownerType), ownerName);
+    List<Update> update = null;
+    if (tableName == null || !isVirtualView(tableType)) {
+      update = Collections.singletonList(
+        createRevokeOwnerUpdate(dbName, tableName,
+          SENTRY_T_PRIVILEGE_PRINCIPAL_TYPE_MAP.get(ownerType), ownerName));
+
+      Mockito.verify(mockStore, Mockito.times(1))
+        .listOwnersByAuthorizable(authorizable);
+    }
 
     Mockito.verify(mockStore, Mockito.times(1))
-      .listOwnersByAuthorizable(authorizable);
-    Mockito.verify(mockStore, Mockito.times(1))
-      .alterSentryRevokeOwnerPrivilege(authorizable, Collections.singletonList(update));
+      .alterSentryRevokeOwnerPrivilege(authorizable, update);
 
     Mockito.verifyNoMoreInteractions(mockStore);
     Mockito.reset(mockStore);
@@ -298,5 +359,10 @@ public class TestSentryHMSOwnerHandler {
       (withGrant) ? TSentryGrantOption.TRUE : TSentryGrantOption.FALSE);
 
     return ownerPrivilege;
+  }
+
+  private boolean isVirtualView(String tableType) {
+    return !Strings.isNullOrEmpty(tableType)
+      && tableType.equalsIgnoreCase(TableType.VIRTUAL_VIEW.name());
   }
 }
