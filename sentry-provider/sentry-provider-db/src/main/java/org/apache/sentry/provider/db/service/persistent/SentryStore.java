@@ -697,14 +697,20 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   /**
-   * Alter a given sentry role to grant a set of privileges.
-   * Internally calls alterSentryGrantPrivilege.
+   * @deprecated
+   * Replaced by {@link #alterSentryRoleGrantPrivileges(String, Set)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry role to grant a set of privileges.
+   * Internally calls alterSentryRoleGrantPrivilege.
    *
    * @param grantorPrincipal User name
    * @param roleName Role name
    * @param privileges Set of privileges
    * @throws Exception
    */
+  @Deprecated
   public void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
       final String roleName, final Set<TSentryPrivilege> privileges) throws Exception {
     for (TSentryPrivilege privilege : privileges) {
@@ -712,7 +718,20 @@ public class SentryStore implements SentryStoreInterface {
     }
   }
 
+  @Override
+  public void alterSentryRoleGrantPrivileges(final String roleName,
+    final Set<TSentryPrivilege> privileges) throws Exception {
+    for (TSentryPrivilege privilege : privileges) {
+      alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    }
+  }
+
   /**
+   * @deprecated
+   * Replaced by {@link #alterSentryGrantPrivilege(SentryPrincipalType, String, TSentryPrivilege, Update)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
    * Alter a given sentry role/user to grant a privilege, as well as persist the corresponding
    * permission change to MSentryPermChange table in a single transaction.
    *
@@ -724,6 +743,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   synchronized void alterSentryGrantPrivilege(final String grantorPrincipal, final SentryPrincipalType type,
      final String name, final TSentryPrivilege privilege,
      final Update update) throws Exception {
@@ -744,6 +764,27 @@ public class SentryStore implements SentryStoreInterface {
         }
         return null;
       }
+    });
+  }
+
+  synchronized void alterSentryGrantPrivilege(final SentryPrincipalType type, final String name,
+    final TSentryPrivilege privilege,
+    final Update update) throws Exception {
+
+    execute(update, new TransactionBlock<Object>() {
+        public Object execute(PersistenceManager pm) throws Exception {
+          pm.setDetachAllOnCommit(false); // No need to detach objects
+
+          // Alter sentry Role and grant Privilege.
+          MSentryPrivilege mPrivilege = alterSentryGrantPrivilegeCore(pm, type,
+            name, privilege);
+
+          if (mPrivilege != null) {
+            // update the privilege to be the one actually updated.
+            convertToTSentryPrivilege(mPrivilege, privilege);
+          }
+          return null;
+        }
     });
   }
 
@@ -780,9 +821,14 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   /**
-   * Alter a given sentry role to grant a set of privileges, as well as persist the
+   * @deprecated
+   * Replaced by {@link #alterSentryRoleGrantPrivileges(String, Set, Map)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry role to grant a set of privileges, as well as persist the
    * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryGrantPrivilege.
+   * Internally calls alterSentryRoleGrantPrivilege.
    *
    * @param grantorPrincipal User name
    * @param roleName the given role name
@@ -791,6 +837,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   public void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
       final String roleName, final Set<TSentryPrivilege> privileges,
       final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
@@ -800,6 +847,18 @@ public class SentryStore implements SentryStoreInterface {
       Update update = privilegesUpdateMap.get(privilege);
       alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName, privilege,
           update);
+    }
+  }
+
+  @Override
+  public void alterSentryRoleGrantPrivileges(final String roleName,
+    final Set<TSentryPrivilege> privileges,
+    final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
+
+    Preconditions.checkNotNull(privilegesUpdateMap);
+    for (TSentryPrivilege privilege : privileges) {
+      Update update = privilegesUpdateMap.get(privilege);
+      alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, update);
     }
   }
 
@@ -908,13 +967,12 @@ public class SentryStore implements SentryStoreInterface {
    * Alter a given sentry user to grant a set of privileges.
    * Internally calls alterSentryGrantPrivilege.
    *
-   * @param grantorPrincipal User name
    * @param userName User name
    * @param privileges Set of privileges
    * @throws Exception
    */
-  public void alterSentryUserGrantPrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> privileges) throws Exception {
+  public void alterSentryUserGrantPrivileges(final String userName,
+    final Set<TSentryPrivilege> privileges) throws Exception {
 
     try {
       MSentryUser userEntry = getMSentryUserByName(userName, false);
@@ -926,7 +984,7 @@ public class SentryStore implements SentryStoreInterface {
     }
 
     for (TSentryPrivilege privilege : privileges) {
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.USER, userName, privilege, null);
+      alterSentryGrantPrivilege(SentryPrincipalType.USER, userName, privilege, null);
     }
   }
 
@@ -959,39 +1017,6 @@ public class SentryStore implements SentryStoreInterface {
         return null;
       }
     });
-  }
-
-  /**
-   * Alter a given sentry user to grant a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryGrantPrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param userName the given user name
-   * @param privileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, DeltaTransactionBlock> map
-   * @throws Exception
-   *
-   */
-  public void alterSentryUserGrantPrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> privileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
-
-    try {
-      MSentryUser userEntry = getMSentryUserByName(userName, false);
-      if (userEntry == null) {
-        createSentryUser(userName);
-      }
-    } catch (SentryAlreadyExistsException e) {
-      // the user may be created by other thread, so swallow the exception and proeed
-    }
-
-    Preconditions.checkNotNull(privilegesUpdateMap);
-    for (TSentryPrivilege privilege : privileges) {
-      Update update = privilegesUpdateMap.get(privilege);
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.USER, userName, privilege,
-              update);
-    }
   }
 
   /**
@@ -1032,7 +1057,12 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   /**
-   * Alter a given sentry user to revoke a set of privileges.
+   * @deprecated
+   * Replaced by {@link #alterSentryUserRevokePrivileges(String, Set)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry user to revoke a set of privileges.
    * Internally calls alterSentryRevokePrivilege.
    *
    * @param grantorPrincipal User name
@@ -1041,6 +1071,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   public void alterSentryUserRevokePrivileges(final String grantorPrincipal,
       final String userName, final Set<TSentryPrivilege> tPrivileges) throws Exception {
     for (TSentryPrivilege tPrivilege : tPrivileges) {
@@ -1048,34 +1079,21 @@ public class SentryStore implements SentryStoreInterface {
     }
   }
 
-  /**
-   * Alter a given sentry user to revoke a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryRevokePrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param userName the given user name
-   * @param tPrivileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, Update> map
-   * @throws Exception
-   *
-   */
-  public void alterSentryUserRevokePrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> tPrivileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap)
-      throws Exception {
-
-    Preconditions.checkNotNull(privilegesUpdateMap);
+  public void alterSentryUserRevokePrivileges(final String userName,
+    final Set<TSentryPrivilege> tPrivileges) throws Exception {
     for (TSentryPrivilege tPrivilege : tPrivileges) {
-      Update update = privilegesUpdateMap.get(tPrivilege);
-      alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.USER, userName,
-              tPrivilege, update);
+      alterSentryRevokePrivilege(SentryPrincipalType.USER, userName, tPrivilege, null);
     }
   }
 
   /**
-   * Alter a given sentry role to revoke a set of privileges.
-   * Internally calls alterSentryRevokePrivilege.
+   * @deprecated
+   * Replaced by {@link #alterSentryRoleRevokePrivileges(String, Set)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry role to revoke a set of privileges.
+   * Internally calls alterSentryRoleRevokePrivilege.
    *
    * @param grantorPrincipal User name
    * @param roleName the given role name
@@ -1083,6 +1101,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
       final String roleName, final Set<TSentryPrivilege> tPrivileges) throws Exception {
     for (TSentryPrivilege tPrivilege : tPrivileges) {
@@ -1090,8 +1109,22 @@ public class SentryStore implements SentryStoreInterface {
     }
   }
 
+  @Override
+  public void alterSentryRoleRevokePrivileges(final String roleName,
+    final Set<TSentryPrivilege> tPrivileges)
+    throws Exception {
+    for (TSentryPrivilege tPrivilege : tPrivileges) {
+      alterSentryRevokePrivilege(SentryPrincipalType.ROLE, roleName, tPrivilege, null);
+    }
+  }
+
   /**
-   * Alter a given sentry role to revoke a privilege, as well as persist the corresponding
+   * @deprecated
+   * Replaced by {@link #alterSentryRevokePrivilege(SentryPrincipalType, String, TSentryPrivilege, Update)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry role to revoke a privilege, as well as persist the corresponding
    * permission change to MSentryPermChange table in a single transaction.
    *
    * @param grantorPrincipal User name
@@ -1102,6 +1135,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   synchronized void alterSentryRevokePrivilege(final String grantorPrincipal, final SentryPrincipalType type,
                                               final String principalName, final TSentryPrivilege tPrivilege,
                                               final Update update) throws Exception {
@@ -1118,10 +1152,29 @@ public class SentryStore implements SentryStoreInterface {
     });
   }
 
+  synchronized void alterSentryRevokePrivilege(final SentryPrincipalType type, final String principalName,
+    final TSentryPrivilege tPrivilege,
+    final Update update) throws Exception {
+    execute(update, new TransactionBlock<Object>() {
+      public Object execute(PersistenceManager pm) throws Exception {
+        pm.setDetachAllOnCommit(false); // No need to detach objects
+        String trimmedEntityName = safeTrimLower(principalName);
+
+        alterSentryRevokePrivilegeCore(pm, type, trimmedEntityName, tPrivilege);
+        return null;
+      }
+    });
+  }
+
   /**
-   * Alter a given sentry role to revoke a set of privileges, as well as persist the
+   * @deprecated
+   * As of release 2.2, replaced by {@link #alterSentryRoleRevokePrivileges(String, Set, Map)}
+   * This method is kept for backwards compatibility with Altus, and it will be removed once
+   * all Altus on-demand 5.15.1 clients are gone (see CDH-74783)
+   *
+   * <p/>Alter a given sentry role to revoke a set of privileges, as well as persist the
    * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryRevokePrivilege.
+   * Internally calls alterSentryRoleRevokePrivilege.
    *
    * @param grantorPrincipal User name
    * @param roleName the given role name
@@ -1130,6 +1183,7 @@ public class SentryStore implements SentryStoreInterface {
    * @throws Exception
    *
    */
+  @Deprecated
   public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
       final String roleName, final Set<TSentryPrivilege> tPrivileges,
       final Map<TSentryPrivilege, Update> privilegesUpdateMap)
@@ -1140,6 +1194,18 @@ public class SentryStore implements SentryStoreInterface {
       Update update = privilegesUpdateMap.get(tPrivilege);
       alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName,
               tPrivilege, update);
+    }
+  }
+
+  @Override
+  public void alterSentryRoleRevokePrivileges(final String roleName, final Set<TSentryPrivilege> tPrivileges,
+    final Map<TSentryPrivilege, Update> privilegesUpdateMap)
+    throws Exception {
+
+    Preconditions.checkNotNull(privilegesUpdateMap);
+    for (TSentryPrivilege tPrivilege : tPrivileges) {
+      Update update = privilegesUpdateMap.get(tPrivilege);
+      alterSentryRevokePrivilege(SentryPrincipalType.ROLE, roleName, tPrivilege, update);
     }
   }
 
@@ -2368,6 +2434,14 @@ public class SentryStore implements SentryStoreInterface {
     return result;
   }
 
+  @Override
+  public Set<TSentryPrivilege> listSentryPrivilegesByUsersAndGroups(
+    Set<String> groups, Set<String> users, TSentryActiveRoleSet roleSet,
+    TSentryAuthorizable authHierarchy) throws Exception {
+    return convertToTSentryPrivileges(listSentryPrivilegesForProviderCore(
+      groups, users, roleSet, authHierarchy));
+  }
+
   public Set<String> listAllSentryPrivilegesForProvider(Set<String> groups, Set<String> users, TSentryActiveRoleSet roleSet) throws Exception {
     return listSentryPrivilegesForProvider(groups, users, roleSet, null);
   }
@@ -2388,6 +2462,15 @@ public class SentryStore implements SentryStoreInterface {
     }
 
     return result;
+  }
+
+  private Set<MSentryPrivilege> listSentryPrivilegesForProviderCore(Set<String> groups, Set<String> users,
+    TSentryActiveRoleSet roleSet, TSentryAuthorizable authHierarchy) throws Exception {
+    Set<MSentryPrivilege> privilegeSet = Sets.newHashSet();
+    Set<String> rolesToQuery = getRolesToQuery(groups, roleSet);
+    privilegeSet.addAll(getMSentryPrivileges(SentryPrincipalType.ROLE, rolesToQuery, authHierarchy));
+    privilegeSet.addAll(getMSentryPrivileges(SentryPrincipalType.USER, users, authHierarchy));
+    return privilegeSet;
   }
 
   public boolean hasAnyServerPrivileges(Set<String> groups, Set<String> users,
