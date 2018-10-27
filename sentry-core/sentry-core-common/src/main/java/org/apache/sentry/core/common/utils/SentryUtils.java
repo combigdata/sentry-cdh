@@ -18,6 +18,7 @@
 
 package org.apache.sentry.core.common.utils;
 
+import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +26,7 @@ import java.util.List;
  * Classes to hold general utility functions that could be used across Sentry
  */
 public final class SentryUtils {
+  private static final String NULL_COL = "__NULL__";
 
   /**
    * Given a list of sorted numbers, return the string that prints in the collapsed format.
@@ -73,5 +75,14 @@ public final class SentryUtils {
     }
 
     return collapsedStrings.toString();
+  }
+
+  /**
+   * Function to check if a string is null, empty or @NULL_COLL specifier
+   * @param s string input, and can be null.
+   * @return True if the input string represents a NULL string - when it is null, empty or equals @NULL_COL
+   */
+  public static boolean isNULL(String s) {
+    return Strings.isNullOrEmpty(s) || s.equals(NULL_COL);
   }
 }

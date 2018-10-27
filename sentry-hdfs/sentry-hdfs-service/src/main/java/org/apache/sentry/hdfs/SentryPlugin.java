@@ -25,12 +25,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.core.common.utils.PubSub;
+import org.apache.sentry.core.common.utils.SentryUtils;
 import org.apache.sentry.core.common.utils.SigUtils;
 import org.apache.sentry.hdfs.ServiceConstants.ServerConfig;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegeChanges;
 import org.apache.sentry.hdfs.service.thrift.TRoleChanges;
 import org.apache.sentry.provider.db.SentryPolicyStorePlugin;
-import org.apache.sentry.provider.db.service.persistent.SentryStore;
 import org.apache.sentry.provider.db.service.persistent.SentryStoreInterface;
 import org.apache.sentry.service.thrift.SentryServiceUtil;
 import org.apache.sentry.provider.db.service.thrift.TAlterSentryRoleAddGroupsRequest;
@@ -426,10 +426,10 @@ public class SentryPlugin implements SentryPolicyStorePlugin, SigUtils.SigListen
 
   private String getAuthzObj(TSentryPrivilege privilege) {
     String authzObj = null;
-    if (!SentryStore.isNULL(privilege.getDbName())) {
+    if (!SentryUtils.isNULL(privilege.getDbName())) {
       String dbName = privilege.getDbName();
       String tblName = privilege.getTableName();
-      if (SentryStore.isNULL(tblName)) {
+      if (SentryUtils.isNULL(tblName)) {
         authzObj = dbName;
       } else {
         authzObj = dbName + "." + tblName;

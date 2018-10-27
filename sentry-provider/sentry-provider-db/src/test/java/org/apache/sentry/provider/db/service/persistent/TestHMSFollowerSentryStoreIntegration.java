@@ -190,7 +190,6 @@ public class TestHMSFollowerSentryStoreIntegration {
 
     // configure permission of the table
     String roleName1 = "list-privs-r1";
-    String grantor = "g1";
     sentryStore.createSentryRole(roleName1);
 
     TSentryPrivilege privilege_tbl1 = new TSentryPrivilege();
@@ -213,11 +212,11 @@ public class TestHMSFollowerSentryStoreIntegration {
     privilege_server.setServerName(serverName1);
     privilege_server.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1);
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_2);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_server);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_3);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1_2);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege_server);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1_3);
 
     // Create notification events to drop the table
     StorageDescriptor sd = new StorageDescriptor();
@@ -250,7 +249,6 @@ public class TestHMSFollowerSentryStoreIntegration {
 
     // configure permission of the database
     String roleName1 = "list-privs-r1";
-    String grantor = "g1";
     sentryStore.createSentryRole(roleName1);
 
     TSentryPrivilege privilege_tbl1 = new TSentryPrivilege();
@@ -273,11 +271,11 @@ public class TestHMSFollowerSentryStoreIntegration {
     privilege_server.setServerName(serverName1);
     privilege_server.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1);
 
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_2);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege_server);
-    sentryStore.alterSentryRoleGrantPrivilege(grantor, roleName1, privilege1_3);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1_2);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege_server);
+    sentryStore.alterSentryRoleGrantPrivilege(roleName1, privilege1_3);
 
     // Create notification events to drop the database
     NotificationEvent notificationEvent = new NotificationEvent(1, 0, EventType.DROP_DATABASE.toString(),
