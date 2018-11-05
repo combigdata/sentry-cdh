@@ -15,7 +15,7 @@ REVIEWERS="$2"
 SCRIPT_NAME=`basename $0`
 function show_help() {
   echo "Usage: $SCRIPT_NAME <branch> [r=<reviewer>[,r=<reviewer>[,...]]]"
-  echo "i.e. $SCRIPT_NAME cdh5-1.1.0_dev"
+  echo "i.e. $SCRIPT_NAME cdh6.x"
   echo
 }
 
@@ -24,7 +24,7 @@ if [ -z "$BRANCH" ]; then
 fi
 
 if [ -n "$REVIEWERS" ]; then
-  git push gerrit HEAD:refs/for/$BRANCH%$REVIEWERS
+  git push cauldron HEAD:refs/for/$BRANCH%$REVIEWERS
 else
-  git push gerrit HEAD:refs/for/$BRANCH
+  git push cauldron HEAD:refs/for/$BRANCH
 fi

@@ -17,4 +17,4 @@ find . -name test-classes | grep target/test-classes | xargs rm -rf
 
 # execute all tests (disable slow tests for now)
 # CDH-70545 include package phase due to shading
-mvn test package -PskipOnlySlowTests --fail-at-end
+mvn test package --fail-at-end
