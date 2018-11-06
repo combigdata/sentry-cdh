@@ -54,6 +54,7 @@ import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.db.SentryAlreadyExistsException;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;
+import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.hdfs.PathsUpdate;
 import org.apache.sentry.hdfs.PermissionsUpdate;
@@ -269,6 +270,30 @@ public class TestSentryStore extends org.junit.Assert {
 
     assertTrue(privs.size()==1);
     assertTrue(privs.contains("server=server1->uri=" + uri + "->action=all"));
+  }
+
+  @Test
+  public void testURIGrantRevokeOnEmptyPath() throws Exception {
+    String roleName = "test-empty-uri-role";
+    String grantor = "g1";
+    String uri = "";
+    createRole(roleName);
+    TSentryPrivilege tSentryPrivilege = new TSentryPrivilege("URI", "server1", "ALL");
+    tSentryPrivilege.setURI(uri);
+    //Test grant on empty URI
+    try {
+      sentryStore.alterSentryRoleGrantPrivilege(roleName, tSentryPrivilege);
+      fail("Expected SentryInvalidInputException");
+    } catch(SentryInvalidInputException e) {
+      // expected
+    }
+    //Test revoke on empty URI
+    try {
+      sentryStore.alterSentryRoleRevokePrivilege(roleName, tSentryPrivilege);
+      fail("Expected SentryInvalidInputException");
+    } catch(SentryInvalidInputException e) {
+      // expected
+    }
   }
 
   @Test

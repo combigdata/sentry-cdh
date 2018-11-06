@@ -853,6 +853,12 @@ public class SentryStore implements SentryStoreInterface {
     if (mRole == null) {
       throw noSuchRole(roleName);
     } else {
+
+      if(privilege.getPrivilegeScope().equalsIgnoreCase(PrivilegeScope.URI.name())
+          && StringUtils.isBlank(privilege.getURI())) {
+        throw new SentryInvalidInputException("cannot grant URI privileges to Null or EMPTY location");
+      }
+
       if (!isNULL(privilege.getColumnName()) || !isNULL(privilege.getTableName())
           || !isNULL(privilege.getDbName())) {
         // If Grant is for ALL and Either INSERT/SELECT already exists..
@@ -1067,6 +1073,11 @@ public class SentryStore implements SentryStoreInterface {
     if (mRole == null) {
       throw noSuchRole(roleName);
     }
+    if(tPrivilege.getPrivilegeScope().equalsIgnoreCase(PrivilegeScope.URI.name())
+        && StringUtils.isBlank(tPrivilege.getURI())) {
+      throw new SentryInvalidInputException("cannot revoke URI privileges from Null or EMPTY location");
+    }
+
     MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm);
     if (mPrivilege == null) {
       mPrivilege = convertToMSentryPrivilege(tPrivilege);
