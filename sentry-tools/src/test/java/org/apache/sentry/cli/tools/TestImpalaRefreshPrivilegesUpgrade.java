@@ -28,7 +28,6 @@ import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
 import org.apache.sentry.api.service.thrift.TSentryPrivilege;
 import org.apache.sentry.core.model.db.AccessConstants;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
-import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -126,12 +125,11 @@ public class TestImpalaRefreshPrivilegesUpgrade {
       toTSentryPrivilege(PrivilegeScope.TABLE, REFRESH)
     );
 
-    for (TSentryPrivilege grantedPrivileges : NEW_REFRESH_PRIVILEGES_AND_SCOPES) {
-      Mockito.verify(mockStore).alterSentryGrantPrivilege(
-        SentryPrincipalType.ROLE, "role1", grantedPrivileges);
-      Mockito.verify(mockStore).alterSentryGrantPrivilege(
-        SentryPrincipalType.ROLE, "role2", grantedPrivileges);
-    }
+      Mockito.verify(mockStore).alterSentryRoleGrantPrivileges(
+        "role1", NEW_REFRESH_PRIVILEGES_AND_SCOPES);
+      Mockito.verify(mockStore).alterSentryRoleGrantPrivileges(
+        "role2", NEW_REFRESH_PRIVILEGES_AND_SCOPES);
+
   }
 
   private TSentryPrivilege toTSentryPrivilege(PrivilegeScope scope, String action) {

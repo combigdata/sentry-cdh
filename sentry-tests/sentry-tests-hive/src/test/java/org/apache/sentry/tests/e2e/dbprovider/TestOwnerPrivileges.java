@@ -34,7 +34,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hive.service.cli.HiveSQLException;
 import org.apache.sentry.tests.e2e.hdfs.TestHDFSIntegrationBase;
 import org.apache.sentry.tests.e2e.hive.StaticUserGroup;
@@ -42,6 +44,7 @@ import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.slf4j.Logger;
@@ -1067,9 +1070,67 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
         + " (under_col int comment 'the under column', value string)");
     statementUSER1_1.execute("DROP TABLE " + DB1 + "." + tableName1);
 
-    // verify privileges created for new table
+    // verify privileges created for new table is gone
     verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
         DB1, tableName1, 0);
+
+    verifyHdfsAcl(Lists.newArrayList(USER1_1), null, DB1, tableName1, null, false);
+
+    statementAdmin.close();
+    connection.close();
+  }
+
+  /**
+   * Verify that the user who creases external table and then drops it has no owner privilege on this table
+   * and makes sure that HDFS ACLs are updated accordingly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testDropExternalTable() throws Throwable {
+    dbNames = new String[]{DB1};
+    String uriAllRole = "all_uri_role";
+    roles = new String[]{"admin_role", "create_db1", uriAllRole};
+    String externalPath = "'file:///tmp/external/p1'";
+    String externalPathWithoutQuote = "/tmp/external/p1";
+
+    // create the external path
+    FsPermission pathPermission = new FsPermission((short) 0777);
+    miniDFS.getFileSystem().mkdir(new Path("/tmp/external/p1"), pathPermission);
+
+    // create required roles
+    setupUserRoles(roles, statementAdmin);
+
+    // create test DB
+    statementAdmin.execute("DROP DATABASE IF EXISTS " + DB1 + " CASCADE");
+    statementAdmin.execute("CREATE DATABASE " + DB1);
+
+    // setup privileges for USER1
+    statementAdmin.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE create_db1");
+    statementAdmin.execute("GRANT ALL ON URI " + externalPath + " TO ROLE " + uriAllRole);
+
+    // USER1 create table
+    Connection connectionUSER1_1 = hiveServer2.createConnection(USER1_1, USER1_1);
+    Statement statementUSER1_1 = connectionUSER1_1.createStatement();
+    statementUSER1_1.execute("CREATE EXTERNAL TABLE " + DB1 + "." + tableName1
+        + " (s string) partitioned by (month int) location " + externalPath);
+
+    // verify privileges created for new table
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+        DB1, tableName1, 1);
+
+    // verify ACL is not created for new table exists for USER1_1 because the path is outside of sentry managed directory and
+    // Update of URI permission for HDFS is not created
+    verifyHdfsAcl(Lists.newArrayList(USER1_1), null, null, null, externalPathWithoutQuote, false);
+
+    statementUSER1_1.execute("DROP TABLE " + DB1 + "." + tableName1);
+
+    // verify privileges created for new table is gone
+    verifyTableOwnerPrivilegeExistForPrincipal(statementUSER1_1, SentryPrincipalType.USER, Lists.newArrayList(USER1_1),
+        DB1, tableName1, 0);
+
+    statementUSER1_1.close();
+    connectionUSER1_1.close();
 
     statementAdmin.close();
     connection.close();
@@ -1080,6 +1141,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAlterTable() throws Throwable {
     dbNames = new String[]{DB1};
@@ -1170,6 +1232,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAlterTableUserNameCase() throws Exception {
     dbNames = new String[]{DB1};
@@ -1256,6 +1319,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAlterTableWithoutDB() throws Exception {
     dbNames = new String[]{DB1};
@@ -1333,6 +1397,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAlterTableNegativeWithoutDB() throws Exception {
     dbNames = new String[]{DB1};
@@ -1417,6 +1482,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    *
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAuthorizeAlterTableSetOwner() throws Exception {
     String ownerRole = "owner_role";
@@ -1523,6 +1589,7 @@ public class TestOwnerPrivileges extends TestHDFSIntegrationBase {
    * Verify that no owner privilege is granted when the ownership is changed to sentry admin user
    * @throws Exception
    */
+  @Ignore("Enable the test once HIVE-18762 is in the hive version integrated with Sentry")
   @Test
   public void testAlterTableAdmin() throws Exception {
     dbNames = new String[]{DB1};

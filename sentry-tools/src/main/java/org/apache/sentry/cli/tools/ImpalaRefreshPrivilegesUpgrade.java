@@ -19,6 +19,8 @@ package org.apache.sentry.cli.tools;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.Sets;
+
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang.StringUtils;
@@ -26,7 +28,6 @@ import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
 import org.apache.sentry.api.service.thrift.TSentryGrantOption;
 import org.apache.sentry.api.service.thrift.TSentryPrivilege;
 import org.apache.sentry.provider.db.service.persistent.SentryStore;
-import org.apache.sentry.service.common.ServiceConstants.SentryPrincipalType;
 
 /**
  * Utility class to grant the REFRESH privilege to those roles that are part of the Sentry upgrade
@@ -148,10 +149,11 @@ public class ImpalaRefreshPrivilegesUpgrade implements SentryStoreUpgrade {
       }
 
       if (!refreshPrivilegesToAdd.isEmpty()) {
+        HashSet<TSentryPrivilege> privileges = new HashSet<>();
         for (RefreshPrivilege p : refreshPrivilegesToAdd) {
-          store.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName,
-            p.toSentryPrivilege());
+          privileges.add(p.toSentryPrivilege());
         }
+        store.alterSentryRoleGrantPrivileges(roleName, privileges);
       }
     }
   }
