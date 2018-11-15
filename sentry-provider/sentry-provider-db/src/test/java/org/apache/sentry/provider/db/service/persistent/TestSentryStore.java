@@ -43,6 +43,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
 import org.apache.hadoop.security.alias.UserProvider;
+import org.apache.sentry.hdfs.Updateable;
 import org.apache.sentry.provider.common.ProviderConstants;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
@@ -233,8 +234,8 @@ public class TestSentryStore extends org.junit.Assert {
     sentryStore.alterSentryRoleAddGroups(grantor, roleName, groups);
     sentryStore.alterSentryRoleDeleteGroups(roleName, groups);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
-    sentryStore.alterSentryRevokePrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
+    sentryStore.alterSentryRevokePrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
   }
 
   @Test
@@ -245,7 +246,7 @@ public class TestSentryStore extends org.junit.Assert {
     createRole(roleName);
     TSentryPrivilege tSentryPrivilege = new TSentryPrivilege("URI", "server1", "ALL");
     tSentryPrivilege.setURI(uri);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, tSentryPrivilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(tSentryPrivilege), null);
 
     TSentryAuthorizable tSentryAuthorizable = new TSentryAuthorizable();
     tSentryAuthorizable.setUri(uri);
@@ -280,14 +281,14 @@ public class TestSentryStore extends org.junit.Assert {
     tSentryPrivilege.setURI(uri);
     //Test grant on empty URI
     try {
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, tSentryPrivilege, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(tSentryPrivilege), null);
       fail("Expected SentryInvalidInputException");
     } catch(SentryInvalidInputException e) {
       // expected
     }
     //Test revoke on empty URI
     try {
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, tSentryPrivilege, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(tSentryPrivilege), null);
       fail("Expected SentryInvalidInputException");
     } catch(SentryInvalidInputException e) {
       // expected
@@ -312,7 +313,7 @@ public class TestSentryStore extends org.junit.Assert {
     createRole(roleName);
     TSentryPrivilege sentryPrivilege = new TSentryPrivilege("Database", "server1", "all");
     sentryPrivilege.setDbName("db1");
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, sentryPrivilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(sentryPrivilege), null);
   }
 
   /**
@@ -411,12 +412,12 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking SELECT, we should have INSERT
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -461,7 +462,7 @@ public class TestSentryStore extends org.junit.Assert {
       priv.setCreateTime(System.currentTimeMillis());
       priv.setTableName(table + i);
       priv.setDbName(dBase);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
     }
 
     // Make sure we really have the expected number of privs in the database
@@ -507,11 +508,11 @@ public class TestSentryStore extends org.junit.Assert {
       priv.setTableName(table + i);
       priv.setDbName(dBase);
       priv.setGrantOption(TSentryGrantOption.TRUE);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       priv.setAction(AccessConstants.SELECT);
       priv.setGrantOption(TSentryGrantOption.UNSET);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
       // after having ALL and revoking SELECT, we should have INSERT
       MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
       Set<MSentryPrivilege> privileges = role.getPrivileges();
@@ -560,11 +561,11 @@ public class TestSentryStore extends org.junit.Assert {
       priv.setTableName(table + i);
       priv.setDbName(dBase);
       priv.setGrantOption(TSentryGrantOption.TRUE);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       priv.setAction(AccessConstants.SELECT);
       priv.setGrantOption(TSentryGrantOption.UNSET);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       assertFalse(sentryStore.findOrphanedPrivileges());
 
@@ -572,25 +573,25 @@ public class TestSentryStore extends org.junit.Assert {
       //Remove the INSERT privilege as well.
       //There should not be any more privileges in the sentry store
       priv.setAction(AccessConstants.INSERT);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
       assertEquals("Privilege Count", 0, role.getPrivileges().size());
 
       priv.setAction(AccessConstants.CREATE);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       role = sentryStore.getMSentryRoleByName(roleName);
       assertEquals("Privilege Count", 0, role.getPrivileges().size());
 
       priv.setAction(AccessConstants.DROP);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       role = sentryStore.getMSentryRoleByName(roleName);
       assertEquals("Privilege Count", 0, role.getPrivileges().size());
 
       priv.setAction(AccessConstants.ALTER);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       role = sentryStore.getMSentryRoleByName(roleName);
       assertEquals("Privilege Count", 0, role.getPrivileges().size());
@@ -632,7 +633,7 @@ public class TestSentryStore extends org.junit.Assert {
       priv.setCreateTime(System.currentTimeMillis());
       priv.setTableName(table + i);
       priv.setDbName(dBase);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
     }
 
     // Make sure we really have the expected number of privs in the database
@@ -646,7 +647,7 @@ public class TestSentryStore extends org.junit.Assert {
     priv.setCreateTime(System.currentTimeMillis());
     priv.setTableName(table + '0');
     priv.setDbName(dBase);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
     //There should be SELECT privilege in the sentry store
     priv = new TSentryPrivilege();
@@ -664,7 +665,7 @@ public class TestSentryStore extends org.junit.Assert {
     // should have NUM_PRIVS - 1 ALL privileges, and 4 privileges (SELECT, CREATE, DROP, ALTER)
     assertEquals("Privilege Count", NUM_PRIVS, role.getPrivileges().size());
 
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     assertEquals("Privilege Count", NUM_PRIVS - 1, role.getPrivileges().size());
 
@@ -699,10 +700,10 @@ public class TestSentryStore extends org.junit.Assert {
       priv.setTableName(table + i);
       priv.setDbName(dBase);
       priv.setGrantOption(TSentryGrantOption.TRUE);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       priv.setAction(AccessConstants.ALTER);
-      sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, priv, null);
+      sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(priv), null);
 
       MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
       assertEquals("Privilege Count", 0, role.getPrivileges().size());
@@ -764,7 +765,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.SELECT);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     // After revoking table scope, we will have 0 privileges
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -793,16 +794,16 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setCreateTime(System.currentTimeMillis());
 
     // Grant ALL on c1 and c2
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     privilege.setColumnName(column2);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on c2
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
 
     // At this point c1 has ALL privileges and c2 should have (INSERT, CREATE, DROP, ALTER)
     // after revoking SELECT
@@ -833,7 +834,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.INSERT);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
@@ -841,7 +842,7 @@ public class TestSentryStore extends org.junit.Assert {
     // Revoke ALL from the table should now remove all the column privileges.
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 0, privileges.size());
@@ -869,15 +870,15 @@ public class TestSentryStore extends org.junit.Assert {
     privilegeTable2.setTableName(table2);
 
     // Grant ALL on table1 and table2
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilegeTable1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilegeTable2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeTable1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeTable2), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on table2
     privilegeTable2.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilegeTable2, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeTable2), null);
     // after having ALL and revoking SELECT, we should have (INSERT) at table2
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -901,7 +902,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilegeTable2.setAction(AccessConstants.INSERT);
     privilegeTable2.setPrivilegeScope("DATABASE");
     privilegeTable2.unsetTableName();
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilegeTable2, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeTable2), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
 
@@ -948,15 +949,15 @@ public class TestSentryStore extends org.junit.Assert {
     privilegeCol2.setColumnName(column2);
 
     // Grant ALL on column1 and column2
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilegeCol1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilegeCol2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeCol1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeCol2), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 2, privileges.size());
 
     // Revoke SELECT on column2
     privilegeCol2.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilegeCol2, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeCol2), null);
     // after having ALL and revoking SELECT, we should have (INSERT)
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -981,7 +982,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilegeCol2.setPrivilegeScope("DATABASE");
     privilegeCol2.unsetTableName();
     privilegeCol2.unsetColumnName();
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilegeCol2, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilegeCol2), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
 
@@ -1020,12 +1021,12 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
     privilege.setGrantOption(grantOption);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
     assertEquals(Boolean.valueOf(privilege.getGrantOption().toString()), Iterables.get(privileges, 0).getGrantOption());
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(0, privileges.size());
@@ -1041,14 +1042,14 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setGrantOption(TSentryGrantOption.TRUE);
     privilege.setCreateTime(System.currentTimeMillis());
     privilege.setGrantOption(grantOption);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.SELECT);
     privilege.setGrantOption(TSentryGrantOption.UNSET);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking SELECT, we should have (INSERT)
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -1092,19 +1093,19 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setAction(AccessConstants.SELECT);
     privilege.setCreateTime(System.currentTimeMillis());
     privilege.setGrantOption(TSentryGrantOption.TRUE);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
 
     // 3. g1 grant select on table tb1 to role0, no grant option
     roleName = roles[0];
     grantor = "g1";
     privilege.setGrantOption(TSentryGrantOption.FALSE);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
 
     // 4. g1 revoke all privilege from role0
     roleName = roles[0];
     grantor = "g1";
     privilege.setGrantOption(TSentryGrantOption.UNSET);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 0, privileges.size());
@@ -1124,12 +1125,12 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     privilege.setServerName("Server1");
     privilege.setDbName("DB1");
     privilege.setTableName("TBL1");
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
@@ -1149,13 +1150,13 @@ public class TestSentryStore extends org.junit.Assert {
     privilege1.setTableName("tbl1");
     privilege1.setAction("SELECT");
     privilege1.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege1), null);
     TSentryPrivilege privilege2 = new TSentryPrivilege();
     privilege2.setPrivilegeScope("SERVER");
     privilege2.setServerName("server1");
     privilege2.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege2), null);
     Set<TSentryGroup> groups = Sets.newHashSet();
     TSentryGroup group = new TSentryGroup();
     group.setGroupName(groupName1);
@@ -1304,17 +1305,17 @@ public class TestSentryStore extends org.junit.Assert {
     TSentryPrivilege privilege3_2 = new TSentryPrivilege(privilege_tbl2);
     privilege3_2.setAction("INSERT");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege1), null);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege2_1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege_server, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege2_3, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege2_1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege_server), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege2_3), null);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName3, privilege3_1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName3, privilege3_2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName3, Sets.newHashSet(privilege3_1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName3, Sets.newHashSet(privilege3_2), null);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName1, privilege1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName2, privilege2_3, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName1, Sets.newHashSet(privilege1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName2, Sets.newHashSet(privilege2_3), null);
 
 
     sentryStore.dropPrivilege(toTSentryAuthorizable(privilege_tbl1));
@@ -1378,7 +1379,7 @@ public class TestSentryStore extends org.junit.Assert {
     tSentryAuthorizable.setDb("db1");
     tSentryAuthorizable.setTable("tbl1");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1), null);
 
     assertEquals(1, sentryStore.getAllTSentryPrivilegesByRoleName(roleName1)
             .size());
@@ -1408,7 +1409,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege_tbl2.setTableName("tbl2");
 
     // Change owner from a one user to another user
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER,userName1, privilege_tbl2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER,userName1, Sets.newHashSet(privilege_tbl2), null);
     assertEquals(1, sentryStore.getAllTSentryPrivilegesByUserName(userName1)
             .size());
 
@@ -1431,7 +1432,7 @@ public class TestSentryStore extends org.junit.Assert {
     //Add all privilege to roleName1 and make sure that owner privilege is not effected.
     TSentryPrivilege privilege_tbl2_all = new TSentryPrivilege(privilege_tbl2);
     privilege_tbl2_all.setAction(AccessConstants.ALL);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl2_all, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl2_all), null);
     // Verify that there are two privileges.
     assertEquals(2, sentryStore.getAllTSentryPrivilegesByRoleName(roleName1)
             .size());
@@ -1441,12 +1442,12 @@ public class TestSentryStore extends org.junit.Assert {
     TSentryPrivilege privilege_tbl3_all = new TSentryPrivilege(privilege_tbl2);
     privilege_tbl3_all.setAction(AccessConstants.ALL);
     privilege_tbl3_all.setTableName("tbl3");
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName3, privilege_tbl3_all, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName3, Sets.newHashSet(privilege_tbl3_all), null);
     assertEquals(1, sentryStore.getAllTSentryPrivilegesByRoleName(roleName3)
             .size());
     TSentryPrivilege privilege_tbl3_owner = new TSentryPrivilege(privilege_tbl3_all);
     privilege_tbl3_owner.setAction(AccessConstants.OWNER);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName3, privilege_tbl3_owner, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName3, Sets.newHashSet(privilege_tbl3_owner), null);
 
     assertEquals(2, sentryStore.getAllTSentryPrivilegesByRoleName(roleName3)
             .size());
@@ -1473,7 +1474,7 @@ public class TestSentryStore extends org.junit.Assert {
     tSentryAuthorizable.setDb("db1");
     tSentryAuthorizable.setTable("tbl1");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1), null);
 
     sentryStore.updateOwnerPrivilege(tSentryAuthorizable, userName1, SentryPrincipalType.USER, null);
     assertEquals(1, sentryStore.getAllTSentryPrivilegesByUserName(userName1)
@@ -1502,7 +1503,7 @@ public class TestSentryStore extends org.junit.Assert {
     tSentryAuthorizable.setDb("db1");
     tSentryAuthorizable.setTable("tbl1");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1), null);
 
     sentryStore.alterSentryRevokeOwnerPrivilege(tSentryAuthorizable, null);
     assertEquals(0, sentryStore.getAllTSentryPrivilegesByUserName(userName1)
@@ -1531,7 +1532,7 @@ public class TestSentryStore extends org.junit.Assert {
 
 
     // Change owner from a one user to another user
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName1, Sets.newHashSet(privilege_tbl1), null);
     assertEquals(1, sentryStore.getAllTSentryPrivilegesByUserName(userName1)
         .size());
 
@@ -1586,10 +1587,10 @@ public class TestSentryStore extends org.junit.Assert {
         privilege_tbl1);
     privilege_tbl1_drop.setAction(AccessConstants.DROP);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_insert, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_select, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_alter, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_drop, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_insert), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_select), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_alter), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_drop), null);
 
     assertEquals(4, sentryStore.getAllTSentryPrivilegesByRoleName(roleName1).size());
 
@@ -1629,9 +1630,9 @@ public class TestSentryStore extends org.junit.Assert {
     privilege_tbl1_c3.setColumnName("c3");
     privilege_tbl1_c3.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_c1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_c2, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege_tbl1_c3, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_c1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_c2), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege_tbl1_c3), null);
 
     Set<TSentryPrivilege> privilegeSet = sentryStore.getAllTSentryPrivilegesByRoleName(roleName1);
     assertEquals(2, privilegeSet.size());
@@ -1666,8 +1667,8 @@ public class TestSentryStore extends org.junit.Assert {
     TSentryPrivilege privilege_tbl1_all = new TSentryPrivilege(privilege_tbl1);
     privilege_tbl1_all.setAction("*");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_insert, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_all, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_insert), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_all), null);
 
     sentryStore.dropPrivilege(toTSentryAuthorizable(privilege_tbl1));
     assertEquals(0, sentryStore.getAllTSentryPrivilegesByRoleName(roleName1)
@@ -1720,12 +1721,12 @@ public class TestSentryStore extends org.junit.Assert {
     TSentryPrivilege privilege_tbl1_all = new TSentryPrivilege(privilege_tbl1);
     privilege_tbl1_all.setAction(AccessConstants.ALL);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_insert, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege_tbl1_select, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName3, privilege_tbl1_all, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName1, privilege_tbl1_insert, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName2, privilege_tbl1_select, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName3, privilege_tbl1_all, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_insert), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege_tbl1_select), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName3, Sets.newHashSet(privilege_tbl1_all), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName1, Sets.newHashSet(privilege_tbl1_insert), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName2, Sets.newHashSet(privilege_tbl1_select), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName3, Sets.newHashSet(privilege_tbl1_all), null);
 
     TSentryAuthorizable oldTable = toTSentryAuthorizable(privilege_tbl1);
     TSentryAuthorizable newTable = toTSentryAuthorizable(privilege_tbl1);
@@ -1790,10 +1791,10 @@ public class TestSentryStore extends org.junit.Assert {
         privilege_tbl1);
     privilege_tbl1_drop.setAction(AccessConstants.DROP);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_insert, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_select, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_alter, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_drop, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_insert), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_select), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_alter), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_drop), null);
 
     TSentryAuthorizable oldTable = toTSentryAuthorizable(privilege_tbl1);
     TSentryAuthorizable newTable = toTSentryAuthorizable(privilege_tbl1);
@@ -1833,14 +1834,14 @@ public class TestSentryStore extends org.junit.Assert {
 
     assertEquals(new Long(0), sentryStore.getPrivilegeCountGauge().getValue());
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, role1, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, role1, Sets.newHashSet(privilege), null);
     assertEquals(Long.valueOf(1), sentryStore.getPrivilegeCountGauge().getValue());
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, role2, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, role2, Sets.newHashSet(privilege), null);
     assertEquals(Long.valueOf(1), sentryStore.getPrivilegeCountGauge().getValue());
 
     privilege.setTableName("tb2");
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, role2, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, role2, Sets.newHashSet(privilege), null);
     assertEquals(Long.valueOf(2), sentryStore.getPrivilegeCountGauge().getValue());
   }
 
@@ -1902,9 +1903,9 @@ public class TestSentryStore extends org.junit.Assert {
     privilege_tbl1_c3.setColumnName("c3");
     privilege_tbl1_c3.setCreateTime(System.currentTimeMillis());
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_c1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1_c2, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege_tbl1_c3, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_c1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1_c2), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege_tbl1_c3), null);
 
     Set<TSentryPrivilege> privilegeSet = sentryStore.getAllTSentryPrivilegesByRoleName(roleName1);
     assertEquals(2, privilegeSet.size());
@@ -1935,7 +1936,7 @@ public class TestSentryStore extends org.junit.Assert {
     TSentryPrivilege tSentryPrivilege = new TSentryPrivilege("TABLE", "server1", "ALL");
     tSentryPrivilege.setDbName(dbName);
     tSentryPrivilege.setTableName(table);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, tSentryPrivilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(tSentryPrivilege), null);
 
     TSentryAuthorizable tSentryAuthorizable = new TSentryAuthorizable();
     tSentryAuthorizable.setDb(dbName);
@@ -1975,7 +1976,7 @@ public class TestSentryStore extends org.junit.Assert {
     tSentryPrivilege.setDbName(dbName);
     tSentryPrivilege.setTableName(table);
     tSentryPrivilege.setColumnName(column);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, tSentryPrivilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(tSentryPrivilege), null);
 
     TSentryAuthorizable tSentryAuthorizable = new TSentryAuthorizable();
     tSentryAuthorizable.setDb(dbName);
@@ -2043,8 +2044,8 @@ public class TestSentryStore extends org.junit.Assert {
     privilege1.setTableName("tbl1");
     privilege1.setAction("SELECT");
     privilege1.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege1), null);
 
     TSentryPrivilege privilege2 = new TSentryPrivilege();
     privilege2.setPrivilegeScope("SERVER");
@@ -2052,7 +2053,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege1.setDbName("db2");
     privilege1.setAction("ALL");
     privilege2.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege2), null);
 
     // Grant roles to the groups
     Set<TSentryGroup> groups = Sets.newHashSet();
@@ -2070,8 +2071,8 @@ public class TestSentryStore extends org.junit.Assert {
     privilege3.setTableName("tbl1");
     privilege3.setAction("OWNER");
     privilege3.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege3, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName2, privilege3, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege3), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName2, Sets.newHashSet(privilege3), null);
 
     PermissionsImage permImage = sentryStore.retrieveFullPermssionsImage();
     Map<String, Map<TPrivilegePrincipal, String>> privs = permImage.getPrivilegeImage();
@@ -2848,7 +2849,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege_tbl1.setCreateTime(System.currentTimeMillis());
     privilege_tbl1.setAction("SELECT");
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1), null);
 
     // Generate the permission drop update for dropping privilege for "db1.tbl1"
     PermissionsUpdate dropUpdate = new PermissionsUpdate(0, false);
@@ -2881,7 +2882,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege_tbl1.setCreateTime(System.currentTimeMillis());
     privilege_tbl1.setAction(AccessConstants.ALL);
 
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName1, privilege_tbl1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName1, Sets.newHashSet(privilege_tbl1), null);
 
     // Generate the permission rename update for renaming privilege for "db1.tbl1"
     String oldAuthz = "db1.tbl1";
@@ -2941,7 +2942,7 @@ public class TestSentryStore extends org.junit.Assert {
       privilege.setCreateTime(System.currentTimeMillis());
 
       PermissionsUpdate update = new PermissionsUpdate(i + 1, false);
-      sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, role, privilege, update);
+      sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, role, Sets.newHashSet(privilege), Lists.newArrayList((Update)update));
     }
     assertEquals(numPermChanges, sentryStore.getMSentryPermChanges().size());
 
@@ -3404,12 +3405,12 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     MSentryUser user = sentryStore.getMSentryUserByName(userName);
     Set<MSentryPrivilege> privileges = user.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking SELECT, we should have (INSERT)
     user = sentryStore.getMSentryUserByName(userName);
     privileges = user.getPrivileges();
@@ -3426,7 +3427,7 @@ public class TestSentryStore extends org.junit.Assert {
 
     privilege.setAction(AccessConstants.INSERT);
 
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     user = sentryStore.getMSentryUserByName(userName, false);
     assertNull(user);
   }
@@ -3449,7 +3450,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setDbName(db);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
@@ -3459,7 +3460,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setServerName(server.toUpperCase());
     privilege.setDbName(db.toUpperCase());
     privilege.setTableName(table.toUpperCase());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
 
     // check if the table privilege is created
     role = sentryStore.getMSentryRoleByName(roleName);
@@ -3481,10 +3482,10 @@ public class TestSentryStore extends org.junit.Assert {
     privilege1.setTableName("tbl1");
     privilege1.setAction("SELECT");
     privilege1.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName1, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName1, Sets.newHashSet(privilege1), null);
 
     privilege1.setAction("ALL");
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName2, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName2, Sets.newHashSet(privilege1), null);
 
     assertEquals(Sets.newHashSet("server=server1->db=db1->table=tbl1->action=select"),
         SentryStore.toTrimedLower(sentryStore.listAllSentryPrivilegesForProvider(
@@ -3507,14 +3508,14 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
 
     MSentryRole role = sentryStore.getMSentryRoleByName(roleName);
     Set<MSentryPrivilege> privileges = role.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking SELECT, we should have (INSERT)
     role = sentryStore.getMSentryRoleByName(roleName);
     privileges = role.getPrivileges();
@@ -3522,7 +3523,7 @@ public class TestSentryStore extends org.junit.Assert {
 
     // second round
     privilege.setAction(AccessConstants.ALL);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     List<MSentryPrivilege> totalPrivileges = sentryStore.getAllMSentryPrivileges();
     assertEquals(totalPrivileges.toString(),1, totalPrivileges.size());
 
@@ -3531,7 +3532,7 @@ public class TestSentryStore extends org.junit.Assert {
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.INSERT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.ROLE, roleName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.ROLE, roleName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking INSERT, we should have (SELECT)
     totalPrivileges = sentryStore.getAllMSentryPrivileges();
     assertEquals(totalPrivileges.toString(),1, totalPrivileges.size());
@@ -3557,14 +3558,14 @@ public class TestSentryStore extends org.junit.Assert {
     privilege.setTableName(table);
     privilege.setAction(AccessConstants.ALL);
     privilege.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
 
     MSentryUser user = sentryStore.getMSentryUserByName(userName);
     Set<MSentryPrivilege> privileges = user.getPrivileges();
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking SELECT, we should have (INSERT)
     user = sentryStore.getMSentryUserByName(userName);
     privileges = user.getPrivileges();
@@ -3572,7 +3573,7 @@ public class TestSentryStore extends org.junit.Assert {
 
     // second round
     privilege.setAction(AccessConstants.ALL);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     List<MSentryPrivilege> totalPrivileges = sentryStore.getAllMSentryPrivileges();
     assertEquals(totalPrivileges.toString(),1, totalPrivileges.size());
 
@@ -3581,7 +3582,7 @@ public class TestSentryStore extends org.junit.Assert {
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.INSERT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking INSERT, we should have (SELECT)
     totalPrivileges = sentryStore.getAllMSentryPrivileges();
     assertEquals(totalPrivileges.toString(),1, totalPrivileges.size());
@@ -3591,7 +3592,7 @@ public class TestSentryStore extends org.junit.Assert {
     assertEquals(privileges.toString(), 1, privileges.size());
 
     privilege.setAction(AccessConstants.SELECT);
-    sentryStore.alterSentryRevokePrivilege( SentryPrincipalType.USER, userName, privilege, null);
+    sentryStore.alterSentryRevokePrivileges( SentryPrincipalType.USER, userName, Sets.newHashSet(privilege), null);
     // after having ALL and revoking INSERT and SELECT, we should have NO privileges
     // user should be removed automatically
     user = sentryStore.getMSentryUserByName(userName, false);
@@ -3610,7 +3611,7 @@ public class TestSentryStore extends org.junit.Assert {
     privilege1.setTableName("tbl1");
     privilege1.setAction("SELECT");
     privilege1.setCreateTime(System.currentTimeMillis());
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, userName1, privilege1, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, userName1, Sets.newHashSet(privilege1), null);
 
     TSentryAuthorizable tSentryAuthorizable = new TSentryAuthorizable();
     tSentryAuthorizable.setServer("server1");
@@ -3640,8 +3641,8 @@ public class TestSentryStore extends org.junit.Assert {
       toTSentryPrivilege("SELECT", "TABLE", "server1", "db1", "table2");
 
     createRole(ROLE1);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, ROLE1, ROLE1_PRIV1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, ROLE1, ROLE1_PRIV2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, ROLE1, Sets.newHashSet(ROLE1_PRIV1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, ROLE1, Sets.newHashSet(ROLE1_PRIV2), null);
 
     final String ROLE2 = "role2";
     final TSentryPrivilege ROLE2_PRIV1 =
@@ -3650,8 +3651,8 @@ public class TestSentryStore extends org.junit.Assert {
       toTSentryPrivilege("ALL", "SERVER", "server1", "", "");
 
     createRole(ROLE2);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, ROLE2, ROLE2_PRIV1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.ROLE, ROLE2, ROLE2_PRIV2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, ROLE2, Sets.newHashSet(ROLE2_PRIV1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.ROLE, ROLE2, Sets.newHashSet(ROLE2_PRIV2), null);
 
     final String ROLE3 = "role3";
 
@@ -3686,8 +3687,8 @@ public class TestSentryStore extends org.junit.Assert {
       toTSentryPrivilege("SELECT", "TABLE", "server1", "db1", "table2");
 
     createUser(USER1);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER, USER1, USER1_PRIV1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER,USER1, USER1_PRIV2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER, USER1, Sets.newHashSet(USER1_PRIV1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER,USER1, Sets.newHashSet(USER1_PRIV2), null);
 
     final String USER2 = "user2";
     final TSentryPrivilege USER2_PRIV1 =
@@ -3696,8 +3697,8 @@ public class TestSentryStore extends org.junit.Assert {
       toTSentryPrivilege("ALL", "SERVER", "server1", "", "");
 
     createUser(USER2);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER,USER2, USER2_PRIV1, null);
-    sentryStore.alterSentryGrantPrivilege(SentryPrincipalType.USER,USER2, USER2_PRIV2, null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER,USER2, Sets.newHashSet(USER2_PRIV1), null);
+    sentryStore.alterSentryGrantPrivileges(SentryPrincipalType.USER,USER2, Sets.newHashSet(USER2_PRIV2), null);
 
     final String USER3 = "user3";
 
