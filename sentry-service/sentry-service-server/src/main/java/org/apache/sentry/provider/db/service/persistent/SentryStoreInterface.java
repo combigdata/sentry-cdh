@@ -96,31 +96,28 @@ public interface SentryStoreInterface {
    */
   void alterSentryRoleDeleteUsers(final String roleName,
                                   final Set<String> userNames) throws Exception;
+
   /**
    * Alter a given sentry role to grant a set of privileges.
    * Internally calls alterSentryRoleGrantPrivilege.
    *
-   * @param grantorPrincipal User name
    * @param roleName Role name
    * @param privileges Set of privileges
    * @throws Exception
    */
-  void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
-                                      final String roleName,
+  void alterSentryRoleGrantPrivileges(final String roleName,
                                       final Set<TSentryPrivilege> privileges) throws Exception;
 
   /**
    * Alter a given sentry role to revoke a set of privileges.
    * Internally calls alterSentryRoleRevokePrivilege.
    *
-   * @param grantorPrincipal User name
    * @param roleName the given role name
    * @param tPrivileges a Set of privileges
    * @throws Exception
    *
    */
-  void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
-                                       final String roleName,
+  void alterSentryRoleRevokePrivileges(final String roleName,
                                        final Set<TSentryPrivilege> tPrivileges)
     throws Exception;
 
@@ -515,33 +512,30 @@ public interface SentryStoreInterface {
    * corresponding permission change to MSentryPermChange table in a single transaction.
    * Internally calls alterSentryRoleGrantPrivilege.
    *
-   * @param grantorPrincipal User name
    * @param roleName the given role name
    * @param privileges a Set of privileges
    * @param privilegesUpdateMap the corresponding <privilege, DeltaTransactionBlock> map
    * @throws Exception
    *
    */
-  void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
-                                      final String roleName,
+  void alterSentryRoleGrantPrivileges(final String roleName,
                                       final Set<TSentryPrivilege> privileges,
                                       final Map<TSentryPrivilege, Update> privilegesUpdateMap)
     throws Exception;
+
 
   /**
    * Alter a given sentry role to revoke a set of privileges, as well as persist the
    * corresponding permission change to MSentryPermChange table in a single transaction.
    * Internally calls alterSentryRoleRevokePrivilege.
    *
-   * @param grantorPrincipal User name
    * @param roleName the given role name
    * @param tPrivileges a Set of privileges
    * @param privilegesUpdateMap the corresponding <privilege, Update> map
    * @throws Exception
    *
    */
-  void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
-                                       final String roleName, final Set<TSentryPrivilege> tPrivileges,
+  void alterSentryRoleRevokePrivileges(final String roleName, final Set<TSentryPrivilege> tPrivileges,
                                        final Map<TSentryPrivilege, Update> privilegesUpdateMap)
     throws Exception;
 
@@ -780,7 +774,7 @@ public interface SentryStoreInterface {
    * Alter a give sentry user/role to set owner privilege, as well as persist the corresponding
    * permission change to MSentryPermChange table in a single transaction.
    * Creates User, if it is not already there.
-   * Internally calls alterSentryGrantPrivilege.
+   * Internally calls alterSentryGrantPrivileges.
    * @param entityName Entity name to which permissions should be granted.
    * @param entityType Entity Type
    * @param privilege Privilege to be granted

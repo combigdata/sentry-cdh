@@ -247,6 +247,7 @@ limitations under the License.
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-minicluster</artifactId>
         <version>${hadoop.version}</version>
+        <scope>test</scope>
         <exclusions>
           <exclusion>
             <artifactId>curator-client</artifactId>
@@ -465,6 +466,10 @@ limitations under the License.
             <artifactId>jackson-mapper-asl</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-archives</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -580,6 +585,10 @@ limitations under the License.
             <artifactId>jackson-xc</artifactId>
             <groupId>org.codehaus.jackson</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -674,6 +683,10 @@ limitations under the License.
           <exclusion>
             <artifactId>jackson-xc</artifactId>
             <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-yarn-registry</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -996,6 +1009,10 @@ limitations under the License.
           <exclusion>
             <artifactId>jackson-xc</artifactId>
             <groupId>org.codehaus.jackson</groupId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-archives</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

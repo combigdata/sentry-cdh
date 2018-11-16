@@ -54,11 +54,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.SentryOwnerInfo;
 import org.apache.sentry.core.common.exception.SentryAccessDeniedException;
 import org.apache.sentry.core.common.exception.SentryAlreadyExistsException;
-import org.apache.sentry.core.common.exception.SentryGrantDeniedException;
 import org.apache.sentry.core.common.exception.SentryInvalidInputException;
 import org.apache.sentry.core.common.exception.SentryNoSuchObjectException;
 import org.apache.sentry.core.common.exception.SentrySiteConfigurationException;
-import org.apache.sentry.core.common.exception.SentryUserException;
 import org.apache.sentry.core.common.utils.PathUtils;
 import org.apache.sentry.core.common.utils.SentryConstants;
 import org.apache.sentry.core.model.db.AccessConstants;
@@ -83,7 +81,6 @@ import org.apache.sentry.provider.db.service.model.MSentryUtil;
 import org.apache.sentry.provider.db.service.model.MPath;
 import org.apache.sentry.hdfs.service.thrift.TPrivilegePrincipal;
 import org.apache.sentry.api.common.ApiConstants.PrivilegeScope;
-import org.apache.sentry.api.service.thrift.SentryPolicyStoreProcessor;
 import org.apache.sentry.api.service.thrift.TSentryActiveRoleSet;
 import org.apache.sentry.api.service.thrift.TSentryAuthorizable;
 import org.apache.sentry.api.service.thrift.TSentryGrantOption;
@@ -114,6 +111,7 @@ import static org.apache.sentry.core.common.utils.SentryConstants.NULL_COL;
 import static org.apache.sentry.core.common.utils.SentryConstants.SERVER_NAME;
 import static org.apache.sentry.core.common.utils.SentryConstants.TABLE_NAME;
 import static org.apache.sentry.core.common.utils.SentryConstants.URI;
+import static org.apache.sentry.core.common.utils.SentryUtils.isNULL;
 import static org.apache.sentry.hdfs.Updateable.Update;
 
 /**
@@ -725,111 +723,52 @@ public class SentryStore implements SentryStoreInterface {
     }
   }
 
-  /**
-   * Alter a given sentry role to grant a set of privileges.
-   * Internally calls alterSentryGrantPrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param roleName Role name
-   * @param privileges Set of privileges
-   * @throws Exception
-   */
-  public void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
-      final String roleName, final Set<TSentryPrivilege> privileges) throws Exception {
-    for (TSentryPrivilege privilege : privileges) {
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName, privilege, null);
-    }
+  @Override
+  public void alterSentryRoleGrantPrivileges(final String roleName,
+    final Set<TSentryPrivilege> privileges) throws Exception {
+    alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, privileges, null);
   }
 
   /**
-   * Alter a given sentry role/user to grant a privilege, as well as persist the corresponding
-   * permission change to MSentryPermChange table in a single transaction.
+   * Grant privileges to a principal and update sentry perm change table accordingly
    *
-   * @param grantorPrincipal User name
-   * @param type Type of principal to which privilege is granted.
-   * @param name the name of the principal to which privilege is granted.
-   * @param privilege the given privilege
-   * @param update the corresponding permission delta update if any.
+   * Iterate over each thrift privilege object and create the MSentryPrivilege equivalent object
+   *
+   * @param type
+   * @param name
+   * @param privileges
+   * @param updatesToPersist
    * @throws Exception
-   *
    */
-  synchronized void alterSentryGrantPrivilege(final String grantorPrincipal, SentryPrincipalType type,
-     final String name, final TSentryPrivilege privilege,
-     final Update update) throws Exception {
+  synchronized void alterSentryGrantPrivileges(SentryPrincipalType type, final String name,
+    final Set<TSentryPrivilege> privileges,
+    final List<Update>updatesToPersist) throws Exception {
 
-    execute(update, pm -> {
+    execute(updatesToPersist, pm -> {
       pm.setDetachAllOnCommit(false); // No need to detach objects
+      String trimmedEntityName = trimAndLower(name);
 
-      // first do grant check
-      grantOptionCheck(pm, grantorPrincipal, privilege);
-
-      // Alter sentry Role and grant Privilege.
-      MSentryPrivilege mPrivilege = alterSentryGrantPrivilegeCore(pm, type,
-              name, privilege);
-
-      if (mPrivilege != null) {
-        // update the privilege to be the one actually updated.
-        convertToTSentryPrivilege(mPrivilege, privilege);
-      }
-      return null;
-    });
-  }
-
-  /**
-   * This is a copy of the {@link #alterSentryGrantPrivilege} that accepts the grantorPrincipal
-   * as a parameter, except that this does not check for the grant option.
-   *
-   * <p/>This method is exclusively used by the
-   * {@link org.apache.sentry.provider.db.tools.SentrySchemaTool#doUpgrade(String)} so that it can
-   * modify the Sentry DB as an admin user without checking for the grant option.
-   *
-   * @param type Type of principal to which privilege is granted.
-   * @param name the name of the principal to which privilege is granted.
-   * @param privilege the given privilege
-   * @throws Exception
-   */
-  public synchronized void alterSentryGrantPrivilege(final SentryPrincipalType type,
-    final String name, final TSentryPrivilege privilege) throws Exception {
-    execute((Update)null, new TransactionBlock<Object>() {
-      public Object execute(PersistenceManager pm) throws Exception {
-        pm.setDetachAllOnCommit(false); // No need to detach objects
-        String trimmedPrincipalName = trimAndLower(name);
-
+      for (TSentryPrivilege privilege : privileges) {
         // Alter sentry Role and grant Privilege.
         MSentryPrivilege mPrivilege = alterSentryGrantPrivilegeCore(pm, type,
-          trimmedPrincipalName, privilege);
+            trimmedEntityName, privilege);
 
         if (mPrivilege != null) {
           // update the privilege to be the one actually updated.
           convertToTSentryPrivilege(mPrivilege, privilege);
         }
-        return null;
       }
+      return null;
     });
   }
 
-  /**
-   * Alter a given sentry role to grant a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryGrantPrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param roleName the given role name
-   * @param privileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, DeltaTransactionBlock> map
-   * @throws Exception
-   *
-   */
-  public void alterSentryRoleGrantPrivileges(final String grantorPrincipal,
-      final String roleName, final Set<TSentryPrivilege> privileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
+  @Override
+  public void alterSentryRoleGrantPrivileges(final String roleName,
+    final Set<TSentryPrivilege> privileges,
+    final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
 
     Preconditions.checkNotNull(privilegesUpdateMap);
-    for (TSentryPrivilege privilege : privileges) {
-      Update update = privilegesUpdateMap.get(privilege);
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName, privilege,
-          update);
-    }
+    alterSentryGrantPrivileges(SentryPrincipalType.ROLE, roleName, privileges, new ArrayList<>(privilegesUpdateMap.values()));
   }
 
   /**
@@ -857,6 +796,20 @@ public class SentryStore implements SentryStoreInterface {
      return null;
    }
 
+  /**
+   * For the TSentryPrivilege object create a corresponding MSentryPrivilege object
+   *
+   * If ALL is being granted and SELECT/INSERT already exist, the older
+   * privielges need to be deleted first in order to prevent having overlapping privileges
+   *
+   * @param pm
+   * @param type
+   * @param entityName
+   * @param privilege
+   * @return
+   * @throws SentryNoSuchObjectException
+   * @throws SentryInvalidInputException
+   */
   private MSentryPrivilege alterSentryGrantPrivilegeCore(PersistenceManager pm,
      SentryPrincipalType type,
      String entityName, TSentryPrivilege privilege)
@@ -954,15 +907,14 @@ public class SentryStore implements SentryStoreInterface {
 
   /**
    * Alter a given sentry user to grant a set of privileges.
-   * Internally calls alterSentryGrantPrivilege.
+   * Internally calls alterSentryGrantPrivileges.
    *
-   * @param grantorPrincipal User name
    * @param userName User name
    * @param privileges Set of privileges
    * @throws Exception
    */
-  public void alterSentryUserGrantPrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> privileges) throws Exception {
+  public void alterSentryUserGrantPrivileges(final String userName,
+    final Set<TSentryPrivilege> privileges) throws Exception {
 
     try {
       MSentryUser userEntry = getMSentryUserByName(userName, false);
@@ -973,16 +925,14 @@ public class SentryStore implements SentryStoreInterface {
         // the user may be created by other thread, so swallow the exception and proceed
     }
 
-    for (TSentryPrivilege privilege : privileges) {
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.USER, userName, privilege, null);
-    }
+    alterSentryGrantPrivileges(SentryPrincipalType.USER, userName, privileges, null);
   }
 
   /**
    * Alter a give sentry user/role to set owner privilege, as well as persist the corresponding
    * permission change to MSentryPermChange table in a single transaction.
    * Creates User, if it is not already there.
-   * Internally calls alterSentryGrantPrivilege.
+   * Internally calls alterSentryGrantPrivileges.
    * @param principalName principalType name to which permissions should be granted.
    * @param entityType Principal Type
    * @param privilege Privilege to be granted
@@ -1005,39 +955,6 @@ public class SentryStore implements SentryStoreInterface {
       }
       return null;
     });
-  }
-
-  /**
-   * Alter a given sentry user to grant a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryGrantPrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param userName the given user name
-   * @param privileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, DeltaTransactionBlock> map
-   * @throws Exception
-   *
-   */
-  public void alterSentryUserGrantPrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> privileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap) throws Exception {
-
-    try {
-      MSentryUser userEntry = getMSentryUserByName(userName, false);
-      if (userEntry == null) {
-        createSentryUser(userName);
-      }
-    } catch (SentryAlreadyExistsException e) {
-      // the user may be created by other thread, so swallow the exception and proeed
-    }
-
-    Preconditions.checkNotNull(privilegesUpdateMap);
-    for (TSentryPrivilege privilege : privileges) {
-      Update update = privilegesUpdateMap.get(privilege);
-      alterSentryGrantPrivilege(grantorPrincipal, SentryPrincipalType.USER, userName, privilege,
-              update);
-    }
   }
 
   /**
@@ -1079,114 +996,73 @@ public class SentryStore implements SentryStoreInterface {
 
   /**
    * Alter a given sentry user to revoke a set of privileges.
-   * Internally calls alterSentryRevokePrivilege.
+   * Internally calls alterSentryRevokePrivileges.
    *
-   * @param grantorPrincipal User name
    * @param userName the given user name
    * @param tPrivileges a Set of privileges
    * @throws Exception
    *
    */
-  public void alterSentryUserRevokePrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> tPrivileges) throws Exception {
-    for (TSentryPrivilege tPrivilege : tPrivileges) {
-      alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.USER, userName, tPrivilege, null);
-    }
+  public void alterSentryUserRevokePrivileges(final String userName,
+    final Set<TSentryPrivilege> tPrivileges) throws Exception {
+    alterSentryRevokePrivileges(SentryPrincipalType.USER, userName, tPrivileges, null);
+  }
+
+  @Override
+  public void alterSentryRoleRevokePrivileges(final String roleName,
+    final Set<TSentryPrivilege> tPrivileges)
+    throws Exception {
+    alterSentryRevokePrivileges(SentryPrincipalType.ROLE, roleName, tPrivileges, null);
   }
 
   /**
-   * Alter a given sentry user to revoke a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryRevokePrivilege.
+   * Revoke privileges from a principal and update sentry perm change table accordingly
    *
-   * @param grantorPrincipal User name
-   * @param userName the given user name
-   * @param tPrivileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, Update> map
+   * Iterate over each thrift privilege object and delete the MSentryPrivilege equivalent object
+   * and also all the children privilege objects
+   *
+   * @param type
+   * @param principalName
+   * @param privileges
+   * @param updatesToDelete
    * @throws Exception
-   *
    */
-  public void alterSentryUserRevokePrivileges(final String grantorPrincipal,
-      final String userName, final Set<TSentryPrivilege> tPrivileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap)
-      throws Exception {
-
-    Preconditions.checkNotNull(privilegesUpdateMap);
-    for (TSentryPrivilege tPrivilege : tPrivileges) {
-      Update update = privilegesUpdateMap.get(tPrivilege);
-      alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.USER, userName,
-              tPrivilege, update);
-    }
-  }
-
-  /**
-   * Alter a given sentry role to revoke a set of privileges.
-   * Internally calls alterSentryRevokePrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param roleName the given role name
-   * @param tPrivileges a Set of privileges
-   * @throws Exception
-   *
-   */
-  public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
-      final String roleName, final Set<TSentryPrivilege> tPrivileges) throws Exception {
-    for (TSentryPrivilege tPrivilege : tPrivileges) {
-      alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName, tPrivilege, null);
-    }
-  }
-
-  /**
-   * Alter a given sentry role to revoke a privilege, as well as persist the corresponding
-   * permission change to MSentryPermChange table in a single transaction.
-   *
-   * @param grantorPrincipal User name
-   * @param type Type of principal to which privilege is granted.
-   * @param principalName the name of the principal from which privilege is revoked.
-   * @param tPrivilege the given privilege
-   * @param update the corresponding permission delta update transaction block
-   * @throws Exception
-   *
-   */
-  synchronized void alterSentryRevokePrivilege(final String grantorPrincipal, SentryPrincipalType type,
-                                              final String principalName, final TSentryPrivilege tPrivilege,
-                                              final Update update) throws Exception {
-    execute(update, pm -> {
+  synchronized void alterSentryRevokePrivileges(SentryPrincipalType type, final String principalName,
+    final Set<TSentryPrivilege> privileges,
+    final List<Update> updatesToDelete) throws Exception {
+    execute(updatesToDelete, pm -> {
       pm.setDetachAllOnCommit(false); // No need to detach objects
+      String trimmedEntityName = safeTrimLower(principalName);
 
-      // first do revoke check
-      grantOptionCheck(pm, grantorPrincipal, tPrivilege);
-
-      alterSentryRevokePrivilegeCore(pm, type, principalName, tPrivilege);
+      for (TSentryPrivilege tPrivilege : privileges) {
+        alterSentryRevokePrivilegeCore(pm, type, trimmedEntityName, tPrivilege);
+      }
       return null;
     });
   }
 
-  /**
-   * Alter a given sentry role to revoke a set of privileges, as well as persist the
-   * corresponding permission change to MSentryPermChange table in a single transaction.
-   * Internally calls alterSentryRevokePrivilege.
-   *
-   * @param grantorPrincipal User name
-   * @param roleName the given role name
-   * @param tPrivileges a Set of privileges
-   * @param privilegesUpdateMap the corresponding <privilege, Update> map
-   * @throws Exception
-   *
-   */
-  public void alterSentryRoleRevokePrivileges(final String grantorPrincipal,
-      final String roleName, final Set<TSentryPrivilege> tPrivileges,
-      final Map<TSentryPrivilege, Update> privilegesUpdateMap)
-          throws Exception {
+  @Override
+  public void alterSentryRoleRevokePrivileges(final String roleName, final Set<TSentryPrivilege> tPrivileges,
+    final Map<TSentryPrivilege, Update> privilegesUpdateMap)
+    throws Exception {
 
     Preconditions.checkNotNull(privilegesUpdateMap);
-    for (TSentryPrivilege tPrivilege : tPrivileges) {
-      Update update = privilegesUpdateMap.get(tPrivilege);
-      alterSentryRevokePrivilege(grantorPrincipal, SentryPrincipalType.ROLE, roleName,
-              tPrivilege, update);
-    }
+    alterSentryRevokePrivileges(SentryPrincipalType.ROLE, roleName, tPrivileges, new ArrayList<>(privilegesUpdateMap.values()));
   }
 
+  /**
+   * For the TSentryPrivilege object delete a corresponding MSentryPrivilege object
+   *
+   * Also delete the corresponding child privileges
+   *
+   * @param pm
+   * @param type
+   * @param entityName
+   * @param privilege
+   * @return
+   * @throws SentryNoSuchObjectException
+   * @throws SentryInvalidInputException
+   */
   private void alterSentryRevokePrivilegeCore(PersistenceManager pm, SentryPrincipalType type,
       String entityName, TSentryPrivilege tPrivilege)
       throws SentryNoSuchObjectException, SentryInvalidInputException {
@@ -2177,12 +2053,6 @@ public class SentryStore implements SentryStoreInterface {
     return mSentryUser.getPrivileges();
   }
 
-  private Set<MSentryPrivilege> getMSentryPrivilegesByUserNameIfExists(String userName)
-          throws Exception {
-    MSentryUser mSentryUser = getMSentryUserByName(userName, false);
-    return mSentryUser != null ? mSentryUser.getPrivileges() : Collections.emptySet();
-  }
-
   /**
    * Gets sentry privilege objects for a given userName from the persistence layer
    * @param userName : userName to look up
@@ -2511,6 +2381,7 @@ public class SentryStore implements SentryStoreInterface {
     return result;
   }
 
+  @Override
   public Set<TSentryPrivilege> listSentryPrivilegesByUsersAndGroups(
       Set<String> groups, Set<String> users, TSentryActiveRoleSet roleSet,
       TSentryAuthorizable authHierarchy) throws Exception {
@@ -3171,84 +3042,6 @@ public class SentryStore implements SentryStoreInterface {
    */
   private static String fromNULLCol(String s) {
     return isNULL(s) ? "" : s;
-  }
-
-  /**
-   * Function to check if a string is null, empty or @NULL_COLL specifier
-   * @param s string input, and can be null.
-   * @return True if the input string represents a NULL string - when it is null, empty or equals @NULL_COL
-   */
-  public static boolean isNULL(String s) {
-    return Strings.isNullOrEmpty(s) || s.equals(NULL_COL);
-  }
-
-  /**
-   * Grant option check
-   * @param pm Persistence manager instance
-   * @param grantorPrincipal User name
-   * @param privilege Privilege to check
-   * @throws SentryUserException
-   */
-  private void grantOptionCheck(PersistenceManager pm, String grantorPrincipal,
-                                TSentryPrivilege privilege)
-      throws Exception {
-    MSentryPrivilege mPrivilege = convertToMSentryPrivilege(privilege);
-    if (grantorPrincipal == null) {
-      throw new SentryInvalidInputException("grantorPrincipal should not be null");
-    }
-
-    Set<String> groups = SentryPolicyStoreProcessor.getGroupsFromUserName(conf, grantorPrincipal);
-
-    // if grantor is in adminGroup, don't need to do check
-    Set<String> admins = getAdminGroups();
-    boolean isAdminGroup = false;
-    if (groups != null && !admins.isEmpty()) {
-      for (String g : groups) {
-        if (admins.contains(g)) {
-          isAdminGroup = true;
-          break;
-        }
-      }
-    }
-
-    if (!isAdminGroup) {
-      boolean hasGrant = false;
-      Set<MSentryPrivilege> privilegeSet = new HashSet<>();
-      Set<MSentryPrivilege> enityPrivilegeSet = null;
-      // Collect the privileges granted to all roles to that user.
-      Set<MSentryRole> roles = getRolesForGroups(pm, groups);
-      roles.addAll(getRolesForUsers(pm, Sets.newHashSet(grantorPrincipal)));
-      for (MSentryRole role : roles) {
-        enityPrivilegeSet = role.getPrivileges();
-        if(enityPrivilegeSet != null && !enityPrivilegeSet.isEmpty()) {
-          privilegeSet.addAll(enityPrivilegeSet);
-        }
-      }
-      // Collect the privileges granted to user
-      enityPrivilegeSet = getMSentryPrivilegesByUserNameIfExists(grantorPrincipal.trim());
-      if(enityPrivilegeSet != null && !enityPrivilegeSet.isEmpty()) {
-        privilegeSet.addAll(enityPrivilegeSet);
-
-      }
-      // Compare the privileges that user has with the privilege he/she is trying to grant.
-      for (MSentryPrivilege p : privilegeSet) {
-        if (p.getGrantOption() && p.implies(mPrivilege)) {
-          hasGrant = true;
-          break;
-        }
-      }
-
-      if (!hasGrant) {
-        throw new SentryGrantDeniedException(grantorPrincipal
-            + " has no grant!");
-      }
-    }
-  }
-
-  // get adminGroups from conf
-  private Set<String> getAdminGroups() {
-    return Sets.newHashSet(conf.getStrings(
-        ServerConfig.ADMIN_GROUPS, new String[]{}));
   }
 
   /**

@@ -137,7 +137,7 @@ public class PathsUpdate implements Updateable.Update {
     URI uri;
     try {
       // Below converts unescaped path to escaped string and the constructs a URI from it.
-      uri = new URI(new URIBuilder().setPath(path).toString().substring(1));
+      uri = new URI(StringUtils.stripStart(new URIBuilder().setPath(path).toString(), "/"));
     } catch (URISyntaxException e) {
       throw new SentryMalformedPathException("Incomprehensible path [" + path + "]", e);
     }
