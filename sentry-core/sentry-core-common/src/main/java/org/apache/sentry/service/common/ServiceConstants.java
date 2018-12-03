@@ -255,7 +255,7 @@ public class ServiceConstants {
      * List of privileges that are permitted to be granted by Sentry DB clients
      */
     public static final String SENTRY_DB_EXPLICIT_GRANTS_PERMITTED = "sentry.db.explicit.grants.permitted";
-    public static final String SENTRY_DB_EXPLICIT_GRANTS_PERMITTED_DEFAULT = "";
+    public static final String SENTRY_DB_EXPLICIT_GRANTS_PERMITTED_DEFAULT = "CREATE,REFRESH,SELECT,INSERT,ALL,*";
 
     /**
      * This value sets the allocation size used by datanucleus for the values it auto generates.
