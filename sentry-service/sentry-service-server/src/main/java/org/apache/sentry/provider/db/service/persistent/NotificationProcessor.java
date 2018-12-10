@@ -536,8 +536,6 @@ final class NotificationProcessor {
     String oldTableName = alterTableMessage.getOldTableName();
     String newDbName =alterTableMessage.getNewDbName();
     String newTableName = alterTableMessage.getNewTableName();
-    String oldLocation = alterTableMessage.getOldLocation();
-    String newLocation = alterTableMessage.getNewLocation();
     PrincipalType oldOwnerType = alterTableMessage.getOldOwnerType();
     PrincipalType newOwnerType = alterTableMessage.getNewOwnerType();
     String oldOwnerName = alterTableMessage.getOldOwnerName();
@@ -545,20 +543,40 @@ final class NotificationProcessor {
     String oldTableType = alterTableMessage.getOldTableType();
     String newTableType = alterTableMessage.getNewTableType();
 
-    if ((oldDbName == null)
-        || (oldTableName == null)
-        || (newDbName == null)
-        || (newTableName == null)
-        || (!isVirtualView(oldTableType) && oldLocation == null)
-        || (!isVirtualView(newTableType) && newLocation == null)) {
+    if ((oldDbName == null) ||
+        (oldTableName == null) ||
+        (newDbName == null) ||
+        (newTableName == null)) {
       LOGGER.warn(String.format("Alter table notification ignored since event "
-              + "has incomplete information. oldDbName = %s, oldTableName = %s, oldLocation = %s, "
-              + "newDbName = %s, newTableName = %s, newLocation = %s",
+              + "has incomplete information. oldDbName = %s, oldTableName = %s, "
+              + "newDbName = %s, newTableName = %s",
           StringUtils.defaultIfBlank(oldDbName, "null"),
           StringUtils.defaultIfBlank(oldTableName, "null"),
-          StringUtils.defaultIfBlank(oldLocation, "null"),
           StringUtils.defaultIfBlank(newDbName, "null"),
-          StringUtils.defaultIfBlank(newTableName, "null"),
+          StringUtils.defaultIfBlank(newTableName, "null")));
+      return false;
+    }
+
+    if (!newDbName.equalsIgnoreCase(oldDbName) || !oldTableName.equalsIgnoreCase(newTableName)) {
+      // Name has changed
+      try {
+        renamePrivileges(oldDbName, oldTableName, oldTableType, newDbName, newTableName, newTableType);
+      } catch (SentryNoSuchObjectException e) {
+        LOGGER.debug("Rename Sentry privilege ignored as there are no privileges on the table:"
+            + " {}.{}", oldDbName, oldTableName);
+      } catch (Exception e) {
+        LOGGER.info("Could not process Alter table event. Event: {}", event.toString(), e);
+        return false;
+      }
+    }
+
+    String oldLocation = alterTableMessage.getOldLocation();
+    String newLocation = alterTableMessage.getNewLocation();
+    if ((!isVirtualView(oldTableType) && oldLocation == null) ||
+        (!isVirtualView(newTableType) && newLocation == null)) {
+      LOGGER.warn(String.format("HMS path update ignored since event has incomplete "
+              + "path information. oldLocation = %s, newLocation = %s",
+          StringUtils.defaultIfBlank(oldLocation, "null"),
           StringUtils.defaultIfBlank(newLocation, "null")));
       return false;
     }
@@ -580,19 +598,6 @@ final class NotificationProcessor {
         + " are different: oldAuthzObj =%s.%s, oldTableType = %s, newAuthzObj= %s.%s newTableType = %s",
         oldDbName, oldTableName, oldTableType, newDbName, newTableName, newTableType));
       return false;
-    }
-
-    if (!newDbName.equalsIgnoreCase(oldDbName) || !oldTableName.equalsIgnoreCase(newTableName)) {
-      // Name has changed
-      try {
-        renamePrivileges(oldDbName, oldTableName, oldTableType, newDbName, newTableName, newTableType);
-      } catch (SentryNoSuchObjectException e) {
-        LOGGER.debug("Rename Sentry privilege ignored as there are no privileges on the table:"
-            + " {}.{}", oldDbName, oldTableName);
-      } catch (Exception e) {
-        LOGGER.info("Could not process Alter table event. Event: {}", event.toString(), e);
-        return false;
-      }
     }
 
     if (oldOwnerType != null && (oldOwnerType != newOwnerType
