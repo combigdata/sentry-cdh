@@ -3278,14 +3278,14 @@ public class SentryStore implements SentryStoreInterface {
         pUpdate = new HashMap<>();
         retVal.put(authzObj, pUpdate);
       }
+
       for (MSentryRole mRole : mPriv.getRoles()) {
-        String existingPriv = pUpdate.get(mRole.getRoleName());
+        TPrivilegePrincipal tPrivilegePrincipal = new TPrivilegePrincipal(TPrivilegePrincipalType.ROLE, mRole.getRoleName());
+        String existingPriv = pUpdate.get(tPrivilegePrincipal);
         if (existingPriv == null) {
-          pUpdate.put(new TPrivilegePrincipal(TPrivilegePrincipalType.ROLE, mRole.getRoleName()),
-                  mPriv.getAction().toUpperCase());
+          pUpdate.put(tPrivilegePrincipal, mPriv.getAction().toUpperCase());
         } else {
-          pUpdate.put(new TPrivilegePrincipal(TPrivilegePrincipalType.ROLE, mRole.getRoleName()), existingPriv + "," +
-                  mPriv.getAction().toUpperCase());
+          pUpdate.put(tPrivilegePrincipal, existingPriv + "," + mPriv.getAction().toUpperCase());
         }
       }
     }
