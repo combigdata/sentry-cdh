@@ -24,3 +24,4 @@ maven-repo/
 **/metastore_db/*
 *dependency-reduced-pom.xml
 mvn_settings.xml
+*.attach*

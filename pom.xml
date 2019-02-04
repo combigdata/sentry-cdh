@@ -101,6 +101,10 @@ limitations under the License.
     <zookeeper.version>${cdh.zookeeper.version}</zookeeper.version>
     <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
     <httpcomponents.version>${cdh.httpcomponents.version}</httpcomponents.version>
+    <assertj.version>3.11.1</assertj.version>
+
+    <!-- Package versions for Sentry binding components -->
+    <hadoop.version>${cdh.hadoop.version}</hadoop.version>
 
     <!-- Datanucleus package versions -->
     <datanucleus.maven.plugin.version>4.0.5</datanucleus.maven.plugin.version>
@@ -1021,6 +1025,12 @@ limitations under the License.
         <artifactId>httpclient</artifactId>
         <version>${httpcomponents.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${assertj.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1259,6 +1269,7 @@ limitations under the License.
                   <exclude>**/*.woff2</exclude>
                   <!-- Lombok Config File -->
                   <exclude>lombok.config</exclude>
+                  <exclude>**/*.attach*</exclude>
                 </excludes>
               </configuration>
             </execution>
