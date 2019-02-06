@@ -419,19 +419,14 @@ public class TestDbColumnLevelMetaDataOps extends AbstractTestWithStaticConfigur
     statement.execute("CREATE DATABASE " + PAR_DB_NAME);
     statement.execute("CREATE ROLE " + PAR_ROLE_NAME);
     statement.execute("GRANT ROLE " + PAR_ROLE_NAME + " TO GROUP " + PAR_GROUP_NAME);
-    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " (name string) PARTITIONED BY (home_planet string, diet string)");
-    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME
-        + " (name string) PARTITIONED BY (home_planet string, diet string)");
-    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " ADD PARTITION (home_planet='earth', diet='milk shakes')");
-    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " ADD PARTITION (home_planet='trapis-4', diet='sentient lifeforms with cheese')");
+    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " (name string) PARTITIONED BY (home_planet string, diet string)");
+    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " (name string) PARTITIONED BY (home_planet string, diet string)");
+    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " ADD PARTITION (home_planet='earth', diet='milk shakes')");
+    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " ADD PARTITION (home_planet='trapis-4', diet='sentient lifeforms with cheese')");
 
-    // grant proper privilege to output table
-    statement.execute(
-        "GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE "
-            + PAR_ROLE_NAME);
+    // grant property privilege to output table. Granting "ALL" as ALTER is not supported in CDH.
+    statement.execute("GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE " + PAR_ROLE_NAME);
+//    statement.execute("GRANT ALTER ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE " + PAR_ROLE_NAME);
 
     // move a partition from a source table to target table and alter each table's metadata.
     // ALTER TABLE <dest_table> EXCHANGE PARTITION (<[partial] partition spec>) WITH TABLE <src_table>
@@ -494,22 +489,16 @@ public class TestDbColumnLevelMetaDataOps extends AbstractTestWithStaticConfigur
     statement.execute("CREATE DATABASE " + PAR_DB_NAME);
     statement.execute("CREATE ROLE " + PAR_ROLE_NAME);
     statement.execute("GRANT ROLE " + PAR_ROLE_NAME + " TO GROUP " + PAR_GROUP_NAME);
-    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " (name string) PARTITIONED BY (home_planet string, diet string)");
-    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME
-        + " (name string) PARTITIONED BY (home_planet string, diet string)");
-    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " ADD PARTITION (home_planet='earth', diet='milk shakes')");
-    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME
-        + " ADD PARTITION (home_planet='trapis-4', diet='sentient lifeforms with cheese')");
+    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " (name string) PARTITIONED BY (home_planet string, diet string)");
+    statement.execute("CREATE TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " (name string) PARTITIONED BY (home_planet string, diet string)");
+    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " ADD PARTITION (home_planet='earth', diet='milk shakes')");
+    statement.execute("ALTER TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " ADD PARTITION (home_planet='trapis-4', diet='sentient lifeforms with cheese')");
 
-    // grant proper privilege to input table
-    statement.execute("GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " TO ROLE "
-        + PAR_ROLE_NAME);
-    // grant proper privilege to output table
-    statement.execute(
-        "GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE "
-            + PAR_ROLE_NAME);
+    // grant propert privilege to input table
+    statement.execute("GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_INPUT_TABLE_NAME + " TO ROLE " + PAR_ROLE_NAME);
+    // grant property privilege to output table.  Granting "ALL" as ALTER is not supported in CDH.
+    statement.execute("GRANT ALL ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE " + PAR_ROLE_NAME);
+   // statement.execute("GRANT ALTER ON TABLE " + PAR_DB_NAME + "." + PAR_OUTPUT_TABLE_NAME + " TO ROLE " + PAR_ROLE_NAME);
 
     // move a partition from a source table to target table and alter each table's metadata.
     // ALTER TABLE <dest_table> EXCHANGE PARTITION (<[partial] partition spec>) WITH TABLE <src_table>

@@ -55,27 +55,29 @@ public class TestOperationsPart1 extends AbstractTestWithStaticConfiguration {
     privileges.put("insert_db1", "server=server1->db=" + DB1 + "->action=insert");
     privileges.put("create_db1", "server=server1->db=" + DB1 + "->action=create");
     privileges.put("create_default", "server=server1->db=" + DEFAULT + "->action=create");
-    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=drop");
-    privileges.put("drop_default", "server=server1->db=" + DEFAULT + "->action=drop");
-    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=alter");
+    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=all");
+    privileges.put("drop_default", "server=server1->db=" + DEFAULT + "->action=all");
+    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=all");
     privileges.put("create_db2", "server=server1->db=" + DB2 + "->action=create");
     privileges.put("all_db2", "server=server1->db=" + DB2 + "->action=all");
 
     privileges.put("all_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("create_db1_tb1", "server=server1->db=" + DB1  + "->action=create");
-    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1  + "->action=drop");
+    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1  + "->action=all");
     privileges.put("select_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=select");
     privileges.put("insert_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=insert");
-    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=alter");
-    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=alter");
-    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=drop");
+    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=all");
+    privileges.put("index_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("lock_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("insert_db2_tb2", "server=server1->db=" + DB2 + "->table=tb2->action=insert");
     privileges.put("select_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=select");
     privileges.put("create_db1_view1", "server=server1->db=" + DB1  + "->action=create");
     privileges.put("all_db1_view1", "server=server1->db=" + DB1  + "->action=all");
-    privileges.put("drop_db1_view1", "server=server1->db=" + DB1  + "->action=drop");
+    privileges.put("drop_db1_view1", "server=server1->db=" + DB1  + "->action=all");
     privileges.put("select_db1_tb2", "server=server1->db=" + DB1 + "->table=tb2->action=select");
-    privileges.put("alter_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=alter");
+    privileges.put("alter_db1_view1", "server=server1->db=" + DB1  + "->table=view1->action=all");
   }
 
   @Before

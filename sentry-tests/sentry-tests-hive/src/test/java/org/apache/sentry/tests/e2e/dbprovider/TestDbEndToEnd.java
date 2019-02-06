@@ -26,7 +26,12 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
+
+import org.apache.hadoop.hive.SentryHiveConstants;
+import org.apache.hadoop.hive.ql.security.authorization.PrivilegeType;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.file.PolicyFile;
 import org.apache.sentry.tests.e2e.hive.AbstractTestWithStaticConfiguration;
@@ -243,5 +248,70 @@ public class TestDbEndToEnd extends AbstractTestWithStaticConfiguration {
         + "." + tableName1);
     statement.close();
     connection.close();
+  }
+
+  /**
+   * Test maskes sure that only actions listed in ALLOWED_PRIVS are allowed to be granted/revoked.
+   * @throws Exception
+   */
+
+  @Test
+  public void testGrantRevokeForSupportedDBActions() throws Exception {
+    ResultSet resultSet;
+    String tableName1 = "tb_1";
+
+    Connection connection = context.createConnection(ADMIN1);
+    Statement statement = context.createStatement(connection);
+
+    statement.execute("DROP DATABASE IF EXISTS " + DB2 + " CASCADE");
+    statement.execute("CREATE DATABASE " + DB2);
+    statement.execute("USE " + DB2);
+    statement.execute("DROP TABLE IF EXISTS " + DB2 + "." + tableName1);
+    statement.execute("create table " + DB2 + "." + tableName1
+            + " (under_col int comment 'the under column', value string)");
+
+    statement.execute("CREATE ROLE db_role");
+
+    for (PrivilegeType privType : SentryHiveConstants.ALLOWED_PRIVS)
+    {
+      statement.execute("GRANT " + privType.name() +" ON DATABASE " + DB1 + " TO ROLE db_role");
+      resultSet = statement.executeQuery("SHOW GRANT ROLE db_role");
+
+      assertTrue(resultSet.next());
+      assertEquals(DB1, resultSet.getString(1));
+      assertEquals("db_role", resultSet.getString(5));
+      assertEquals("ROLE", resultSet.getString(6));
+      if(!privType.name().equals("ALL")) {
+        assertEquals(privType.name(), resultSet.getString(7));
+      } else {
+        assertEquals("*", resultSet.getString(7));
+      }
+      statement.execute("REVOKE " + privType.name() + " ON DATABASE " + DB1 + " FROM ROLE db_role");
+      resultSet = statement.executeQuery("SHOW GRANT ROLE db_role");
+      assertResultSize(resultSet, 0);
+    }
+
+    Set<String> unSupportedAction = Sets.newHashSet("ALTER","DROP","UPDATE");
+    for( String action : unSupportedAction) {
+      boolean exceptionObserved = false;
+      try {
+        statement.execute("GRANT " + action + " ON DATABASE " + DB1 + " TO ROLE db_role");
+      } catch (Exception e) {
+        assertTrue(e.getMessage().contains("SemanticException"));
+        exceptionObserved = true;
+      }
+      assertTrue(exceptionObserved);
+    }
+
+    statement.close();
+    connection.close();
+  }
+
+  private void assertResultSize(ResultSet resultSet, int expected) throws SQLException {
+    int count = 0;
+    while(resultSet.next()) {
+      count++;
+    }
+    assertEquals(count, expected);
   }
 }

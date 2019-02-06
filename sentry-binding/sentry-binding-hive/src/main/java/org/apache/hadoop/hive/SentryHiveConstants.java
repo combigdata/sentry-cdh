@@ -21,14 +21,9 @@ import java.util.EnumSet;
 
 import org.apache.hadoop.hive.ql.security.authorization.PrivilegeType;
 
-public class SentryHiveConstants {
-
-
-  //CDH-28502: Disable fine Sentry fine grain DDL authorization for Hive in CDH 5.5
+public final class SentryHiveConstants {
   public static final EnumSet<PrivilegeType> ALLOWED_PRIVS = EnumSet.of(
-      PrivilegeType.ALL, PrivilegeType.SELECT, PrivilegeType.INSERT, PrivilegeType.CREATE,
-      PrivilegeType.ALTER_METADATA, PrivilegeType.DROP);
-
+          PrivilegeType.ALL, PrivilegeType.SELECT, PrivilegeType.INSERT, PrivilegeType.CREATE);
   public static final String PRIVILEGE_NOT_SUPPORTED = "Sentry does not support privilege: ";
   public static final String PARTITION_PRIVS_NOT_SUPPORTED = "Sentry does not support partition level authorization";
   public static final String GRANT_REVOKE_NOT_SUPPORTED_ON_OBJECT = "Sentry does not allow grant/revoke on: ";
