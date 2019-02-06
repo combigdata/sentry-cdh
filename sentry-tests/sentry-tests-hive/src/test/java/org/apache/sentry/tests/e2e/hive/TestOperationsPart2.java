@@ -60,18 +60,18 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     privileges.put("select_db1", "server=server1->db=" + DB1 + "->action=select");
     privileges.put("insert_db1", "server=server1->db=" + DB1 + "->action=insert");
     privileges.put("create_db1", "server=server1->db=" + DB1 + "->action=create");
-    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=drop");
-    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=alter");
+    privileges.put("drop_db1", "server=server1->db=" + DB1 + "->action=all");
+    privileges.put("alter_db1", "server=server1->db=" + DB1 + "->action=all");
     privileges.put("create_db2", "server=server1->db=" + DB2 + "->action=create");
 
     privileges.put("all_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("select_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=select");
     privileges.put("insert_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=insert");
-    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=alter");
-    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=alter");
-    privileges.put("index_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=index");
-    privileges.put("lock_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=lock");
-    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=drop");
+    privileges.put("alter_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("alter_db1_ptab", "server=server1->db=" + DB1 + "->table=ptab->action=all");
+    privileges.put("index_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("lock_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
+    privileges.put("drop_db1_tb1", "server=server1->db=" + DB1 + "->table=tb1->action=all");
     privileges.put("insert_db2_tb2", "server=server1->db=" + DB2 + "->table=tb2->action=insert");
     privileges.put("select_db1_view1", "server=server1->db=" + DB1 + "->table=view1->action=select");
 
@@ -238,10 +238,11 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
     exec(statement, "ALTER TABLE tb1 ADD IF NOT EXISTS PARTITION (b = '10') ");
 
     //Negative case
-    connection = context.createConnection(USER2_1);
-    statement = context.createStatement(connection);
-    exec(statement, "USE " + DB1);
-    assertSemanticException(statement, "ALTER TABLE tb1 DROP PARTITION (b = 10)");
+    // Disabling the check as ALTER PERMISSION is supported in CDH6.x
+//    connection = context.createConnection(USER2_1);
+//    statement = context.createStatement(connection);
+//    exec(statement, "USE " + DB1);
+//    assertSemanticException(statement, "ALTER TABLE tb1 DROP PARTITION (b = 10)");
 
     //Positive case
     connection = context.createConnection(USER1_1);
@@ -272,7 +273,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
         .addRolesToGroup(USERGROUP1, "create_db3")
         .addRolesToGroup(USERGROUP1, "all_db2_table3")
         .addPermissionsToRole("all_db1", "server=server1->db=" + DB1 + "->action=all")
-        .addPermissionsToRole("drop_db2", "server=server1->db=" + DB2 + "->action=drop")
+        .addPermissionsToRole("drop_db2", "server=server1->db=" + DB2 + "->action=all")
         .addPermissionsToRole("create_db3", "server=server1->db=" + DB3 + "->action=create")
         .addPermissionsToRole("all_db2_table3", "server=server1->db=" + DB2 + "->table=TAB_3" + "->action=all")
         .setUserGroupMapping(StaticUserGroup.getStaticMapping());
@@ -295,6 +296,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
    1. HiveOperation.ALTERTABLE_RENAME
    */
   @Test
+  @Ignore
   public void renameTableNegative() throws Exception {
     adminCreate(DB1, "TAB_1");
     adminCreate(DB2, "TAB_3");
@@ -311,7 +313,7 @@ public class TestOperationsPart2 extends AbstractTestWithStaticConfiguration {
         .addRolesToGroup(USERGROUP1, "create_db3")
         .addRolesToGroup(USERGROUP1, "all_db2_table3")
         .addPermissionsToRole("all_db1", "server=server1->db=" + DB1 + "->action=all")
-        .addPermissionsToRole("drop_db2", "server=server1->db=" + DB2 + "->action=drop")
+        .addPermissionsToRole("drop_db2", "server=server1->db=" + DB2 + "->action=all")
         .addPermissionsToRole("create_db3", "server=server1->db=" + DB3 + "->action=create")
         .addPermissionsToRole("all_db2_table3", "server=server1->db=" + DB2 + "->table=TAB_3" + "->action=all")
         .setUserGroupMapping(StaticUserGroup.getStaticMapping());
