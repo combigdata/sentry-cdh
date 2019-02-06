@@ -331,8 +331,9 @@ public class TestDbPrivilegeCleanupOnDrop extends TestHDFSIntegrationBase {
     // Grant SELECT/INSERT/DROP/ALTER to TABLE t1
     statement.execute("GRANT SELECT ON TABLE t1 TO ROLE user_role");
     statement.execute("GRANT INSERT ON TABLE t1 TO ROLE user_role");
-    statement.execute("GRANT ALTER ON TABLE t1 TO ROLE user_role");
-    statement.execute("GRANT DROP ON TABLE t1 TO ROLE user_role");
+    statement.execute("GRANT ALL ON TABLE t1 TO ROLE user_role");
+    // DROP is not supported in CDH
+    // statement.execute("GRANT DROP ON TABLE t1 TO ROLE user_role");
     // For rename, grant DROP/CREATE to DB1
     statement.execute("GRANT DROP ON DATABASE " + DB1 + " TO ROLE user_role");
     statement.execute("GRANT CREATE ON DATABASE " + DB1 + " TO ROLE user_role");
