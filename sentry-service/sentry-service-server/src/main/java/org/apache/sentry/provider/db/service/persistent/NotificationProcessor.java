@@ -777,7 +777,11 @@ final class NotificationProcessor {
         paths.add(pathTree);
       }
     }
-    sentryStore.addAuthzPathsMapping(authzObj, paths, update);
+    if(!paths.isEmpty()) {
+      sentryStore.addAuthzPathsMapping(authzObj, paths, update);
+    } else {
+      LOGGER.info("Received empty paths for {}, not updating sentry store", authzObj);
+    }
   }
 
   /**
@@ -813,7 +817,11 @@ final class NotificationProcessor {
         paths.add(pathTree);
       }
     }
-    sentryStore.deleteAuthzPathsMapping(authzObj, paths, update);
+    if(!paths.isEmpty()) {
+      sentryStore.deleteAuthzPathsMapping(authzObj, paths, update);
+    } else {
+      LOGGER.info("Received empty paths for {}, not updating sentry store", authzObj);
+    }
   }
 
   /**
