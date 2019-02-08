@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Contains tests for meta data operations with column level privileges
  */
+@Ignore //Due to CDH-77602
 public class TestDbColumnLevelMetaDataOps extends AbstractTestWithStaticConfiguration {
   private static final Logger LOGGER = LoggerFactory.
           getLogger(TestDbColumnLevelMetaDataOps.class);

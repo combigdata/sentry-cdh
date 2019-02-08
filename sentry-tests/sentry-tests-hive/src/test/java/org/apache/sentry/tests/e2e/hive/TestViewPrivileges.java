@@ -36,6 +36,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.Ignore;
 
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
@@ -68,6 +69,7 @@ public class TestViewPrivileges extends AbstractTestWithHiveServer {
   }
 
   @Test
+  @Ignore //Due to CDH-77602
   public void testPartitioned() throws Exception {
     // copy data file to test dir
     File dataDir = context.getDataDir();

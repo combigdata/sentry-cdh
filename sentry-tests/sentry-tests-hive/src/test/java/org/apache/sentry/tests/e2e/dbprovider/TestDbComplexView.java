@@ -38,7 +38,7 @@ import org.junit.Test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+@Ignore //Due to CDH-77602
 public class TestDbComplexView extends AbstractTestWithStaticConfiguration {
 
     private static final Logger LOGGER = LoggerFactory
