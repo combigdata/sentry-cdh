@@ -81,7 +81,7 @@ limitations under the License.
     <joda-time.version>${cdh.joda-time.version}</joda-time.version>
     <junit.version>4.10</junit.version>
     <kafka.version>${cdh.kafka.version}</kafka.version>
-    <libfb303.version>${cdh.thrift.version}</libfb303.version>
+    <libfb303.version>${cdh.libfb303.version}</libfb303.version>
     <libthrift.version>${cdh.thrift.version}</libthrift.version>
     <lombok.version>1.18.2</lombok.version>
     <log4j.version>${cdh.log4j.version}</log4j.version>
