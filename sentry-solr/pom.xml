@@ -29,6 +29,10 @@ limitations under the License.
   <name>Sentry Solr</name>
   <packaging>pom</packaging>
 
+  <properties>
+    <junit.version>4.12</junit.version>
+  </properties>
+
   <modules>
     <module>solr-sentry-handlers</module>
   </modules>
