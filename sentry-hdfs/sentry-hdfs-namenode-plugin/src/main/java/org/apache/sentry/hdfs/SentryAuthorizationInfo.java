@@ -234,6 +234,10 @@ public class SentryAuthorizationInfo implements Runnable {
       success = false;
       LOG.warn("Failed to update, will retry in [{}]ms, error: ", 
           new Object[]{ retryWaitMillisec, ex.getMessage(), ex});
+    } catch (Throwable t) {
+      LOG.error("Received a throwable while refreshing the cache", t);
+      System.out.println("Received a throwable  while refreshing the cache " + t);
+      throw t;
     }
     if (success) {
       // we reset lastUpdate only on successful pulling

@@ -203,6 +203,7 @@ public class HMSPaths implements AuthzPaths {
     }
 
     Entry removeChild(String pathElement) {
+      LOG.debug("[removeChild]Removing {} from children", pathElement);
       return children.remove(pathElement);
     }
 
@@ -456,6 +457,10 @@ public class HMSPaths implements AuthzPaths {
     }
 
     public void deleteAuthzObject(String authzObj) {
+      LOG.debug("[deleteAuthzObject] Removing authObj:{} from path {}", authzObj, this.toString());
+      if(!getAuthzObjs().contains(authzObj)) {
+        return;
+      }
       if (getParent() != null) {
         if (!hasChildren()) {
 
@@ -474,9 +479,12 @@ public class HMSPaths implements AuthzPaths {
           // change it to be a dir entry. And remove the authzObj on
           // the path entry.
           if (getType() == EntryType.AUTHZ_OBJECT) {
-            setType(EntryType.DIR);
             if (authzObjs != null) {
               removeAuthzObj(authzObj);
+            }
+            if(getAuthzObjsSize() == 0) {
+              LOG.debug("Entry with path: {} is changed to DIR", this.getFullPath());
+              setType(EntryType.DIR);
             }
           }
         }
@@ -771,13 +779,13 @@ public class HMSPaths implements AuthzPaths {
     }
     Set<Entry> entries = authzObjToEntries.get(authzObj);
     if (entries != null) {
-      Set<Entry> toDelEntries = new HashSet<Entry>(authzObjPathElements.size());
+      LOG.debug("[deletePathsFromAuthzObject] Paths for {} before delete are {}", authzObj, entries.toString());
       for (List<String> pathElements : authzObjPathElements) {
         Entry entry = root.find(
             pathElements.toArray(new String[pathElements.size()]), false);
         if (entry != null) {
+          entries.remove(entry);
           entry.deleteAuthzObject(authzObj);
-          toDelEntries.add(entry);
         } else {
           LOG.warn(String.format("%s deletePathsFromAuthzObject(%s, %s):" +
             " Path %s was not deleted from AuthzObject, path not registered." +
@@ -785,7 +793,11 @@ public class HMSPaths implements AuthzPaths {
             this, authzObj, assemblePaths(authzObjPathElements), pathElements));
         }
       }
-      entries.removeAll(toDelEntries);
+      LOG.debug("[deletePathsFromAuthzObject] Paths for {} after are {}", authzObj, entries.toString());
+      if(entries.size() == 0) {
+        authzObjToEntries.remove(authzObj);
+        LOG.debug("[deletePathsFromAuthzObject] Removing the mapping for {} as the entries are stale", authzObj);
+      }
     } else {
       LOG.warn(String.format("%s deletePathsFromAuthzObject(%s, %s):" +
         " Path was not deleted from AuthzObject, could not find key in authzObjToPath",
