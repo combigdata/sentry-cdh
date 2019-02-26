@@ -207,12 +207,11 @@ public class SentryMetaStoreFilterHook implements MetaStoreFilterHook {
   private List<String> filterDb(List<String> dbList) {
     // If the user is part of the Sentry service user list, then skip the authorization and
     // do not filter the objects.
-    String userName = authzBindingFactory.getUserName();
-    if (!needsAuthorization(userName)) {
+    if (!needsAuthorization(authzBindingFactory.getUserName())) {
       return dbList;
     }
 
-    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding(userName)) {
+    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding()) {
       MetastoreAuthzObjectFilter<String> filter = new MetastoreAuthzObjectFilter<>(authzBinding,
         new ObjectExtractor<String>() {
           @Override
@@ -243,12 +242,11 @@ public class SentryMetaStoreFilterHook implements MetaStoreFilterHook {
   private List<String> filterTab(String dbName, List<String> tabList) {
     // If the user is part of the Sentry service user list, then skip the authorization and
     // do not filter the objects.
-    String userName = authzBindingFactory.getUserName();
-    if (!needsAuthorization(userName)) {
+    if (!needsAuthorization(authzBindingFactory.getUserName())) {
       return tabList;
     }
 
-    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding(userName)) {
+    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding()) {
       MetastoreAuthzObjectFilter<String> filter = new MetastoreAuthzObjectFilter<>(authzBinding,
         new ObjectExtractor<String>() {
           @Override
@@ -279,12 +277,11 @@ public class SentryMetaStoreFilterHook implements MetaStoreFilterHook {
   private List<Table> filterTab(List<Table> tabList) {
     // If the user is part of the Sentry service user list, then skip the authorization and
     // do not filter the objects.
-    String userName = authzBindingFactory.getUserName();
-    if (!needsAuthorization(userName)) {
+    if (!needsAuthorization(authzBindingFactory.getUserName())) {
       return tabList;
     }
 
-    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding(userName)) {
+    try (HiveAuthzBinding authzBinding = getHiveAuthzBinding()) {
       MetastoreAuthzObjectFilter<Table> filter = new MetastoreAuthzObjectFilter<>(authzBinding,
         new ObjectExtractor<Table>() {
           @Override
@@ -306,17 +303,14 @@ public class SentryMetaStoreFilterHook implements MetaStoreFilterHook {
   }
 
   /**
-   * load Hive auth provider with cache
-   * @param userName the name of the user whose privileges will be cached
+   * load Hive auth provider
    * @return
    * @throws MetaException
    */
-  private HiveAuthzBinding getHiveAuthzBinding(String userName) throws MetaException {
+  private HiveAuthzBinding getHiveAuthzBinding() throws MetaException {
     if (hiveAuthzBinding == null) {
       try {
         hiveAuthzBinding = authzBindingFactory.fromMetaStoreConf(hiveConf, authzConf);
-        hiveAuthzBinding = MetastoreAuthzBindingBase
-            .getHiveBindingWithPrivilegeCache(hiveAuthzBinding, userName);
       } catch (Exception e) {
         throw new MetaException("The Sentry/Hive authz binding could not be created: "
           + e.getMessage());
