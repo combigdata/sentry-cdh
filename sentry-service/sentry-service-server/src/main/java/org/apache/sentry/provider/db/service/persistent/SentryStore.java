@@ -1107,7 +1107,8 @@ public class SentryStore implements SentryStoreInterface {
       throw new SentryInvalidInputException("cannot revoke URI privileges from Null or EMPTY location");
     }
 
-    MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm);
+    // make sure to drop all equivalent privileges
+    MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm, true);
     if (mPrivilege == null) {
       mPrivilege = convertToMSentryPrivilege(tPrivilege);
     } else {
@@ -1495,6 +1496,11 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm) {
+    return getMSentryPrivilege(tPriv, pm, false);
+  }
+
+  private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm,
+      boolean getAllEquivalent) {
     Boolean grantOption = null;
     if (tPriv.getGrantOption().equals(TSentryGrantOption.TRUE)) {
       grantOption = true;
@@ -1508,13 +1514,29 @@ public class SentryStore implements SentryStoreInterface {
             .add(TABLE_NAME, tPriv.getTableName())
             .add(COLUMN_NAME, tPriv.getColumnName())
             .add(URI, tPriv.getURI(), true)
-            .addObject(GRANT_OPTION, grantOption)
-            .add(ACTION, tPriv.getAction());
+            .addObject(GRANT_OPTION, grantOption);
+
+    if (getAllEquivalent) {
+      // make sure to get all equivalent actions
+      QueryParamBuilder.addActionFilter(paramBuilder, getAllEquivalentActions(tPriv.getAction()));
+    } else {
+      paramBuilder.add(ACTION, tPriv.getAction());
+    }
 
     Query query = pm.newQuery(MSentryPrivilege.class);
     query.setUnique(true);
     query.setFilter(paramBuilder.toString());
     return (MSentryPrivilege)query.executeWithMap(paramBuilder.getArguments());
+  }
+
+  private Set<String> getAllEquivalentActions(String inputAction) {
+    if (AccessConstants.ALL.equalsIgnoreCase(inputAction) ||
+        AccessConstants.ACTION_ALL.equalsIgnoreCase(inputAction)) {
+      return Sets.newHashSet(AccessConstants.ALL, AccessConstants.ACTION_ALL,
+          AccessConstants.ACTION_ALL.toLowerCase());
+    }
+
+    return Sets.newHashSet(inputAction);
   }
 
   /**
