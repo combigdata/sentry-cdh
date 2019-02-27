@@ -277,7 +277,7 @@ limitations under the License.
           <!-- Currently SOLR E2E tests don't work if restarted after the failure -->
           <rerunFailingTestsCount>0</rerunFailingTestsCount>
           <systemPropertyVariables>
-            <test.solr.allowed.securerandom>NativePRNG</test.solr.allowed.securerandom>
+            <java.security.egd>file:/dev/./urandom</java.security.egd> <!-- See SOLR-10338 -->
             <!-- Solr test framework randomizes the locale configuration which sometimes
                  result in test failures due to derby initialization errors (Ref: LUCENE-8009).
                  To reduce the flakiness of the unit tests, setting the locale explicitly.
