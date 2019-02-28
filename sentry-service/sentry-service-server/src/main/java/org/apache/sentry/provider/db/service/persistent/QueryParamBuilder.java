@@ -31,7 +31,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -342,25 +341,6 @@ public class QueryParamBuilder {
     }
     paramBuilder.newChild().addSet("user.userName == ", userNames, false);
     paramBuilder.addString("users.contains(user)");
-    return paramBuilder;
-  }
-
-  /**
-   * Add common filter for set of paths. This is used to simplify creating filters for
-   * a collections of paths
-   * @param paramBuilder paramBuilder for parameters
-   * @param paths set paths
-   * @return paramBuilder supplied or a new one if the supplied one is null.
-   */
-  public static QueryParamBuilder addPathFilter(QueryParamBuilder paramBuilder,
-                                                 Collection<String> paths) {
-    if (paramBuilder == null) {
-      paramBuilder = new QueryParamBuilder();
-    }
-    if (paths == null || paths.isEmpty()) {
-      return paramBuilder;
-    }
-    paramBuilder.newChild().addSet("this.path == ", paths, false);
     return paramBuilder;
   }
 

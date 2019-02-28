@@ -19,7 +19,6 @@
 package org.apache.sentry.provider.db.service.persistent;
 
 import java.io.File;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,7 +39,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.google.common.collect.Lists;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
@@ -2524,69 +2522,8 @@ public class TestSentryStore extends org.junit.Assert {
     assertTrue(CollectionUtils.isEqualCollection(Lists.newArrayList("/user/hive/warehouse/db2.db/table2.1",
         "/user/hive/warehouse/db2.db/table2.3"),
         pathImage.get("db2.table2")));
-    assertEquals(6, sentryStore.getPathCount());
+    assertEquals(6, sentryStore.getMPaths().size());
     assertEquals(notificationID, savedNotificationID);
-  }
-
-  @Test
-  public void testAddAuthzPathsMapping() throws Exception {
-    Set<MPath> paths;
-    // Persist an empty image so that we can add paths to it.
-    sentryStore.persistFullPathsImage(new HashMap<String, Collection<String>>(), 0);
-
-    // Check the latest persisted ID matches to both the path updates
-    long latestID = sentryStore.getCurrentAuthzPathsSnapshotID();
-
-
-    // Persist the path
-    sentryStore.addAuthzPathsMapping("db1.tb1", Arrays.asList("/hive/db1/tb1"), null);
-    paths = sentryStore.getMAuthzPaths(latestID, "db1.tb1");
-    // Verify that mapping is been added
-    assertEquals(paths.size(), 1);
-    assertTrue(paths.stream().anyMatch(x -> x.getPath().equalsIgnoreCase("/hive/db1/tb1")));
-
-    // Add new path to an existing mapping
-    sentryStore.addAuthzPathsMapping("db1.tb1", Arrays.asList("/hive/db1/tb1/par1"), null);
-    paths = sentryStore.getMAuthzPaths(latestID, "db1.tb1");
-    // Verify that mapping is been updated with the new path
-    assertEquals(paths.size(), 2);
-    assertTrue(paths.stream().anyMatch(x -> x.getPath().equalsIgnoreCase("/hive/db1/tb1/par1")));
-
-    // Add multiples path to an existing mapping
-    sentryStore.addAuthzPathsMapping("db1.tb1", Arrays.asList("/hive/db1/tb1/par2","/hive/db1/tb1/par3"), null);
-    paths = sentryStore.getMAuthzPaths(latestID, "db1.tb1");
-    // Verify that mapping is been updated with the new path
-    assertEquals(paths.size(), 4);
-    assertTrue(paths.stream().anyMatch(x -> x.getPath().equalsIgnoreCase("/hive/db1/tb1/par2")));
-    assertTrue(paths.stream().anyMatch(x -> x.getPath().equalsIgnoreCase("/hive/db1/tb1/par3")));
-
-    //Add null paths to an existing mapping and verify that there are no exceptions
-    try {
-      sentryStore.addAuthzPathsMapping("db1.tb1", null, null);
-    } catch (Exception e) {
-      fail("Exception occurred while adding mapping with null paths");
-    }
-
-    //Add new mapping with null paths and verify that there are no exceptions
-    try {
-      sentryStore.addAuthzPathsMapping("db1.tb5", null, null);
-    } catch (Exception e) {
-      fail("Exception occurred while adding mapping with null paths");
-    }
-
-    //Add empty paths collection to existing mapping verify that there are no exceptions
-    try {
-      sentryStore.addAuthzPathsMapping("db1.tb6", Collections.EMPTY_SET, null);
-    } catch (Exception e) {
-      fail("Exception occurred while adding mapping with empty path collection");
-    }
-
-    //Add new mapping with empty paths collection and verify that there are no exceptions
-    try {
-      sentryStore.addAuthzPathsMapping("db1.tb1", Collections.EMPTY_SET, null);
-    } catch (Exception e) {
-      fail("Exception occurred while adding mapping with empty path collection");
-    }
   }
 
   @Test
@@ -2804,24 +2741,6 @@ public class TestSentryStore extends org.junit.Assert {
     sentryStore.deleteAllAuthzPathsMapping("db2.table", null);
     // Verify the Path count
     assertEquals(0, sentryStore.getCount(MPath.class).intValue());
-
-    // Add a mapping to two paths
-    sentryStore.addAuthzPathsMapping("db1.table",
-            Sets.newHashSet("db1/tbl1", "db1/tbl2"), null);
-    // deleting the mapping with paths as null and verifying that all the paths are deleted.
-    sentryStore.deleteAuthzPathsMapping("db1.table", null, null);
-    // Verify the Path count
-    assertEquals(0, sentryStore.getCount(MPath.class).intValue());
-
-    // Add a mapping to two paths
-    sentryStore.addAuthzPathsMapping("db1.table",
-            Sets.newHashSet("db1/tbl1", "db1/tbl2"), null);
-    // deleting the mapping with paths as empty set and verifying that all the paths are deleted.
-    sentryStore.deleteAuthzPathsMapping("db1.table", Collections.EMPTY_SET, null);
-    // Verify the Path count
-    assertEquals(0, sentryStore.getCount(MPath.class).intValue());
-
-
   }
 
   @Test
@@ -4272,39 +4191,30 @@ public class TestSentryStore extends org.junit.Assert {
   @Test
   public void testPersistFullPathsImageWithHugeData() throws Exception {
     Map<String, Collection<String>> authzPaths = new HashMap<>();
-    String[] prefixes = {"/user/hive/warehouse/"};
-    int dbCount = 10, tableCount = 10, partitionCount = 10, prefixSize;
-    prefixSize = StringUtils.countMatches(prefixes[0], "/");
-
+    String[] prefixes = {"/user/hive/warehouse"};
     // Makes sure that authorizable object could be associated
     // with different paths and can be properly persisted into database.
-    for(int db_index = 1 ; db_index <= dbCount; db_index++) {
+    for(int db_index = 1 ; db_index <= 10; db_index++) {
       String db_name = "db" + db_index;
-      for( int table_index = 1; table_index <= tableCount; table_index++) {
+      for( int table_index = 1; table_index <= 15; table_index++) {
         Set<String> paths = Sets.newHashSet();
         String table_name = "tb" + table_index;
-        String location = prefixes[0] + db_name + "/" + table_name;
-        paths.add(location);
-        for (int part_index = 1; part_index <= partitionCount; part_index++) {
+        String location = "/u/h/w/" + db_name + "/" + table_name;
+        for (int part_index = 1; part_index <= 30; part_index++) {
           paths.add(location + "/" + part_index);
         }
         authzPaths.put(db_name+table_name, paths);
       }
     }
     long notificationID = 110000;
-    LOGGER.debug("Before " + Instant.now());
     sentryStore.persistFullPathsImage(authzPaths, notificationID);
-    LOGGER.debug("After " + Instant.now());
     PathsUpdate pathsUpdate = sentryStore.retrieveFullPathsImageUpdate(prefixes);
-    assertTrue(pathsUpdate.hasFullImage());
     long savedNotificationID = sentryStore.getLastProcessedNotificationID();
     assertEquals(1, pathsUpdate.getImgNum());
     TPathsDump pathDump = pathsUpdate.toThrift().getPathsDump();
     assertNotNull(pathDump);
     Map<Integer, TPathEntry> nodeMap = pathDump.getNodeMap();
-    int nodeCount = prefixSize + dbCount + (dbCount * tableCount) +
-            (dbCount * tableCount * partitionCount);
-    assertTrue(nodeMap.size()  == nodeCount);
+    assertTrue(nodeMap.size() > 0);
     assertEquals(notificationID, savedNotificationID);
   }
 
