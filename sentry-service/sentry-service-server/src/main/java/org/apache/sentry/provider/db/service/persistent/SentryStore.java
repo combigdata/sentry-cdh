@@ -1102,24 +1102,33 @@ public class SentryStore implements SentryStoreInterface {
     }
 
     // make sure to drop all equivalent privileges
-    MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm, true);
+    LOGGER.debug("tPrivilege to drop: {}", tPrivilege.toString());
+    MSentryPrivilege mPrivilege = getMSentryPrivilege(tPrivilege, pm);
     if (mPrivilege == null) {
+      LOGGER.debug("mPrivilege is null");
       mPrivilege = convertToMSentryPrivilege(tPrivilege);
     } else {
+      LOGGER.debug("mPrivilege is found: {}", mPrivilege.toString());
       mPrivilege = pm.detachCopy(mPrivilege);
     }
 
     Set<MSentryPrivilege> privilegeGraph = new HashSet<>();
-    if (mPrivilege.getGrantOption() != null) {
-      privilegeGraph.add(mPrivilege);
-    } else {
-      MSentryPrivilege mTure = new MSentryPrivilege(mPrivilege);
-      mTure.setGrantOption(true);
-      privilegeGraph.add(mTure);
-      MSentryPrivilege mFalse = new MSentryPrivilege(mPrivilege);
-      mFalse.setGrantOption(false);
-      privilegeGraph.add(mFalse);
+    Set<String> allEquivalentActions = getAllEquivalentActions(mPrivilege.getAction());
+    for (String equivalentAction : allEquivalentActions) {
+      MSentryPrivilege newActionPrivilege = new MSentryPrivilege(mPrivilege);
+      newActionPrivilege.setAction(equivalentAction);
+      if (newActionPrivilege.getGrantOption() != null) {
+        privilegeGraph.add(newActionPrivilege);
+      } else {
+        MSentryPrivilege mTure = new MSentryPrivilege(newActionPrivilege);
+        mTure.setGrantOption(true);
+        privilegeGraph.add(mTure);
+        MSentryPrivilege mFalse = new MSentryPrivilege(newActionPrivilege);
+        mFalse.setGrantOption(false);
+        privilegeGraph.add(mFalse);
+      }
     }
+
     // Get the privilege graph
     populateChildren(pm, type, Sets.newHashSet(entityName), mPrivilege, privilegeGraph);
     for (MSentryPrivilege childPriv : privilegeGraph) {
@@ -1490,11 +1499,6 @@ public class SentryStore implements SentryStoreInterface {
   }
 
   private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm) {
-    return getMSentryPrivilege(tPriv, pm, false);
-  }
-
-  private MSentryPrivilege getMSentryPrivilege(TSentryPrivilege tPriv, PersistenceManager pm,
-      boolean getAllEquivalent) {
     Boolean grantOption = null;
     if (tPriv.getGrantOption().equals(TSentryGrantOption.TRUE)) {
       grantOption = true;
@@ -1508,14 +1512,10 @@ public class SentryStore implements SentryStoreInterface {
             .add(TABLE_NAME, tPriv.getTableName())
             .add(COLUMN_NAME, tPriv.getColumnName())
             .add(URI, tPriv.getURI(), true)
+            .add(ACTION, tPriv.getAction())
             .addObject(GRANT_OPTION, grantOption);
 
-    if (getAllEquivalent) {
-      // make sure to get all equivalent actions
-      QueryParamBuilder.addActionFilter(paramBuilder, getAllEquivalentActions(tPriv.getAction()));
-    } else {
-      paramBuilder.add(ACTION, tPriv.getAction());
-    }
+    LOGGER.debug("getMSentryPrivilege query filter: {}", paramBuilder.toString());
 
     Query query = pm.newQuery(MSentryPrivilege.class);
     query.setUnique(true);
