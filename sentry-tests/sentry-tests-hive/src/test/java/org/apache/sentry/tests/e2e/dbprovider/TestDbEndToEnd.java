@@ -17,7 +17,9 @@
 
 package org.apache.sentry.tests.e2e.dbprovider;
 
+import static org.hamcrest.Matchers.equalToIgnoringCase;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -282,7 +284,8 @@ public class TestDbEndToEnd extends AbstractTestWithStaticConfiguration {
       assertEquals("db_role", resultSet.getString(5));
       assertEquals("ROLE", resultSet.getString(6));
       if(!privType.name().equals("ALL")) {
-        assertEquals(privType.name(), resultSet.getString(7));
+        assertThat(resultSet.getString(7), equalToIgnoringCase(privType.name()));
+
       } else {
         assertEquals("*", resultSet.getString(7));
       }
