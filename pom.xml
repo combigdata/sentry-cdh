@@ -63,7 +63,7 @@ limitations under the License.
     <fest.reflect.version>1.4.1</fest.reflect.version>
     <log4j.version>1.2.16</log4j.version>
     <guava.version>11.0.2</guava.version>
-    <shiro.version>1.2.1</shiro.version>
+    <shiro.version>1.4.2</shiro.version>
     <slf4j.version>1.6.1</slf4j.version>
     <derby.version>10.4.2.0</derby.version>
     <libthrift.version>0.9.0-cdh4-1</libthrift.version>
