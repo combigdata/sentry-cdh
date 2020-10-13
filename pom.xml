@@ -59,7 +59,7 @@ limitations under the License.
     <maven.compile.target>1.6</maven.compile.target>
     <hive.version>0.10.0-cdh4.4.0-SNAPSHOT</hive.version>
     <hadoop.version>2.0.0-cdh4.4.0-SNAPSHOT</hadoop.version>
-    <junit.version>4.9</junit.version>
+    <junit.version>4.13.1</junit.version>
     <fest.reflect.version>1.4.1</fest.reflect.version>
     <log4j.version>1.2.16</log4j.version>
     <guava.version>11.0.2</guava.version>
